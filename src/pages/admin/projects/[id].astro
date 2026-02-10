@@ -1,6 +1,4 @@
 ---
-export const prerender = false;
-
 import Layout from '../../../layouts/Layout.astro';
 import { db } from '../../../firebase/client';
 import { doc, getDoc } from 'firebase/firestore';
@@ -13,17 +11,20 @@ if (id) {
   try {
     const projectRef = doc(db, 'projects', id);
     const projectSnap = await getDoc(projectRef);
+
     if (projectSnap.exists()) {
-      project = projectSnap.data();
+      project = { ...projectSnap.data(), id: projectSnap.id };
     } else {
-      error = "المشروع المطلوب غير موجود أو تم حذفه.";
+      error = 'لم يتم العثور على المشروع المحدد.';
+      Astro.response.status = 404; // Set HTTP status to 404 Not Found
     }
   } catch (e) {
     console.error("Error fetching project:", e);
-    error = "حدث خطأ أثناء محاولة جلب بيانات المشروع.";
+    error = 'حدث خطأ أثناء جلب بيانات المشروع. يرجى المحاولة مرة أخرى.';
+    Astro.response.status = 500; // Set HTTP status to 500 Internal Server Error
   }
 } else {
-  error = "لم يتم تحديد معرّف المشروع للبحث عنه.";
+  error = 'معرّف المشروع غير موجود في الرابط.';
 }
 ---
 <Layout title={project ? `تفاصيل: ${project.name}` : 'تفاصيل المشروع'}>
