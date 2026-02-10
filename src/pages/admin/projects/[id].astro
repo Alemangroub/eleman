@@ -1,0 +1,151 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { db } from '../../../firebase/client';
+import { doc, getDoc } from 'firebase/firestore';
+
+const { id } = Astro.params;
+let project = null;
+let error = null;
+
+if (id) {
+  try {
+    const projectRef = doc(db, 'projects', id);
+    const projectSnap = await getDoc(projectRef);
+
+    if (projectSnap.exists()) {
+      project = { ...projectSnap.data(), id: projectSnap.id };
+    } else {
+      error = 'لم يتم العثور على المشروع المحدد.';
+      Astro.response.status = 404; // Set HTTP status to 404 Not Found
+    }
+  } catch (e) {
+    console.error("Error fetching project:", e);
+    error = 'حدث خطأ أثناء جلب بيانات المشروع. يرجى المحاولة مرة أخرى.';
+    Astro.response.status = 500; // Set HTTP status to 500 Internal Server Error
+  }
+} else {
+  error = 'معرّف المشروع غير موجود في الرابط.';
+}
+---
+<Layout title={project ? `تفاصيل: ${project.name}` : 'تفاصيل المشروع'}>
+  <main class="project-detail-page">
+    <div class="container">
+      <div class="page-header">
+        <h1>تفاصيل المشروع</h1>
+        <a href="/admin/projects" class="btn btn-secondary">العودة لقائمة المشاريع</a>
+      </div>
+
+      {error && (
+        <div class="error-container">
+          <p class="error-message">{error}</p>
+        </div>
+      )}
+
+      {project && (
+        <div class="project-details-card">
+          <div class="detail-item">
+            <span class="label">اسم المشروع</span>
+            <span class="value">{project.name}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">موقع المشروع</span>
+            <span class="value">{project.location}</span>
+          </div>
+          <div class="detail-item description">
+            <span class="label">وصف المشروع</span>
+            <p class="value">{project.description}</p>
+          </div>
+          <hr />
+          <h2 class="supervisor-title">بيانات المشرف</h2>
+          <div class="detail-item">
+            <span class="label">اسم المشرف</span>
+            <span class="value">{project.supervisor}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">البريد الإلكتروني للمشرف</span>
+            <span class="value">{project.supervisorEmail}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .project-detail-page {
+    padding: 3rem 1.5rem;
+    background-color: #f4f7f6;
+    min-height: 100vh;
+    direction: rtl;
+    font-family: 'Cairo', sans-serif;
+  }
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  .page-header h1 {
+    font-size: 2.2rem;
+    color: #333;
+    font-weight: 900;
+  }
+  .project-details-card {
+    background-color: #fff;
+    padding: 2rem 2.5rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.07);
+  }
+  .detail-item {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1.5rem;
+  }
+  .detail-item .label {
+    font-weight: 700;
+    color: #3f51b5;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+  }
+  .detail-item .value {
+    color: #555;
+    font-size: 1.1rem;
+    line-height: 1.6;
+  }
+  .detail-item.description p {
+      margin: 0;
+      white-space: pre-wrap; /* To respect newlines in description */
+  }
+  hr {
+      border: 0;
+      border-top: 1px solid #e0e0e0;
+      margin: 2rem 0;
+  }
+  .supervisor-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #333;
+      margin-bottom: 1.5rem;
+  }
+  .error-container {
+    text-align: center;
+    padding: 2rem;
+    background-color: #fff3f3;
+    border: 1px solid #ffcccc;
+    border-radius: 8px;
+  }
+  .error-message {
+    font-size: 1.2rem;
+    color: #d9534f;
+    margin: 0;
+  }
+  .btn { display: inline-block; padding: 0.7rem 1.3rem; color: #fff; text-decoration: none; border-radius: 8px; font-size: 0.95rem; font-weight: 700; transition: all 0.2s ease-in-out; text-align: center; border: 1px solid transparent; cursor: pointer; }
+  .btn-secondary { background-color: #6c757d; border-color: #6c757d; }
+  .btn-secondary:hover { background-color: #5a6268; border-color: #5a6268; }
+</style>
