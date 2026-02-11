@@ -22,4 +22,4 @@ try {
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-export { auth, db, app };
+export { auth, db, app, firebaseConfig }; // Fixed: Export firebaseConfig
