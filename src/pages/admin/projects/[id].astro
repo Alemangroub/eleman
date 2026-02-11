@@ -1,114 +1,200 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import { db } from "../../../firebase/admin"; // Import the server-side Firebase connection
+import { db } from "../../../firebase/admin";
 
-/**
- * This server-side function runs at build time. Its purpose is to fetch all 
- * projects from Firebase and generate a unique, static page for each one.
- */
+// This function is required for Astro's static site generation to find all dynamic routes.
 export async function getStaticPaths() {
     try {
-        // Fetch all documents from the 'projects' collection in Firestore.
         const projectsSnapshot = await db.collection('projects').get();
-
-        // If the snapshot is empty, log it and return an empty array.
         if (projectsSnapshot.empty) {
-            console.log("No projects found in Firestore. No project pages will be generated.");
+            console.warn('⚠️ No projects found in Firestore. The page will not be generated.');
             return [];
         }
-
-        // Map the Firebase documents to an array that Astro can use.
         const projects = projectsSnapshot.docs.map(doc => ({
-            params: { id: doc.id }, // This will be the URL slug, e.g., /admin/projects/some-project-id
-            props: { project: doc.data() } // This is the data passed to the page component below.
+            params: { id: doc.id },
+            props: { project: { id: doc.id, ...doc.data() } }
         }));
-
-        console.log(`Successfully fetched ${projects.length} projects to generate static pages.`);
         return projects;
-
     } catch (error) {
-        // This catch block is critical. If it runs, it means the server failed to connect to Firebase.
-        // The most common cause is missing or incorrect .env variables.
-        console.error(
-            '\n❌ Critical Error in getStaticPaths ❌\n' + 
-            'Astro could not fetch project data from Firebase to build the pages.\n' +
-            '--> PLEASE CHECK YOUR .env FILE and ensure the server-side variables are correct.\n' +
-            '--> Remember to RESTART your dev server after any changes to .env.\n'
-        );
-        // Return an empty array to prevent the build from crashing, allowing the developer to see the error message.
+        console.error('❌ Critical Error in getStaticPaths while fetching projects ❌', error);
+        // Return an empty array to prevent the build from crashing.
+        // The page will likely 404, which is handled below.
         return [];
     }
 }
 
-// Astro passes the 'project' data for this specific page from getStaticPaths.
 const { project } = Astro.props;
 
-// If for some reason the project data isn't available (e.g., build error), 
-// this prevents the page from crashing when trying to access project properties.
+// If no project data is passed (e.g., build error or invalid ID), redirect to a 404 page.
 if (!project) {
-    // This will be visible on the server console, not the browser.
-    console.error(`Error rendering page: Project data was not available for this route.`);
-    // In a real app, you might redirect to a 404 page here.
+    return Astro.redirect('/admin/404'); // Assuming you have a 404 page for admin
 }
 ---
 
-<Layout title={project ? project.name : 'Project Not Found'}>
-    <main class="container mx-auto px-4 py-12 md:py-16">
+<Layout title={`تفاصيل مشروع: ${project.name}`}>
+  <main class="project-details-page">
+    <div class="container">
 
-        {project ? (
-            <article class="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-                <!-- Project Image -->
-                <img 
-                    src={project.imageUrl || 'https://via.placeholder.com/1200x600/1F2937/FFFFFF?text=Project+Image'} 
-                    alt={`Cover image for ${project.name}`}
-                    class="w-full h-60 md:h-80 object-cover bg-gray-700"
-                />
-                
-                <div class="p-6 md:p-10">
-                    <!-- Project Name -->
-                    <h1 class="text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
-                        {project.name}
-                    </h1>
-                    
-                    <!-- Project Description -->
-                    <p class="text-base md:text-lg text-gray-600 dark:text-gray-300 leading-relaxed mb-10">
-                        {project.description}
-                    </p>
+      <header class="page-header">
+        <h1>تفاصيل المشروع</h1>
+        <a href="/admin/projects" class="btn btn-secondary">
+          &larr; العودة إلى القائمة
+        </a>
+      </header>
 
-                    <!-- Additional Details Section -->
-                    {project.details && project.details.length > 0 && (
-                        <div class="border-t border-gray-200 dark:border-gray-700 pt-8">
-                            <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6">Project Details</h2>
-                            <ul class="space-y-4">
-                                {project.details.map((detail: { label: string; value: string; }) => (
-                                    <li class="flex flex-col sm:flex-row justify-between bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg shadow-sm">
-                                        <span class="font-semibold text-gray-700 dark:text-gray-200">{detail.label}</span>
-                                        <span class="text-gray-900 dark:text-white text-left sm:text-right mt-1 sm:mt-0">{detail.value}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
+      <div class="details-container">
+        <div class="project-info">
+          <h2 class="project-name">{project.name}</h2>
+          <p class="project-description">{project.description || 'لا يوجد وصف متاح لهذا المشروع.'}</p>
+          
+          <ul class="details-list">
+            <li>
+              <strong>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                الموقع:
+              </strong>
+              <span>{project.location || 'غير محدد'}</span>
+            </li>
+            <li>
+              <strong>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
+                المشرف:
+              </strong>
+              <span>{project.supervisor || 'غير محدد'}</span>
+            </li>
+            <li>
+              <strong>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
+                بريد المشرف الإلكتروني:
+              </strong>
+              <span>{project.supervisorEmail || 'غير محدد'}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
 
-                    <!-- Back Button -->
-                    <div class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700 text-center">
-                        <a href="/admin/projects" class="inline-block bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all duration-300 hover:scale-105">
-                            &larr; Back to All Projects
-                        </a>
-                    </div>
-                </div>
-            </article>
-        ) : (
-            <!-- Fallback content if project data fails to load -->
-            <div class="text-center py-20">
-                <h1 class="text-3xl font-bold text-red-500">Error: Project Not Found</h1>
-                <p class="text-lg text-gray-600 dark:text-gray-400 mt-4">Could not load the project data. This may be due to a build error. Please check the server console for details.</p>
-                 <div class="mt-8 text-center">
-                    <a href="/admin/projects" class="inline-block bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-blue-700 transition-all duration-300">
-                        &larr; Back to All Projects
-                    </a>
-                </div>
-            </div>
-        )}
-    </main>
+    </div>
+  </main>
 </Layout>
+
+<style>
+  /* Scoped styles for the Project Details Page */
+  .project-details-page {
+    direction: rtl;
+    font-family: 'Cairo', sans-serif;
+    background-color: #f7f9fc;
+    padding: 3rem 1.5rem;
+    min-height: 100vh;
+  }
+  
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #dfe6e9;
+  }
+
+  .page-header h1 {
+    font-size: 2rem;
+    color: #2d3748;
+    font-weight: 800;
+  }
+
+  .btn {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-align: center;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .btn-secondary {
+    color: #fff;
+    background-color: #6c757d;
+    border-color: #6c757d;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .btn-secondary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 14px rgba(0, 0, 0, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+  }
+
+  .details-container {
+    background-color: #ffffff;
+    border-radius: 1rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07), 0 1px 4px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+  }
+  
+  .project-info {
+    padding: 3rem;
+  }
+
+  .project-name {
+    font-size: 2.8rem;
+    font-weight: 900;
+    line-height: 1.2;
+    color: #3f51b5; /* Keeping the original brand color */
+    margin-bottom: 1rem;
+  }
+
+  .project-description {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: #4a5568;
+    margin-bottom: 3rem;
+    max-width: 65ch; /* Improves readability */
+  }
+
+  .details-list {
+    list-style: none;
+    padding: 2rem 0 0;
+    margin: 0;
+    border-top: 1px solid #edf2f7;
+  }
+
+  .details-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 0.5rem;
+    font-size: 1.05rem;
+    border-bottom: 1px solid #f7f9fc;
+  }
+
+  .details-list li:last-child {
+    border-bottom: none;
+  }
+
+  .details-list li strong {
+    font-weight: 700;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .details-list li .icon {
+    color: #3f51b5;
+    flex-shrink: 0;
+  }
+  
+  .details-list li span {
+    color: #718096;
+    font-weight: 500;
+  }
+</style>
