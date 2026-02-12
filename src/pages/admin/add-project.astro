@@ -27,7 +27,9 @@ import Layout from '../../layouts/Layout.astro';
         <div class="person-group">
             <div class="form-group">
                 <label for="supervisor1Name">اسم المشرف</label>
-                <input type="text" name="personName" required>
+                <select id="supervisor1Name" name="personName" class="supervisor-select" required>
+                    <option value="" disabled selected>جار التحميل...</option>
+                </select>
             </div>
         </div>
 
@@ -51,22 +53,69 @@ import Layout from '../../layouts/Layout.astro';
 
 <script>
   import { db } from '../../firebase/client.ts';
-  import { collection, addDoc } from "firebase/firestore";
+  import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
 
   const form = document.getElementById('add-project-form');
   const addPersonBtn = document.getElementById('add-person-btn');
   const container = document.getElementById('additional-persons-container');
   const submitBtn = document.getElementById('submit-btn');
-  let personCounter = 1; // Start from 1 since we have one main supervisor
+  let personCounter = 1;
+
+  let supervisorsList = []; // To store fetched supervisors
+
+  // Function to create and populate a select element
+  function createSupervisorSelect() {
+    const select = document.createElement('select');
+    select.name = 'personName';
+    select.className = 'supervisor-select';
+    select.required = true;
+
+    let optionsHtml = '<option value="" disabled selected>اختر مشرفًا</option>';
+    supervisorsList.forEach(supervisor => {
+        optionsHtml += `<option value="${supervisor.id}">${supervisor.name}</option>`;
+    });
+    select.innerHTML = optionsHtml;
+    
+    return select;
+  }
+
+  // Fetch supervisors on page load
+  document.addEventListener('DOMContentLoaded', async () => {
+    const allSelects = document.querySelectorAll('.supervisor-select');
+    try {
+        const q = query(collection(db, "users"), where("role", "==", "supervisor"));
+        const querySnapshot = await getDocs(q);
+        supervisorsList = querySnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+
+        let optionsHtml = '<option value="" disabled selected>اختر مشرفًا</option>';
+        supervisorsList.forEach(supervisor => {
+            optionsHtml += `<option value="${supervisor.id}">${supervisor.name}</option>`;
+        });
+
+        allSelects.forEach(select => {
+            select.innerHTML = optionsHtml;
+        });
+
+    } catch (error) {
+        console.error("Error fetching supervisors: ", error);
+        allSelects.forEach(select => {
+            select.innerHTML = '<option value="" disabled selected>خطأ في تحميل المشرفين</option>';
+        });
+    }
+  });
+
 
   addPersonBtn.addEventListener('click', () => {
     personCounter++;
     const newPersonGroup = document.createElement('div');
     newPersonGroup.className = 'person-group dynamic';
+    
+    const select = createSupervisorSelect();
+
     newPersonGroup.innerHTML = `
         <div class="form-group">
-            <label>اسم المشرف الإضافي ${personCounter}</label>
-            <input type="text" name="personName">
+            <label>اسم المشرف الإضافي</label>
+            ${select.outerHTML}
         </div>
         <div class="remove-btn-container">
           <button type="button" class="btn-remove">إزالة</button>
@@ -90,13 +139,25 @@ import Layout from '../../layouts/Layout.astro';
     const supervisors = [];
 
     personGroups.forEach(group => {
-        const nameInput = group.querySelector('input[name="personName"]');
-
-        if (nameInput && nameInput.value.trim() !== '') {
-            const name = nameInput.value;
-            supervisors.push({ name });
+        const selectElement = group.querySelector('select[name="personName"]');
+        if (selectElement && selectElement.value) {
+            const selectedOption = selectElement.options[selectElement.selectedIndex];
+            supervisors.push({
+                id: selectedOption.value,
+                name: selectedOption.textContent
+            });
         }
     });
+
+    const supervisorIds = supervisors.map(s => s.id);
+    const hasDuplicates = supervisorIds.some((id, index) => supervisorIds.indexOf(id) !== index);
+
+    if (hasDuplicates) {
+        alert('لا يمكن تعيين نفس المشرف مرتين للمشروع.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'حفظ المشروع';
+        return;
+    }
     
     const projectData = {
         projectName: form.projectName.value,
@@ -126,8 +187,8 @@ import Layout from '../../layouts/Layout.astro';
   .project-form { display: flex; flex-direction: column; gap: 1.5rem; }
   .form-group { display: flex; flex-direction: column; }
   .form-group label { font-size: 1rem; font-weight: 700; color: #333; margin-bottom: 0.5rem; text-align: right; }
-  .form-group input { padding: 0.8rem 1rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; font-family: 'Cairo', sans-serif; transition: all 0.3s ease; }
-  .form-group input:focus { outline: none; border-color: #3f51b5; box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.2); }
+  .form-group input, .form-group select { padding: 0.8rem 1rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; font-family: 'Cairo', sans-serif; transition: all 0.3s ease; background-color: #fff; }
+  .form-group input:focus, .form-group select:focus { outline: none; border-color: #3f51b5; box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.2); }
   .divider { border: 0; height: 1px; background-color: #e0e0e0; margin: 1rem 0; }
   .person-group { display: grid; grid-template-columns: 1fr; gap: 1.5rem; padding: 1.5rem; border: 1px solid #e9ecef; border-radius: 8px; background-color: #f8f9fa; }
   .person-group.dynamic { grid-template-columns: 1fr auto; align-items: end; }
