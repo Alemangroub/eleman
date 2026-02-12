@@ -162,7 +162,8 @@ import Layout from '../../layouts/Layout.astro';
     const projectData = {
         projectName: form.projectName.value,
         projectAddress: form.projectAddress.value,
-        supervisors,
+        supervisors: supervisors, // Keep original array of objects
+        supervisorIds: supervisorIds, // Add new array of IDs
         createdAt: new Date(),
     };
 

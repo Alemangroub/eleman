@@ -65,21 +65,11 @@ import Layout from '../../layouts/Layout.astro';
 
   async function fetchAndDisplayProjects(supervisorUid) {
     try {
-        // Firestore does not support querying for a value within an array of objects directly in a scalable way.
-        // The robust solution is to add a 'supervisorIds' array to each project.
-        // As a temporary workaround for a small number of projects, we fetch all and filter on the client.
-        const projectsSnapshot = await getDocs(collection(db, "projects"));
-        
-        const supervisedProjects = [];
-        projectsSnapshot.forEach(doc => {
-            const project = { id: doc.id, ...doc.data() };
-            if (project.supervisors && Array.isArray(project.supervisors)) {
-                // Check if the supervisor's UID is in the supervisors array for this project
-                if (project.supervisors.some(supervisor => supervisor.id === supervisorUid)) {
-                    supervisedProjects.push(project);
-                }
-            }
-        });
+        // Use a more efficient query with 'array-contains'
+        const q = query(collection(db, "projects"), where("supervisorIds", "array-contains", supervisorUid));
+        const querySnapshot = await getDocs(q);
+
+        const supervisedProjects = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
         if (supervisedProjects.length === 0) {
             noProjectsMessage.style.display = 'block';
