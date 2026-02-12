@@ -86,14 +86,14 @@ import Layout from '../../layouts/Layout.astro';
             projectsList.innerHTML = '';
         } else {
             noProjectsMessage.style.display = 'none';
-            projectsList.innerHTML = supervisedProjects.map(project => `
-                <a href={`/projects/${project.id}`} class="project-card-link">
-                  <div class="project-card">
-                      <h3>${project.projectName}</h3>
-                      <p>${project.projectAddress || 'العنوان غير محدد'}</p>
-                  </div>
-                </a>
-            `).join('');
+            projectsList.innerHTML = supervisedProjects.map(project => {
+                return '<a href="/projects/' + project.id + '" class="project-card-link">' +
+                          '<div class="project-card">' +
+                              '<h3>' + project.projectName + '</h3>' +
+                              '<p>' + (project.projectAddress || 'العنوان غير محدد') + '</p>' +
+                          '</div>' +
+                       '</a>';
+            }).join('');
         }
     } catch (error) {
         console.error("Error fetching projects: ", error);
