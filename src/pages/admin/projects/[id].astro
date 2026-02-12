@@ -2,7 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import { db } from "../../../firebase/admin";
 
-// Fetches all project and user data at build time.
+// This function runs at build time to generate static pages for each project.
 export async function getStaticPaths() {
     try {
         const projectsSnapshot = await db.collection('projects').get();
@@ -11,33 +11,35 @@ export async function getStaticPaths() {
             return [];
         }
 
-        // CORRECTED: Fetch from the 'users' collection.
-        const usersSnapshot = await db.collection('users').get();
-        const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        return projectsSnapshot.docs.map(doc => ({
-            params: { id: doc.id },
-            props: { 
-                project: { id: doc.id, ...doc.data() },
-                allSupervisors: allUsers // Pass all users as supervisors
-            }
-        }));
+        return projectsSnapshot.docs.map(doc => {
+            const projectData = doc.data();
+            // Ensure supervisors is an array, even if it's missing
+            const currentSupervisors = Array.isArray(projectData.supervisors) ? projectData.supervisors : [];
+            
+            return {
+                params: { id: doc.id },
+                props: { 
+                    project: { id: doc.id, ...projectData, supervisors: currentSupervisors }
+                }
+            };
+        });
     } catch (error) {
-        console.error('❌ Error in getStaticPaths:', error);
+        // If there's an error fetching projects (e.g., Firestore not configured),
+        // return an empty array so the build doesn't fail.
+        console.error('❌ Error in getStaticPaths fetching projects:', error.message);
         return [];
     }
 }
 
-const { project, allSupervisors } = Astro.props;
+const { project } = Astro.props;
 
+// If a project is not found for the given ID, Astro will automatically show a 404 page.
+// We can provide a more user-friendly message if needed, but Astro's default is clean.
 if (!project) {
-    return Astro.redirect('/admin/404');
+    return new Response("المشروع غير موجود", { status: 404, statusText: "Not Found" });
 }
 
-const currentSupervisors = Array.isArray(project.supervisors) ? project.supervisors : [];
-const currentSupervisorIds = new Set(currentSupervisors.map(s => s.id));
-// CORRECTED: Filter the comprehensive list of all users.
-const availableSupervisors = allSupervisors.filter(s => !currentSupervisorIds.has(s.id));
+const currentSupervisors = project.supervisors;
 ---
 
 <Layout title={`تفاصيل مشروع: ${project.projectName}`}>
@@ -61,134 +63,111 @@ const availableSupervisors = allSupervisors.filter(s => !currentSupervisorIds.ha
         <!-- Current Supervisors -->
         <div class="detail-row">
             <div class="detail-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-            <div class="detail-text"><span class="label">المشرفون:</span> <span class="value">{currentSupervisors.length > 0 ? currentSupervisors.map(s => s.name).join(', ') : 'لا يوجد'}</span></div>
+            <div class="detail-text">
+                <span class="label">المشرفون:</span> 
+                <span class="value">
+                    {currentSupervisors.length > 0 ? currentSupervisors.map(s => s.name).join(', ') : 'لا يوجد'}
+                </span>
+            </div>
         </div>
-
-        <hr class="row-divider" />
-
-        <!-- Assign Supervisor Form -->
-        <form id="assign-supervisor-form" class="detail-row assign-form">
-            <div class="detail-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg></div>
-            <input type="hidden" name="projectId" value={project.id} />
-            <select name="supervisor" id="supervisor-select" required class="supervisor-select">
-                <option value="" disabled selected>اختر مشرفًا لتعيينه...</option>
-                {availableSupervisors.length > 0 ? (
-                    availableSupervisors.map(supervisor => (
-                        <option value={`${supervisor.id}:${supervisor.name}`}>{supervisor.name}</option>
-                    ))
-                ) : (
-                    <option disabled>لا يوجد مشرفون متاحون</option>
-                )}
-            </select>
-            <button type="submit" class="btn-add" aria-label="تعيين المشرف">+</button>
-        </form>
       </div>
-
     </div>
   </main>
 </Layout>
 
-<script>
-  document.getElementById('assign-supervisor-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const form = e.target;
-    const button = form.querySelector('button[type="submit"]');
-    const supervisorSelect = form.querySelector('#supervisor-select');
-    
-    if (!supervisorSelect.value) {
-        alert('الرجاء اختيار مشرف أولاً.');
-        return;
-    }
-
-    const formData = new FormData(form);
-    const projectId = formData.get('projectId');
-    const [supervisorId, supervisorName] = formData.get('supervisor').split(':');
-
-    button.disabled = true;
-    button.textContent = '...';
-
-    try {
-      const response = await fetch('/api/assign-supervisor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, supervisorId, supervisorName }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'حدث خطأ أثناء التعيين');
-      }
-      
-      location.reload();
-
-    } catch (error) {
-      console.error('Fetch Error:', error);
-      alert(`فشل: ${error.message}`);
-      button.disabled = false;
-      button.textContent = '+';
-    }
-  });
-</script>
-
 <style>
   /* General page styles */
-  .project-details-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f4f7f6; padding: 3rem 1.5rem; }
-  .container { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 2rem; }
-  .page-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1.5rem; border-bottom: 2px solid #e2e8f0; width: 100%; }
-  .page-header h1 { font-size: 2.5rem; color: #1a202c; font-weight: 800; }
-  .btn-secondary { display: inline-block; padding: 0.7rem 1.4rem; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-weight: 700; background-color: #6c757d; color: #fff; transition: all 0.3s ease; flex-shrink: 0; }
-  .btn-secondary:hover { background-color: #5a6268; transform: translateY(-2px); }
+  .project-details-page { 
+    direction: rtl; 
+    font-family: 'Cairo', sans-serif; 
+    background-color: #f4f7f6; 
+    padding: 3rem 1.5rem; 
+    min-height: 100vh; 
+  }
+  .container { 
+    max-width: 1100px; 
+    margin: 0 auto; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 2rem; 
+  }
+  .page-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding-bottom: 1.5rem; 
+    border-bottom: 2px solid #e2e8f0; 
+    width: 100%; 
+  }
+  .page-header h1 { 
+    font-size: 2.5rem; 
+    color: #1a202c; 
+    font-weight: 800; 
+  }
+  .btn-secondary { 
+    display: inline-block; 
+    padding: 0.7rem 1.4rem; 
+    border-radius: 8px; 
+    text-decoration: none; 
+    font-size: 0.95rem; 
+    font-weight: 700; 
+    background-color: #6c757d; 
+    color: #fff; 
+    transition: all 0.3s ease; 
+    flex-shrink: 0; 
+  }
+  .btn-secondary:hover { 
+    background-color: #5a6268; 
+    transform: translateY(-2px); 
+  }
   
   /* Details Box */
-  .details-box { background-color: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); padding: 1.5rem 2rem; border: 1px solid #e2e8f0; width: 100%; }
-  .detail-row { display: flex; align-items: center; gap: 1.25rem; }
-  .detail-icon { color: #3f51b5; flex-shrink: 0; }
-  .detail-text { font-size: 1.05rem; color: #4a5568; }
-  .detail-text .label { font-weight: 700; margin-left: 0.5rem; }
-  .detail-text .value { font-weight: 500; color: #1a202c; }
-  .row-divider { border: 0; height: 1px; background-color: #e8edf2; margin: 1rem 0; }
-
-  /* Assign Form Styles */
-  .assign-form { gap: 1rem; }
-  .supervisor-select {
-    flex-grow: 1;
-    font-size: 1rem;
-    font-family: 'Cairo', sans-serif;
-    color: #4a5568;
-    padding: 0.5rem 0.75rem;
-    border-radius: 8px;
-    border: 1px solid #cbd5e0;
-    background-color: #f8fafc;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="%239ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l4 4 4-4"/></svg>');
-    background-repeat: no-repeat;
-    background-position: left 0.5rem center;
-    background-size: 1.25em;
-    padding-left: 2.5rem; /* Space for the icon */
+  .details-box { 
+    background-color: #fff; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+    padding: 1.5rem 2rem; 
+    border: 1px solid #e8edf2; 
+    width: 100%; 
   }
-  .supervisor-select:focus { outline: none; border-color: #3f51b5; box-shadow: 0 0 0 2px rgba(63,81,181,0.2); }
-  .btn-add {
-    flex-shrink: 0;
-    width: 2.5rem; 
-    height: 2.5rem;
-    border-radius: 50%;
-    border: none;
-    background-color: #3f51b5;
-    color: white;
-    font-size: 1.5rem;
-    font-weight: bold;
-    cursor: pointer;
+  .detail-row { 
     display: flex; 
     align-items: center; 
-    justify-content: center;
-    transition: all 0.2s ease;
+    gap: 1.25rem; 
+    padding: 0.5rem 0;
   }
-  .btn-add:hover { background-color: #303f9f; transform: scale(1.05); }
-  .btn-add:disabled { background-color: #9fa8da; cursor: not-allowed; }
+  .detail-icon { 
+    color: #3f51b5; 
+    flex-shrink: 0; 
+  }
+  .detail-text { 
+    font-size: 1.05rem; 
+    color: #4a5568; 
+  }
+  .detail-text .label { 
+    font-weight: 700; 
+    margin-left: 0.5rem; 
+  }
+  .detail-text .value { 
+    font-weight: 500; 
+    color: #1a202c; 
+  }
+  .row-divider { 
+    border: 0; 
+    height: 1px; 
+    background-color: #e8edf2; 
+    margin: 1rem 0; 
+  }
 
   @media (max-width: 768px) {
-    .page-header { flex-direction: column; align-items: flex-start; gap: 1rem; text-align: right; }
-    .details-box { padding: 1rem 1.5rem; }
+    .page-header { 
+      flex-direction: column; 
+      align-items: flex-start; 
+      gap: 1rem; 
+      text-align: right; 
+    }
+    .details-box { 
+      padding: 1rem 1.5rem; 
+    }
   }
 </style>
