@@ -1,0 +1,51 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+const { id } = Astro.params;
+---
+
+<Layout title={`تفاصيل المشروع `}>
+  <main class="project-details-page">
+    <h1>تفاصيل المشروع</h1>
+    <p>هذه هي صفحة تفاصيل المشروع. سيتم هنا عرض معلومات المشروع وإتاحة إضافة التقارير.</p>
+    <p><strong>معرف المشروع:</strong> {id}</p>
+    
+    <a href="/dashboard" class="back-link">العودة إلى لوحة التحكم</a>
+  </main>
+</Layout>
+
+<style>
+  .project-details-page {
+    direction: rtl;
+    font-family: 'Cairo', sans-serif;
+    padding: 2rem;
+    max-width: 800px;
+    margin: auto;
+  }
+  h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #2d3748;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+  }
+  p {
+    font-size: 1.1rem;
+    color: #4a5568;
+    line-height: 1.7;
+  }
+  .back-link {
+    display: inline-block;
+    margin-top: 2rem;
+    padding: 0.75rem 1.5rem;
+    background-color: #3f51b5;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: background-color 0.2s;
+  }
+  .back-link:hover {
+    background-color: #36469e;
+  }
+</style>
