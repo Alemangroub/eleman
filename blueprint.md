@@ -1,40 +1,56 @@
+# Blueprint: نظام متابعة المشاريع للمقاولات
 
-# Blueprint: El Eman Company Website
+## نظرة عامة
 
-## Overview
+هذا المشروع هو تطبيق ويب تم بناؤه باستخدام Astro.js ومُحسَّن للعمل على Firebase Studio. الهدف منه هو توفير نظام متكامل للمقاولات لإدارة ومتابعة المشاريع الهندسية. يمكن للمدراء إضافة المشاريع وتعيين المشرفين عليها، والاطلاع على التقارير الدورية التي يقدمها المشرفون لسير العمل.
 
-This project is a modern, content-focused website for El Eman Company for Real Estate Development, built with Astro.js. The primary goal is to create a fast, highly-performant, and scalable static-first site. It includes a public-facing informational site and a private admin dashboard for managing content like projects and installments.
+## الميزات والوظائف
 
-## Project Documentation
+### 1. إدارة المشاريع (للمدراء)
+- **لوحة تحكم رئيسية (`/admin/projects`):**
+  - تعرض قائمة بجميع المشاريع الحالية في بطاقات أنيقة.
+  - كل بطاقة تعرض اسم المشروع، عنوانه، والمشرفين المعينين.
+  - يوجد زر "إضافة مشروع جديد" لفتح نموذج الإضافة.
+- **نموذج إضافة مشروع:**
+  - حقول لإدخال اسم المشروع وعنوانه.
+  - قائمة متعددة الاختيارات (`multiple select`) لاختيار المشرفين من قائمة المستخدمين المسجلين.
+  - يتم حفظ المشاريع الجديدة في مجموعة `projects` في Firestore.
 
-### Styles & Design
-*   **Framework:** Tailwind CSS for utility-first styling.
-*   **Fonts:** `Cairo` for general text and UI, `Almarai` and `Kalam` for specific design elements.
-*   **Direction:** The site is designed for Arabic (Right-to-Left).
-*   **Admin Dashboard:** A clean, card-based layout for easy navigation. It uses a color palette of `#f0f2f5` (background), `#1f2937` (headings), and `#6b7280` (text).
+### 2. صفحة عرض تقارير المشروع (`/admin/projects/[id]`)
+- **الغرض:** صفحة **للعرض فقط** مخصصة للمدراء لمراجعة التقارير المقدمة من المشرفين.
+- **صفحة ديناميكية (SSR):** يتم توليد هذه الصفحة عند كل طلب لعرض أحدث البيانات مباشرة من قاعدة البيانات.
+- **تصميم بعمود واحد:** تركز الواجهة بالكامل على استعراض سجل التقارير بشكل منظم.
+- **عرض التقارير:**
+  - يتم جلب كل التقارير المرتبطة بالمشروع من Firestore وترتيبها من الأحدث للأقدم.
+  - كل تقرير يُعرض في بطاقة خاصة تحتوي على:
+    - اسم المشرف الذي قدم التقرير.
+    - تاريخ ووقت التقديم.
+    - نص التقرير المفصل.
+    - معرض صور مصغرة للصور المرفقة (إن وجدت).
+    - شريط تقدم يوضح نسبة الإنجاز المحددة في التقرير.
 
-### Features Implemented
-*   **Static Pages:** Home, About, Services, and Contact pages.
-*   **File-based Routing:** Standard Astro routing is used for all pages.
-*   **Dynamic Services Pages:** Service detail pages are generated dynamically from slugs.
-*   **Firebase Integration:**
-    *   Firebase Authentication is used to protect the `/admin` route.
-    *   Firestore is used as the database.
-*   **Admin Panel:**
-    *   Protected route at `/admin`.
-    *   Displays a login form (`AdminLogin.astro` component).
-    *   Upon successful login, it shows a dashboard with links to manage "Installments" and "Projects".
-    *   Includes a logout functionality.
-*   **Search Functionality:** A basic search page at `/search`.
+### 3. المصادقة وصفحة تسجيل الدخول
+- **صفحة تسجيل الدخول (`/admin`):**
+  - واجهة بسيطة لتسجيل الدخول باستخدام البريد الإلكتروني وكلمة المرور عبر Firebase Authentication.
+  - عند تسجيل الدخول بنجاح، يتم توجيه المستخدم إلى لوحة تحكم المشاريع.
 
-## Current Task: Fix Admin Login Page
+*(ملاحظة: تم تصميم النظام بحيث يقوم المشرفون بتقديم التقارير من خلال واجهة أخرى، وهذه الصفحة الحالية هي لعرض تلك التقارير للمدير.)*
 
-**Objective:** The `/admin` page is stuck on a "Checking authentication..." message and never shows the login form or the dashboard.
+## التصميم والواجهة
+- **اللغة العربية:** الواجهة موجهة بشكل كامل من اليمين إلى اليسار (RTL).
+- **الخطوط:** استخدام خط 'Cairo' لتحسين تجربة القراءة باللغة العربية.
+- **الألوان والتصميم:**
+  - تصميم احترافي ونظيف يعتمد على البطاقات، مع الظلال والحواف الدائرية.
+  - استخدام الأيقونات لتحسين فهم المحتوى.
+  - تصميم متجاوب (Responsive) يعمل بشكل جيد على الشاشات المختلفة.
 
-**Plan:**
-1.  **Initial Diagnosis (Completed):** Identified and removed a duplicate Firebase configuration file (`src/firebase/config.js`) that was causing an initialization conflict.
-2.  **Current Hypothesis:** The root cause is likely missing or incorrect Firebase environment variables. The Firebase configuration (`src/firebase/client.ts`) depends on `import.meta.env` variables, and if they are not defined, Firebase initialization will fail silently, preventing the `onAuthStateChanged` callback from ever firing.
-3.  **Action Step 1 (Current):** Create this `blueprint.md` file.
-4.  **Action Step 2:** Verify the existence and content of the `.env` file in the project's root directory.
-5.  **Action Step 3:** Report the findings to the user. If the variables are missing, provide instructions on how to create the `.env` file and populate it with their Firebase project credentials.
-6.  **Action Step 4:** Once the environment variables are confirmed to be in place, re-test the `/admin` page to ensure the login form appears as expected.
+## الخطة الحالية والتغييرات الأخيرة
+
+**المهمة: تحويل صفحة تفاصيل المشروع إلى صفحة عرض للتقارير.**
+
+**الخطوات المنفذة:**
+
+1.  **تلقي التوجيه:** تم توضيح أن الصفحة يجب أن تكون لعرض التقارير فقط، وليس لإضافتها.
+2.  **إزالة نموذج الإضافة:** تم حذف قسم "إضافة تقرير" بالكامل من صفحة `[id].astro`.
+3.  **حذف المكون:** تم حذف ملف `ReportUploader.jsx` لأنه لم يعد له استخدام.
+4.  **إعادة تصميم الواجهة:** تم تعديل الكود والتنسيقات (CSS) في `[id].astro` لتصبح الصفحة ذات تصميم بعمود واحد يركز على عرض قائمة التقارير بشكل واضح وجذاب.
