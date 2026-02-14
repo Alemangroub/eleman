@@ -7,31 +7,64 @@ export const prerender = false;
 const { id } = Astro.params;
 let project = null;
 let dailyReports = [];
+let feedback = { message: '', type: '' };
+
+// --- Handle POST for Updates ---
+if (Astro.request.method === 'POST') {
+    try {
+        const formData = await Astro.request.formData();
+        const reportIdToUpdate = formData.get('reportId');
+        if (!reportIdToUpdate) throw new Error('Report ID is missing.');
+
+        const reportText = formData.get('reportText');
+        const notes = formData.get('notes');
+
+        await db.collection('daily_reports').doc(reportIdToUpdate).update({
+            report: reportText,
+            notes: notes,
+        });
+
+        return Astro.redirect(`/admin/projects/${id}/daily-reports?feedback=updated`);
+    } catch (error) {
+        console.error("Error updating daily report:", error);
+        return Astro.redirect(`/admin/projects/${id}/daily-reports?feedback=update_error`);
+    }
+}
+
+// --- Handle GET for Deletion & Feedback ---
+const reportIdToDelete = Astro.url.searchParams.get('delete');
+if (reportIdToDelete) {
+    try {
+        await db.collection('daily_reports').doc(reportIdToDelete).delete();
+        return Astro.redirect(`/admin/projects/${id}/daily-reports?feedback=deleted`);
+    } catch (error) {
+        console.error("Error deleting daily report:", error);
+        return Astro.redirect(`/admin/projects/${id}/daily-reports?feedback=error`);
+    }
+}
+
+const feedbackParam = Astro.url.searchParams.get('feedback');
+if (feedbackParam === 'deleted') feedback = { message: 'تم حذف التقرير اليومي بنجاح.', type: 'success' };
+if (feedbackParam === 'updated') feedback = { message: 'تم تحديث التقرير اليومي بنجاح.', type: 'success' };
+if (feedbackParam === 'error') feedback = { message: 'حدث خطأ أثناء حذف التقرير اليومي.', type: 'error' };
+if (feedbackParam === 'update_error') feedback = { message: 'حدث خطأ أثناء تحديث التقرير اليومي.', type: 'error' };
 
 const formatTimestamp = (timestamp) => {
     if (!timestamp || !timestamp.toDate) return 'تاريخ غير متوفر';
-    return timestamp.toDate().toLocaleDateString('ar-EG', { 
-        day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' 
-    });
+    return timestamp.toDate().toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 };
 
 try {
     const projectDoc = await db.collection('projects').doc(id).get();
+    if (!projectDoc.exists) return Astro.redirect('/404');
+    
+    project = { id: projectDoc.id, ...projectDoc.data() };
+    const dailyReportsSnapshot = await db.collection('daily_reports').where('projectId', '==', id).get();
+    
+    dailyReports = dailyReportsSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data(), createdAtFormatted: formatTimestamp(doc.data().createdAt) }))
+        .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
 
-    if (projectDoc.exists) {
-        project = { id: projectDoc.id, ...projectDoc.data() };
-
-        const dailyReportsSnapshot = await db.collection('daily_reports').where('projectId', '==', id).get();
-        
-        // Corrected Logic: 1. Map, 2. Sort by timestamp object, 3. Map again to format date
-        dailyReports = dailyReportsSnapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() }))
-            .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0))
-            .map(report => ({ ...report, createdAt: formatTimestamp(report.createdAt) }));
-
-    } else {
-        return Astro.redirect('/404');
-    }
 } catch (error) {
     console.error("Error fetching daily reports:", error);
     project = { projectName: "خطأ في تحميل البيانات" };
@@ -42,69 +75,170 @@ try {
     <main class="reports-display-page">
         <div class="container">
             <header class="page-header">
-                <div>
+                 <div>
                     <h1>التقارير اليومية لمشروع: {project.projectName}</h1>
-                    <p class="page-subtitle">عرض سجل كامل لسير العمل اليومي والملاحظات.</p>
+                    <p class="page-subtitle">عرض وتعديل وحذف التقارير اليومية مباشرة.</p>
                 </div>
                 <a href={`/admin/projects/${id}`} class="back-link">&larr; العودة لتفاصيل المشروع</a>
             </header>
 
+            {feedback.message && <div class={`feedback-banner ${feedback.type}`}>{feedback.message}</div>}
+
             <section class="reports-section">
                 {dailyReports.length === 0 ? (
-                    <div class="no-items-card"><p>لم يتم تقديم أي تقارير يومية لهذا المشروع حتى الآن.</p></div>
+                    <div class="no-items-card"><p>لا توجد تقارير يومية لهذا المشروع بعد.</p></div>
                 ) : (
                     <div class="list-container">
                         {dailyReports.map(report => (
-                            <article class="card daily-report-card">
-                                <div class="card-header"><span>بواسطة: {report.supervisorName}</span><time>{report.createdAt}</time></div>
-                                <div class="card-body">
-                                    <p class="report-text">{report.reportText}</p>
-                                    {report.imageUrls && report.imageUrls.length > 0 && (
-                                        <div class="attachments">
-                                            <h3 class="attachments-title">المرفقات:</h3>
-                                            <div class="image-gallery">
-                                                {report.imageUrls.map(url => (
-                                                    <a href={url} target="_blank" rel="noopener noreferrer" class="image-thumbnail">
-                                                        <img src={url} alt="صورة مرفقة" loading="lazy" />
-                                                    </a>
-                                                ))}
+                            <article class="card daily-report-card" data-report-id={report.id}>
+                                <div class="card-header"><span>بواسطة: {report.supervisorName}</span><time>{report.createdAtFormatted}</time></div>
+
+                                <!-- View Mode -->
+                                <div class="card-content view-mode">
+                                    <div class="card-body">
+                                        <div class="report-text-section"><h4>تفاصيل التقرير:</h4><p>{report.report}</p></div>
+                                        {report.notes && <div class="notes-section"><h4>ملاحظات:</h4><p>{report.notes}</p></div>}
+                                        {report.imageUrls && report.imageUrls.length > 0 && (
+                                            <div class="attachments">
+                                                <h3 class="attachments-title">الصور المرفقة:</h3>
+                                                <div class="image-gallery">
+                                                    {report.imageUrls.map(url => (
+                                                        <a href={url} target="_blank" rel="noopener noreferrer" class="image-thumbnail">
+                                                            <img src={url} alt="صورة مرفقة" loading="lazy" />
+                                                        </a>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
+                                    <div class="card-footer">
+                                        <button type="button" class="action-btn edit-btn-toggle">تعديل</button>
+                                        <button type="button" class="action-btn delete-btn" data-delete-url={`/admin/projects/${id}/daily-reports?delete=${report.id}`}>حذف</button>
+                                    </div>
                                 </div>
+
+                                <!-- Edit Mode (Hidden by default) -->
+                                <form method="POST" class="card-content edit-mode" style="display: none;">
+                                    <div class="card-body edit-form-body">
+                                        <input type="hidden" name="reportId" value={report.id} />
+                                        <h4>تعديل التقرير:</h4>
+                                        <textarea name="reportText" class="report-input">{report.report || ''}</textarea>
+                                        <h4>تعديل الملاحظات:</h4>
+                                        <textarea name="notes" class="notes-input">{report.notes || ''}</textarea>
+                                    </div>
+                                    <div class="card-footer">
+                                        <button type="button" class="action-btn cancel-btn-toggle">إلغاء</button>
+                                        <button type="submit" class="action-btn save-btn">حفظ التعديلات</button>
+                                    </div>
+                                </form>
                             </article>
                         ))}
                     </div>
                 )}
             </section>
         </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div id="delete-modal" class="modal-overlay">
+            <div class="modal-content">
+                <h3>تأكيد الحذف</h3>
+                <p>هل أنت متأكد؟ لا يمكن التراجع عن هذا الإجراء.</p>
+                <div class="modal-actions">
+                    <button id="cancel-delete-btn" class="action-btn">إلغاء</button>
+                    <a id="confirm-delete-btn" href="#" class="action-btn delete-btn">تأكيد الحذف</a>
+                </div>
+            </div>
+        </div>
     </main>
 </Layout>
 
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const container = document.querySelector('.container');
+
+        container.addEventListener('click', (e) => {
+            const card = e.target.closest('.daily-report-card');
+            if (!card) return;
+
+            if (e.target.matches('.edit-btn-toggle')) {
+                card.querySelector('.view-mode').style.display = 'none';
+                card.querySelector('.edit-mode').style.display = 'block';
+            }
+
+            if (e.target.matches('.cancel-btn-toggle')) {
+                card.querySelector('.edit-mode').style.display = 'none';
+                card.querySelector('.view-mode').style.display = 'block';
+            }
+
+            if (e.target.matches('.delete-btn')) {
+                const deleteUrl = e.target.dataset.deleteUrl;
+                if(deleteUrl) showDeleteModal(deleteUrl);
+            }
+        });
+
+        const deleteModal = document.getElementById('delete-modal');
+        const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+
+        function showDeleteModal(deleteUrl) {
+            confirmDeleteBtn.href = deleteUrl;
+            deleteModal.style.display = 'flex';
+        }
+        function hideDeleteModal() { deleteModal.style.display = 'none'; }
+
+        cancelDeleteBtn.addEventListener('click', hideDeleteModal);
+        deleteModal.addEventListener('click', e => { if (e.target === deleteModal) hideDeleteModal(); });
+    });
+</script>
+
 <style>
-    :root { --primary-color: #007bff; --border-color: #e9ecef; --card-shadow: 0 4px 15px rgba(0,0,0,0.06); }
-    .reports-display-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; min-height: 100vh; padding: 2.5rem; }
-    .container { max-width: 1100px; margin: 0 auto; }
+:root { 
+    --primary-color: #007bff; 
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --border-color: #e9ecef; 
+    --card-shadow: 0 4px 15px rgba(0,0,0,0.06);
+}
+.reports-display-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; padding: 2.5rem; }
+.container { max-width: 1100px; margin: 0 auto; }
+.page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
+h1 { font-size: 2.25rem; font-weight: 800; }
+.page-subtitle { color: #6c757d; }
+.back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; background-color: #e7f3ff; padding: 0.6rem 1rem; border-radius: 8px; }
 
-    .page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
-    h1 { font-size: 2.25rem; font-weight: 800; }
-    .page-subtitle { color: #6c757d; }
-    .back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; background-color: #e7f3ff; padding: 0.6rem 1rem; border-radius: 8px; }
+.feedback-banner { padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 600; }
+.feedback-banner.success { background-color: #d4edda; color: #155724; }
+.feedback-banner.error { background-color: #f8d7da; color: #721c24; }
 
-    .reports-section { margin-bottom: 3rem; }
-    .no-items-card { background: #fff; border: 1px dashed #ced4da; border-radius: 12px; padding: 3rem; text-align: center; color: #6c757d; }
-    .list-container { display: flex; flex-direction: column; gap: 1.75rem; }
+.no-items-card { background: #fff; border: 1px dashed #ced4da; border-radius: 12px; padding: 3rem; text-align: center; color: #6c757d; }
+.list-container { display: flex; flex-direction: column; gap: 1.75rem; }
 
-    .card { background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); overflow: hidden; }
-    .card-header { display: flex; justify-content: space-between; padding: 1rem 1.5rem; background: #fdfdff; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; color: #6c757d; }
-    .card-header span { font-weight: 600; }
-    .card-body { padding: 1.5rem; }
+.card { background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); overflow: hidden; }
+.card-header { display: flex; justify-content: space-between; padding: 1rem 1.5rem; background: #fdfdff; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; color: #6c757d; }
 
-    .report-text { line-height: 1.8; margin: 0; white-space: pre-wrap; }
-    
-    .attachments { margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem; }
-    .attachments-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; }
-    .image-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 0.75rem; }
-    .image-thumbnail img { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; transition: transform 0.2s; }
-    .image-thumbnail:hover img { transform: scale(1.05); }
+.card-body { padding: 1.5rem; }
+.report-text-section p, .notes-section p { line-height: 1.8; margin: 0; color: #495057; white-space: pre-wrap; }
+.report-text-section, .notes-section, .attachments { margin-bottom: 1.5rem; }
+.notes-section, .attachments { padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
+h3, h4 { font-weight: 700; margin-bottom: 1rem; }
+.attachments-title { font-size: 1rem; }
+
+.image-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 0.75rem; }
+.image-thumbnail img { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; }
+
+.card-footer { display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1rem 1.5rem; background-color: #f8f9fa; border-top: 1px solid var(--border-color); }
+.action-btn { padding: 0.5rem 1.25rem; border: none; border-radius: 8px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.edit-btn-toggle { background-color: #e9ecef; color: #343a40; }
+.delete-btn { background-color: var(--danger-color); color: #fff; }
+.save-btn { background-color: var(--success-color); color: #fff; }
+.cancel-btn-toggle { background-color: #6c757d; color: #fff;}
+
+/* Edit Form Styles */
+.edit-form-body { padding-top: 0; }
+.report-input, .notes-input { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; min-height: 120px; resize: vertical; margin-bottom: 1rem; }
+
+/* Modal Styles */
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 1000; }
+.modal-content { background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); text-align: center; max-width: 400px; width: 90%; }
+.modal-actions { display: flex; justify-content: center; gap: 1rem; margin-top: 2rem; }
 </style>

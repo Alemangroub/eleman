@@ -1,64 +1,67 @@
-# Blueprint: نظام متابعة المشاريع للمقاولات
 
-## نظرة عامة
+# Blueprint: Elemannet - Project Management Dashboard
 
-هذا المشروع هو تطبيق ويب تم بناؤه باستخدام Astro.js ومُحسَّن للعمل على Firebase Studio. الهدف منه هو توفير نظام متكامل للمقاولات لإدارة ومتابعة المشاريع الهندسية.
+## 1. Overview
 
-- **المدراء:** يمكنهم إضافة المشاريع، تعيين المشرفين، والاطلاع على التقارير والمصروفات اليومية التي يقدمها المشرفون.
-- **المشرفون:** يمكنهم عرض المشاريع المعينين لها وتقديم تقارير يومية وتقارير مصروفات لكل مشروع.
+This application is a web-based project management dashboard named "Elemannet". It is designed for administrators to create, monitor, and manage various construction or contracting projects. The platform provides a centralized view of all projects, with detailed pages for each project to track daily work progress and expenses. Supervisors can submit daily reports and expense claims, including image attachments, directly from their mobile devices or desktops.
 
-## الميزات والوظائف
+## 2. Core Features & Design
 
-### 1. قسم المدير (Admin)
+### 2.1. General Style & Aesthetics
 
-- **لوحة تحكم المشاريع (`/admin/projects`):**
-  - تعرض قائمة بجميع المشاريع مع تفاصيلها الأساسية.
-  - تسمح للمدير بإضافة مشاريع جديدة وتعيين مشرفين عليها.
-- **صفحة تفاصيل المشروع (`/admin/projects/[id]`):**
-  - صفحة **للعرض فقط** مخصصة للمدراء لمراجعة كل الأنشطة المتعلقة بمشروع معين.
-  - تعرض التقارير اليومية والمصروفات التي يقدمها المشرفون، مرتبة زمنيًا من الأحدث للأقدم.
-  - تستخدم **فهارس مركبة (Composite Indexes)** في Firestore لضمان جلب البيانات وترتيبها بكفاءة.
+-   **Layout:** Modern, clean, and intuitive right-to-left (RTL) layout suitable for Arabic.
+-   **Color Palette:** Primarily uses a professional combination of blues for primary actions, greens for success states, reds for danger/deletion, and varying shades of gray for backgrounds and text.
+-   **Typography:** Utilizes the 'Cairo' font for a modern and readable Arabic interface.
+-   **Components:** Features card-based design for projects and reports, clear navigation, and responsive layouts for both desktop and mobile.
+-   **Interactivity:** Smooth transitions, hover effects, and custom-designed modals for confirmations to enhance user experience.
 
-### 2. قسم المشرف (Supervisor)
+### 2.2. Implemented Features
 
-- **لوحة التحكم (`/dashboard`):**
-  - تعرض للمشرف قائمة بالمشاريع التي تم تعيينه للإشراف عليها.
-- **صفحة تقديم التقارير (`/dashboard/[id]`):**
-  - نموذج متكامل يسمح للمشرف بتقديم:
-    - **تقرير يومي:** نص وصفي لسير العمل مع إمكانية رفع صور.
-    - **تقرير مصروفات:** قائمة بالبنود والمبالغ المصروفة، ملاحظات، وإمكانية رفع صور فواتير.
-  - يتم حفظ البيانات في مجموعات `daily_reports` و `daily_expenses` مع ربطها بالمشروع والمشرف.
+-   **Admin Dashboard (`/admin`):
+    -   Displays a list of all current projects in a grid of cards.
+    -   Each project card shows the project name, client name, and city.
+    -   Includes a prominent button to "Add a New Project", which leads to the project creation page.
 
-### 3. المصادقة والصلاحيات
+-   **Add New Project (`/admin/add-project`):
+    -   A user-friendly form to create a new project.
+    -   Fields include Project Name, Client Name, and City.
+    -   Upon successful submission, the admin is redirected back to the main dashboard where the new project appears.
 
-- **تسجيل الدخول (`/admin`):** صفحة موحدة لتسجيل دخول المدراء والمشرفين.
-- **توجيه الأدوار:** بعد تسجيل الدخول، يتم توجيه المستخدم إلى لوحة التحكم المناسبة لدوره (`/admin/projects` للمدير أو `/dashboard` للمشرف).
-- **قواعد أمان Firestore (`firestore.rules`):**
-  - **المدراء:** لديهم صلاحيات كاملة للقراءة والكتابة على جميع البيانات.
-  - **المشرفون:** يمكنهم **فقط** إنشاء (`create`) تقارير ومصروفات جديدة، ولا يمكنهم تعديلها أو حذفها أو قراءة تقارير المشرفين الآخرين.
-  - تم نشر القواعد وتفعيلها على خوادم Firebase.
+-   **Project Details Page (`/admin/projects/[id]`):
+    -   Provides a central hub for a single project.
+    -   Displays the project's main information.
+    -   Features two main navigation buttons:
+        -   "**Daily Reports**": Navigates to a page listing all daily progress reports for the project.
+        -   "**Expense Reports**": Navigates to a page listing all expense reports for the project.
 
-## التصميم والواجهة
+-   **Daily Reports Page (`/admin/projects/[id]/daily-reports`):
+    -   Displays a list of all daily work reports submitted for the selected project, sorted by the newest first.
+    -   Each report is shown on a card with the supervisor's name, timestamp, report details, notes, and any attached images.
+    -   **Inline Editing**: Admins can click "Edit" on any report card to transform it into a form within the same page. They can modify the report text and notes and then save or cancel.
+    -   **Safe Deletion**: A "Delete" button is available on each card. Clicking it opens a custom modal to confirm the action, preventing accidental deletions.
 
-- **اللغة العربية (RTL):** الواجهة موجهة بالكامل للغة العربية.
-- **الخطوط:** استخدام خط 'Cairo' لتحسين تجربة القراءة.
-- **تصميم احترافي:** واجهات نظيفة تعتمد على البطاقات، الظلال، والأيقونات لتسهيل الاستخدام.
-- **متجاوب (Responsive):** يعمل بشكل جيد على الشاشات المختلفة.
+-   **Expense Reports Page (`/admin/projects/[id]/expense-reports`):
+    -   Displays a list of all expense reports, sorted by the newest first.
+    -   Each report card details the breakdown of expenses (e.g., steel, cement, labor), the total amount, supervisor's name, timestamp, notes, and attached receipts/images.
+    -   **Inline Editing**: Similar to daily reports, admins can click "Edit" to modify expense values and notes directly on the card. The total is recalculated automatically as amounts are changed.
+    -   **Safe Deletion**: A "Delete" button with a confirmation modal is implemented for safe and verified report deletion.
 
-## الخطة الحالية والتغييرات الأخيرة
+-   **Supervisor Submission Form (`/`):
+    -   A comprehensive and user-friendly form for supervisors.
+    -   Allows selection of the project they are reporting for from a dropdown list.
+    -   Supervisors can enter their name.
+    -   They can choose to submit either a "Daily Report" or an "Expense Report" via toggle buttons.
+    -   **Conditional Fields** appear based on the report type selected, allowing entry of work details or itemized expenses.
+    -   Includes a field for notes and a multi-file upload button for images/invoices.
+    -   The form submits all data, including uploaded files, to the backend for processing and storage.
 
-**المهمة: حل مشكلة عدم ظهور تقارير المشرف في صفحة المدير.**
+## 3. Current Task: Implementing Inline Editing & Deletion
 
-**ملخص رحلة الإصلاح المعقدة:**
+### Plan & Steps for the requested change:
 
-1.  **المشكلة الأولية:** بعد أن يقوم المشرف بحفظ تقرير، لا يظهر هذا التقرير في صفحة تفاصيل المشروع الخاصة بالمدير.
-2.  **التشخيص الخاطئ الأول (صلاحيات):** كان الاعتقاد الأولي أن المشكلة في صلاحيات الكتابة. تم مراجعة وتصحيح ملف `firestore.rules` عدة مرات.
-3.  **الاكتشاف الحاسم (خطأ النشر):** تبين أن ملف `firestore.rules` كان يتم تعديله محليًا **دون نشره (deploy)** إلى خوادم Firebase، مما جعل كل تعديلات الصلاحيات غير فعّالة.
-4.  **إجراء الإصلاح (نشر الصلاحيات):** تم استخدام أمر `firebase deploy --only firestore:rules` لنشر القواعد الصحيحة، مما حل مشكلة "رفض الصلاحيات".
-5.  **ظهور مشكلة جديدة (البيانات لا تظهر):** بعد حل مشكلة الصلاحيات، استمرت البيانات في عدم الظهور في صفحة المدير.
-6.  **التشخيص الصحيح (فهارس Firestore):** تبين أن الكود يطلب من قاعدة البيانات "البحث" (`where`) و"الترتيب" (`orderBy`) في نفس الوقت، وهو طلب يتطلب وجود **"فهرس مركب" (Composite Index)**. بدون هذا الفهرس، كان Firestore يرفض تنفيذ الطلب بصمت.
-7.  **الحل النهائي (إنشاء الفهارس):**
-    - تم إنشاء ملف `firestore.indexes.json` لتعريف الفهارس المطلوبة بشكل صريح.
-    - تم نشر ملف الفهارس باستخدام `firebase deploy --only firestore:indexes`.
-    - بعد بناء الفهارس بواسطة Firebase، تم حل المشكلة نهائيًا، وأصبحت البيانات تظهر مرتبة بشكل صحيح.
-
+1.  **[Completed] Add Edit/Delete Buttons:** Add "Edit" and "Delete" buttons to each report card on both the `daily-reports` and `expense-reports` pages.
+2.  **[Completed] Implement Custom Delete Modal:** Replace the browser's default `confirm()` pop-up with a custom, styled modal for a better user experience and to ensure compatibility with all browsers.
+3.  **[Completed] Enable Delete Functionality:** Wire up the backend logic to handle the deletion of a report from the Firestore database when the action is confirmed in the modal.
+4.  **[Completed] Implement Inline Editing (Expense Reports):** Develop the "inline editing" feature for the expense reports page. On clicking "Edit", the card will switch to a hidden form view, allowing the admin to update values. The implementation will ensure the layout remains stable.
+5.  **[Completed] Implement Inline Editing (Daily Reports):** Apply the same stable and robust inline editing functionality to the daily reports page, ensuring a consistent user experience across the application.
+6.  **[Completed] Update Blueprint:** Finalize the task by updating this `blueprint.md` file to reflect all the new features and changes implemented.
