@@ -130,6 +130,25 @@ try {
     </main>
 </Layout>
 
+<script>
+  import { onAuthStateChanged } from 'firebase/auth';
+  import { auth, db } from '../../../firebase/client';
+  import { doc, getDoc } from 'firebase/firestore';
+
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists() && userDoc.data().role === 'supervisor') {
+        window.location.href = '/dashboard';
+      }
+    } else {
+      window.location.href = '/admin';
+    }
+  });
+</script>
+
 <style>
     .reports-display-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; min-height: 100vh; padding: 2.5rem; }
     .container { max-width: 1100px; margin: 0 auto; }
