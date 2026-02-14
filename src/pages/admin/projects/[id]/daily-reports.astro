@@ -1,0 +1,110 @@
+---
+import Layout from '../../../../layouts/Layout.astro';
+import { db } from "../../../../firebase/admin";
+
+export const prerender = false;
+
+const { id } = Astro.params;
+let project = null;
+let dailyReports = [];
+
+const formatTimestamp = (timestamp) => {
+    if (!timestamp || !timestamp.toDate) return 'تاريخ غير متوفر';
+    return timestamp.toDate().toLocaleDateString('ar-EG', { 
+        day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' 
+    });
+};
+
+try {
+    const projectDoc = await db.collection('projects').doc(id).get();
+
+    if (projectDoc.exists) {
+        project = { id: projectDoc.id, ...projectDoc.data() };
+
+        const dailyReportsSnapshot = await db.collection('daily_reports').where('projectId', '==', id).get();
+        
+        // Corrected Logic: 1. Map, 2. Sort by timestamp object, 3. Map again to format date
+        dailyReports = dailyReportsSnapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0))
+            .map(report => ({ ...report, createdAt: formatTimestamp(report.createdAt) }));
+
+    } else {
+        return Astro.redirect('/404');
+    }
+} catch (error) {
+    console.error("Error fetching daily reports:", error);
+    project = { projectName: "خطأ في تحميل البيانات" };
+}
+---
+
+<Layout title={`التقارير اليومية: ${project?.projectName}`}>
+    <main class="reports-display-page">
+        <div class="container">
+            <header class="page-header">
+                <div>
+                    <h1>التقارير اليومية لمشروع: {project.projectName}</h1>
+                    <p class="page-subtitle">عرض سجل كامل لسير العمل اليومي والملاحظات.</p>
+                </div>
+                <a href={`/admin/projects/${id}`} class="back-link">&larr; العودة لتفاصيل المشروع</a>
+            </header>
+
+            <section class="reports-section">
+                {dailyReports.length === 0 ? (
+                    <div class="no-items-card"><p>لم يتم تقديم أي تقارير يومية لهذا المشروع حتى الآن.</p></div>
+                ) : (
+                    <div class="list-container">
+                        {dailyReports.map(report => (
+                            <article class="card daily-report-card">
+                                <div class="card-header"><span>بواسطة: {report.supervisorName}</span><time>{report.createdAt}</time></div>
+                                <div class="card-body">
+                                    <p class="report-text">{report.reportText}</p>
+                                    {report.imageUrls && report.imageUrls.length > 0 && (
+                                        <div class="attachments">
+                                            <h3 class="attachments-title">المرفقات:</h3>
+                                            <div class="image-gallery">
+                                                {report.imageUrls.map(url => (
+                                                    <a href={url} target="_blank" rel="noopener noreferrer" class="image-thumbnail">
+                                                        <img src={url} alt="صورة مرفقة" loading="lazy" />
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                )}
+            </section>
+        </div>
+    </main>
+</Layout>
+
+<style>
+    :root { --primary-color: #007bff; --border-color: #e9ecef; --card-shadow: 0 4px 15px rgba(0,0,0,0.06); }
+    .reports-display-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; min-height: 100vh; padding: 2.5rem; }
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    .page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
+    h1 { font-size: 2.25rem; font-weight: 800; }
+    .page-subtitle { color: #6c757d; }
+    .back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; background-color: #e7f3ff; padding: 0.6rem 1rem; border-radius: 8px; }
+
+    .reports-section { margin-bottom: 3rem; }
+    .no-items-card { background: #fff; border: 1px dashed #ced4da; border-radius: 12px; padding: 3rem; text-align: center; color: #6c757d; }
+    .list-container { display: flex; flex-direction: column; gap: 1.75rem; }
+
+    .card { background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); overflow: hidden; }
+    .card-header { display: flex; justify-content: space-between; padding: 1rem 1.5rem; background: #fdfdff; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; color: #6c757d; }
+    .card-header span { font-weight: 600; }
+    .card-body { padding: 1.5rem; }
+
+    .report-text { line-height: 1.8; margin: 0; white-space: pre-wrap; }
+    
+    .attachments { margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem; }
+    .attachments-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .image-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 0.75rem; }
+    .image-thumbnail img { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; transition: transform 0.2s; }
+    .image-thumbnail:hover img { transform: scale(1.05); }
+</style>
