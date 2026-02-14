@@ -14,11 +14,11 @@ let feedback = { message: '', type: '' };
 if (Astro.request.method === 'POST') {
     try {
         const formData = await Astro.request.formData();
-        const reportIdToUpdate = formData.get('reportId');
+        const reportIdToUpdate = formData.get('reportId')?.toString();
         if (!reportIdToUpdate) throw new Error('Report ID is missing.');
 
-        const reportText = formData.get('reportText');
-        const notes = formData.get('notes');
+        const reportText = formData.get('reportText')?.toString();
+        const notes = formData.get('notes')?.toString();
 
         await db.collection('daily_reports').doc(reportIdToUpdate).update({
             report: reportText,
@@ -152,7 +152,13 @@ try {
         </div>
 
         <div id="delete-modal" class="modal-overlay">
-            <!-- ... (modal content remains unchanged) ... -->
+            <div class="modal-content">
+                <p>هل أنت متأكد أنك تريد حذف هذا التقرير؟</p>
+                <div class="modal-actions">
+                    <button id="cancel-delete-btn" class="action-btn cancel-btn-toggle">إلغاء</button>
+                    <a id="confirm-delete-btn" href="#" class="action-btn delete-btn">نعم، حذف</a>
+                </div>
+            </div>
         </div>
     </main>
 </Layout>
@@ -162,88 +168,101 @@ try {
     import { onAuthStateChanged, signOut } from "firebase/auth";
     import { doc, getDoc } from "firebase/firestore";
 
-    const authLoadingMessage = document.getElementById('auth-loading-message')!;
-    const loginContainer = document.getElementById('admin-login-container')!;
-    const pageContent = document.getElementById('page-content')!;
-    const logoutButton = document.getElementById('logout-button')!;
-
-    onAuthStateChanged(auth, async (user) => {
-        authLoadingMessage.style.display = 'none';
-
-        if (user) {
-            try {
-                const userDocRef = doc(db, "users", user.uid);
-                const userDoc = await getDoc(userDocRef);
-
-                if (userDoc.exists() && userDoc.data().role === 'admin') {
-                    pageContent.style.display = 'block';
-                    loginContainer.style.display = 'none';
-                } else {
-                    window.location.href = '/admin';
-                }
-            } catch (error) {
-                console.error('Auth Check Error:', error);
-                await signOut(auth);
-                loginContainer.style.display = 'block';
-            }
-        } else {
-            pageContent.style.display = 'none';
-            loginContainer.style.display = 'block';
-        }
-    });
-
-    logoutButton.addEventListener('click', async () => {
-        await signOut(auth);
-        window.location.href = '/admin';
-    });
-    
-    // --- Inline Edit & Delete Script (remains the same) ---
     document.addEventListener('DOMContentLoaded', () => {
+        const authLoadingMessage = document.getElementById('auth-loading-message');
+        const loginContainer = document.getElementById('admin-login-container');
+        const pageContent = document.getElementById('page-content');
+
+        onAuthStateChanged(auth, async (user) => {
+            if (authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+            if (user) {
+                try {
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+
+                    if (userDoc.exists() && userDoc.data().role === 'admin') {
+                        if (pageContent) pageContent.style.display = 'block';
+                        if (loginContainer) loginContainer.style.display = 'none';
+
+                        const logoutButton = document.getElementById('logout-button');
+                        if (logoutButton) {
+                            logoutButton.addEventListener('click', async () => {
+                                await signOut(auth);
+                                window.location.href = '/admin';
+                            });
+                        }
+
+                    } else {
+                        // If user is not admin, sign out and redirect
+                        await signOut(auth);
+                        window.location.href = '/admin';
+                    }
+                } catch (error) {
+                    console.error('Auth Check Error:', error);
+                    await signOut(auth);
+                    if (loginContainer) loginContainer.style.display = 'block';
+                    if (pageContent) pageContent.style.display = 'none';
+                }
+            } else {
+                if (pageContent) pageContent.style.display = 'none';
+                if (loginContainer) loginContainer.style.display = 'block';
+            }
+        });
+
         const container = document.querySelector('.container');
+        if (!container) return;
 
         container.addEventListener('click', (e) => {
-            const card = e.target.closest('.daily-report-card');
+            const target = e.target as HTMLElement;
+            const card = target.closest('.daily-report-card');
             if (!card) return;
 
-            if (e.target.matches('.edit-btn-toggle')) {
-                card.querySelector('.view-mode').style.display = 'none';
-                card.querySelector('.edit-mode').style.display = 'block';
+            const viewMode = card.querySelector('.view-mode') as HTMLElement;
+            const editMode = card.querySelector('.edit-mode') as HTMLElement;
+
+            if (target.matches('.edit-btn-toggle')) {
+                if(viewMode) viewMode.style.display = 'none';
+                if(editMode) editMode.style.display = 'block';
             }
 
-            if (e.target.matches('.cancel-btn-toggle')) {
-                card.querySelector('.edit-mode').style.display = 'none';
-                card.querySelector('.view-mode').style.display = 'block';
+            if (target.matches('.cancel-btn-toggle')) {
+                if(editMode) editMode.style.display = 'none';
+                if(viewMode) viewMode.style.display = 'block';
             }
 
-            if (e.target.matches('.delete-btn')) {
-                const deleteUrl = e.target.dataset.deleteUrl;
+            if (target.matches('.delete-btn')) {
+                const deleteUrl = target.dataset.deleteUrl;
                 if(deleteUrl) showDeleteModal(deleteUrl);
             }
         });
 
-        const deleteModal = document.getElementById('delete-modal');
+        const deleteModal = document.getElementById('delete-modal') as HTMLElement;
         const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
-        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn') as HTMLLinkElement;
 
-        function showDeleteModal(deleteUrl) {
-            confirmDeleteBtn.href = deleteUrl;
-            deleteModal.style.display = 'flex';
+        function showDeleteModal(deleteUrl: string) {
+            if(confirmDeleteBtn) confirmDeleteBtn.href = deleteUrl;
+            if(deleteModal) deleteModal.style.display = 'flex';
         }
-        function hideDeleteModal() { deleteModal.style.display = 'none'; }
+        function hideDeleteModal() { 
+            if(deleteModal) deleteModal.style.display = 'none'; 
+        }
 
-        cancelDeleteBtn.addEventListener('click', hideDeleteModal);
-        deleteModal.addEventListener('click', e => { if (e.target === deleteModal) hideDeleteModal(); });
+        if(cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', hideDeleteModal);
+        if(deleteModal) deleteModal.addEventListener('click', e => { 
+            if (e.target === deleteModal) hideDeleteModal(); 
+        });
     });
 </script>
 
 <style>
-/* ... (most styles remain the same) ... */
+/* ... (styles remain the same) ... */
 .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
 .auth-container p { font-size: 1.2rem; }
 .btn-logout { background-color: #ef4444; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
 .btn-logout:hover { background-color: #dc2626; }
 .page-header div:last-child { display: flex; align-items: center; gap: 1rem; }
-/* Other styles are mostly unchanged */
 :root { 
     --primary-color: #007bff; 
     --success-color: #28a745;

@@ -14,17 +14,17 @@ if (Astro.request.method === 'POST') {
     // ... (rest of the POST handling code remains unchanged) ...
      try {
         const formData = await Astro.request.formData();
-        const reportIdToUpdate = formData.get('reportId');
+        const reportIdToUpdate = formData.get('reportId')?.toString();
         if (!reportIdToUpdate) throw new Error('Report ID is missing.');
 
-        const notes = formData.get('notes');
+        const notes = formData.get('notes')?.toString();
         let totalAmount = 0;
 
         const expenses = {};
         for (const [key, value] of formData.entries()) {
             if (key.startsWith('expenses[') && key.endsWith(']')) {
                 const expenseKey = key.substring(9, key.length - 1);
-                const amount = parseFloat(value || '0');
+                const amount = parseFloat(value?.toString() || '0');
                 expenses[expenseKey] = amount;
                 totalAmount += amount;
             }
@@ -90,7 +90,7 @@ try {
         const expensesData = data.expenses || {};
         const expenseItems = Object.entries(expensesData).map(([key, value]) => ({ 
             name: expenseNameMapping[key] || key, 
-            amount: value 
+            amount: value as number
         }));
         return { id: doc.id, ...data, expenses: expensesData, expenseItems, createdAtFormatted: formatTimestamp(data.createdAt) };
     }).sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
@@ -202,7 +202,13 @@ try {
         </div>
 
         <div id="delete-modal" class="modal-overlay">
-           // ... (modal content remains unchanged) ...
+            <div class="modal-content">
+                <p>هل أنت متأكد أنك تريد حذف هذا التقرير؟</p>
+                <div class="modal-actions">
+                    <button id="cancel-delete-btn" class="action-btn cancel-btn-toggle">إلغاء</button>
+                    <a id="confirm-delete-btn" href="#" class="action-btn delete-btn">نعم، حذف</a>
+                </div>
+            </div>
         </div>
     </main>
 </Layout>
@@ -212,107 +218,117 @@ try {
     import { onAuthStateChanged, signOut } from "firebase/auth";
     import { doc, getDoc } from "firebase/firestore";
 
-    const authLoadingMessage = document.getElementById('auth-loading-message')!;
-    const loginContainer = document.getElementById('admin-login-container')!;
-    const pageContent = document.getElementById('page-content')!;
-    const logoutButton = document.getElementById('logout-button')!;
-
-    onAuthStateChanged(auth, async (user) => {
-        authLoadingMessage.style.display = 'none';
-
-        if (user) {
-            try {
-                const userDocRef = doc(db, "users", user.uid);
-                const userDoc = await getDoc(userDocRef);
-
-                if (userDoc.exists() && userDoc.data().role === 'admin') {
-                    pageContent.style.display = 'block';
-                    loginContainer.style.display = 'none';
-                } else {
-                    // Not an admin or no role, redirect or show login
-                     window.location.href = '/admin'; // Redirect to main admin page to handle roles
-                }
-            } catch (error) {
-                console.error('Auth Check Error:', error);
-                await signOut(auth);
-                loginContainer.style.display = 'block';
-            }
-        } else {
-            // User is LOGGED OUT
-            pageContent.style.display = 'none';
-            loginContainer.style.display = 'block';
-        }
-    });
-
-    logoutButton.addEventListener('click', async () => {
-        await signOut(auth);
-        window.location.href = '/admin';
-    });
-
-    // --- Inline Edit & Delete Script (remains the same) ---
     document.addEventListener('DOMContentLoaded', () => {
+        const authLoadingMessage = document.getElementById('auth-loading-message');
+        const loginContainer = document.getElementById('admin-login-container');
+        const pageContent = document.getElementById('page-content');
+
+        onAuthStateChanged(auth, async (user) => {
+            if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+            if (user) {
+                try {
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+
+                    if (userDoc.exists() && userDoc.data().role === 'admin') {
+                        if(pageContent) pageContent.style.display = 'block';
+                        if(loginContainer) loginContainer.style.display = 'none';
+
+                        const logoutButton = document.getElementById('logout-button');
+                        if (logoutButton) {
+                            logoutButton.addEventListener('click', async () => {
+                                await signOut(auth);
+                                window.location.href = '/admin';
+                            });
+                        }
+
+                    } else {
+                        await signOut(auth);
+                        window.location.href = '/admin';
+                    }
+                } catch (error) {
+                    console.error('Auth Check Error:', error);
+                    await signOut(auth);
+                    if(loginContainer) loginContainer.style.display = 'block';
+                    if(pageContent) pageContent.style.display = 'none';
+                }
+            } else {
+                if(pageContent) pageContent.style.display = 'none';
+                if(loginContainer) loginContainer.style.display = 'block';
+            }
+        });
+
         const container = document.querySelector('.container');
+        if (!container) return;
 
         container.addEventListener('click', (e) => {
-            const card = e.target.closest('.expense-report-card');
+            const target = e.target as HTMLElement;
+            const card = target.closest('.expense-report-card');
             if (!card) return;
 
-            // Toggle to Edit Mode
-            if (e.target.matches('.edit-btn-toggle')) {
-                card.querySelector('.view-mode').style.display = 'none';
-                card.querySelector('.edit-mode').style.display = 'block';
+            const viewMode = card.querySelector('.view-mode') as HTMLElement;
+            const editMode = card.querySelector('.edit-mode') as HTMLElement;
+
+            if (target.matches('.edit-btn-toggle')) {
+                if(viewMode) viewMode.style.display = 'none';
+                if(editMode) editMode.style.display = 'block';
             }
 
-            // Toggle back to View Mode
-            if (e.target.matches('.cancel-btn-toggle')) {
-                card.querySelector('.edit-mode').style.display = 'none';
-                card.querySelector('.view-mode').style.display = 'block';
+            if (target.matches('.cancel-btn-toggle')) {
+                if(editMode) editMode.style.display = 'none';
+                if(viewMode) viewMode.style.display = 'block';
             }
 
-            // Handle Delete Button
-            if (e.target.matches('.delete-btn')) {
-                const deleteUrl = e.target.dataset.deleteUrl;
+            if (target.matches('.delete-btn')) {
+                const deleteUrl = target.dataset.deleteUrl;
                 if(deleteUrl) showDeleteModal(deleteUrl);
             }
         });
 
-        // Recalculate totals in edit mode
         container.addEventListener('input', (e) => {
-            if (e.target.matches('.expense-input')) {
-                const form = e.target.closest('.edit-mode');
+            const target = e.target as HTMLElement;
+            if (target.matches('.expense-input')) {
+                const form = target.closest('.edit-mode');
                 if (!form) return;
 
                 let total = 0;
-                form.querySelectorAll('.expense-input').forEach(input => total += parseFloat(input.value) || 0);
-                form.querySelector('.total-display').textContent = `${total.toLocaleString('ar-EG')} ج.م`;
+                form.querySelectorAll('.expense-input').forEach(input => {
+                    const value = (input as HTMLInputElement).value;
+                    total += parseFloat(value) || 0;
+                });
+                const totalDisplay = form.querySelector('.total-display') as HTMLElement;
+                if(totalDisplay) totalDisplay.textContent = `${total.toLocaleString('ar-EG')} ج.م`;
             }
         });
 
-        // --- Delete Modal Logic ---
-        const deleteModal = document.getElementById('delete-modal');
+        const deleteModal = document.getElementById('delete-modal') as HTMLElement;
         const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
-        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn') as HTMLLinkElement;
 
-        function showDeleteModal(deleteUrl) {
-            confirmDeleteBtn.href = deleteUrl;
-            deleteModal.style.display = 'flex';
+        function showDeleteModal(deleteUrl: string) {
+            if(confirmDeleteBtn) confirmDeleteBtn.href = deleteUrl;
+            if(deleteModal) deleteModal.style.display = 'flex';
         }
-        function hideDeleteModal() { deleteModal.style.display = 'none'; }
+        function hideDeleteModal() { 
+            if(deleteModal) deleteModal.style.display = 'none'; 
+        }
 
-        cancelDeleteBtn.addEventListener('click', hideDeleteModal);
-        deleteModal.addEventListener('click', e => { if (e.target === deleteModal) hideDeleteModal(); });
+        if(cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', hideDeleteModal);
+        if(deleteModal) deleteModal.addEventListener('click', e => { 
+            if (e.target === deleteModal) hideDeleteModal(); 
+        });
     });
 
 </script>
 
 <style>
-/* ... (most styles remain the same) ... */
+/* ... (styles are unchanged) ... */
 .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
 .auth-container p { font-size: 1.2rem; }
 .btn-logout { background-color: #ef4444; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
 .btn-logout:hover { background-color: #dc2626; }
 .page-header div:last-child { display: flex; align-items: center; gap: 1rem; }
-/* Other styles are mostly unchanged */
 :root { 
     --primary-color: #007bff; 
     --success-color: #28a745;
