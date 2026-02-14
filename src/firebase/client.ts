@@ -1,6 +1,7 @@
 import { initializeApp, getApp, type FirebaseOptions } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage"; // Import getStorage
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: import.meta.env.PUBLIC_FIREBASE_API_KEY,
@@ -21,5 +22,6 @@ try {
 
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app); // Initialize storage
 
-export { auth, db, app, firebaseConfig }; // Fixed: Export firebaseConfig
+export { auth, db, storage, app, firebaseConfig }; // Export storage
