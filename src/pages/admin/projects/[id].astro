@@ -81,7 +81,13 @@ try {
                         <h2>تكاليف المشروع</h2>
                         <div class="button-grid">
                             <a href="#" class="btn btn-category">أجرة العمال</a>
-                            <!-- Add more category buttons here -->
+                            <a href="#" class="btn btn-category">أجرة خرسانه</a>
+                            <a href="#" class="btn btn-category">أجرة مباني</a>
+                            <a href="#" class="btn btn-category">أجرة كهرباء</a>
+                            <a href="#" class="btn btn-category">أجرة السباكة</a>
+                            <a href="#" class="btn btn-category">أجرة الحفر</a>
+                            <a href="#" class="btn btn-category">أجرة الهدم</a>
+                            <a href="#" class="btn btn-category">أجرة مقاول</a>
                         </div>
                     </section>
 
@@ -181,26 +187,27 @@ try {
     }
     .button-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
-        gap: 0.4rem;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 1rem;
     }
     .btn-category {
         display: block;
-        padding: 0.1rem 0.3rem;
-        font-size: 0.7rem;
-        font-weight: 600;
+        padding: 0.6rem 1rem;
+        font-size: 0.95rem;
+        font-weight: 700;
         text-align: center;
         text-decoration: none;
         color: #fff;
         background-color: var(--primary-color);
         border: 1px solid var(--primary-color);
-        border-radius: 5px;
+        border-radius: 8px;
         transition: all 0.2s ease;
     }
     .btn-category:hover {
         background-color: #0056b3;
         border-color: #0056b3;
         transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
 
     .report-links-section { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
@@ -240,6 +247,6 @@ try {
 
     @media (max-width: 768px) {
         .report-links-section { grid-template-columns: 1fr; }
-        .button-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+        .button-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
     }
 </style>
