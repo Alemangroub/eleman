@@ -103,7 +103,7 @@ try {
         const expensesData = data.expenses || {};
         const expenseItems = Object.entries(expensesData).map(([key, value]) => ({ 
             name: expenseNameMapping[key] || key, 
-            amount: value as number
+            amount: value
         }));
         return { id: doc.id, ...data, expenses: expensesData, expenseItems, createdAtFormatted: formatTimestamp(data.createdAt) };
     }).sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
@@ -276,12 +276,12 @@ try {
         if (!container) return;
 
         container.addEventListener('click', (e) => {
-            const target = e.target as HTMLElement;
+            const target = e.target;
             const card = target.closest('.expense-report-card');
             if (!card) return;
 
-            const viewMode = card.querySelector('.view-mode') as HTMLElement;
-            const editMode = card.querySelector('.edit-mode') as HTMLElement;
+            const viewMode = card.querySelector('.view-mode');
+            const editMode = card.querySelector('.edit-mode');
 
             if (target.matches('.edit-btn-toggle')) {
                 if(viewMode) viewMode.style.display = 'none';
@@ -300,26 +300,26 @@ try {
         });
 
         container.addEventListener('input', (e) => {
-            const target = e.target as HTMLElement;
+            const target = e.target;
             if (target.matches('.expense-input')) {
                 const form = target.closest('.edit-mode');
                 if (!form) return;
 
                 let total = 0;
                 form.querySelectorAll('.expense-input').forEach(input => {
-                    const value = (input as HTMLInputElement).value;
+                    const value = input.value;
                     total += parseFloat(value) || 0;
                 });
-                const totalDisplay = form.querySelector('.total-display') as HTMLElement;
+                const totalDisplay = form.querySelector('.total-display');
                 if(totalDisplay) totalDisplay.textContent = `${total.toLocaleString('ar-EG')} ج.م`;
             }
         });
 
-        const deleteModal = document.getElementById('delete-modal') as HTMLElement;
+        const deleteModal = document.getElementById('delete-modal');
         const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
-        const confirmDeleteBtn = document.getElementById('confirm-delete-btn') as HTMLLinkElement;
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
 
-        function showDeleteModal(deleteUrl: string) {
+        function showDeleteModal(deleteUrl) {
             if(confirmDeleteBtn) confirmDeleteBtn.href = deleteUrl;
             if(deleteModal) deleteModal.style.display = 'flex';
         }

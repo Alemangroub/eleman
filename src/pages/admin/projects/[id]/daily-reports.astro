@@ -227,12 +227,12 @@ try {
         if (!container) return;
 
         container.addEventListener('click', (e) => {
-            const target = e.target as HTMLElement;
+            const target = e.target;
             const card = target.closest('.daily-report-card');
             if (!card) return;
 
-            const viewMode = card.querySelector('.view-mode') as HTMLElement;
-            const editMode = card.querySelector('.edit-mode') as HTMLElement;
+            const viewMode = card.querySelector('.view-mode');
+            const editMode = card.querySelector('.edit-mode');
 
             if (target.matches('.edit-btn-toggle')) {
                 if(viewMode) viewMode.style.display = 'none';
@@ -250,11 +250,11 @@ try {
             }
         });
 
-        const deleteModal = document.getElementById('delete-modal') as HTMLElement;
+        const deleteModal = document.getElementById('delete-modal');
         const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
-        const confirmDeleteBtn = document.getElementById('confirm-delete-btn') as HTMLLinkElement;
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
 
-        function showDeleteModal(deleteUrl: string) {
+        function showDeleteModal(deleteUrl) {
             if(confirmDeleteBtn) confirmDeleteBtn.href = deleteUrl;
             if(deleteModal) deleteModal.style.display = 'flex';
         }
