@@ -158,17 +158,22 @@ import Layout from '../../layouts/Layout.astro';
   .btn-danger { background-color: #d9534f; border-color: #d9534f; }
   .btn-danger:hover { background-color: #c9302c; }
   .btn-action-cell { display: flex; gap: 0.5rem; justify-content: center; }
-  .btn-delete-custom, .btn-edit-custom {
+  .btn-delete-custom, .btn-edit-custom, .btn-costs-custom {
       background-color: transparent;
       padding: 0.4rem 0.8rem;
       font-size: 0.85rem;
       border-radius: 6px;
       cursor: pointer;
+      text-decoration: none; /* Ensure link-like buttons are not underlined */
+      display: inline-block;
   }
   .btn-delete-custom { color: #d9534f; border: 1px solid #d9534f; }
   .btn-delete-custom:hover { background-color: #d9534f; color: #fff; }
   .btn-edit-custom { color: #3f51b5; border: 1px solid #3f51b5; }
   .btn-edit-custom:hover { background-color: #3f51b5; color: #fff; }
+  .btn-costs-custom { color: #28a745; border: 1px solid #28a745; }
+  .btn-costs-custom:hover { background-color: #28a745; color: #fff; }
+
 
   /* Modal Styles */
   .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 1000; visibility: hidden; opacity: 0; transition: opacity 0.3s ease; overflow-y: auto; padding: 2rem 1rem; display: flex; align-items: center; justify-content: center; }
@@ -297,6 +302,9 @@ import Layout from '../../layouts/Layout.astro';
       projectIdToEdit = row.dataset.id;
       const projectData = JSON.parse(row.dataset.project.replace(/&apos;/g, "'"));
       openEditModal(projectData);
+    } else if (e.target.classList.contains('btn-costs-custom')) {
+        // Let the default browser action (navigation) proceed
+        e.stopPropagation();
     } else {
       // Otherwise, navigate to the project details page
       const projectId = row.dataset.id;
