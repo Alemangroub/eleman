@@ -80,6 +80,7 @@ try {
                     <section class="cost-categories-card">
                         <h2>تكاليف المشروع</h2>
                         <div class="button-grid">
+                            <a href="#" class="btn btn-category">المصروفات اليوميه</a>
                             <a href="#" class="btn btn-category">أجرة العمال</a>
                             <a href="#" class="btn btn-category">أجرة خرسانه</a>
                             <a href="#" class="btn btn-category">أجرة مباني</a>
@@ -151,8 +152,8 @@ try {
         --primary-color: #007bff; 
         --border-color: #e9ecef; 
         --card-shadow: 0 4px 15px rgba(0,0,0,0.06);
-        --expense-color: #007bff; /* Changed from #dc3545 to blue */
-        --daily-color: #007bff;   /* Changed from #28a745 to blue */
+        --expense-color: #007bff; 
+        --daily-color: #007bff;   
         --notification-color: #ff5252;
     }
     .project-details-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; min-height: 100vh; padding: 2.5rem; }
@@ -187,12 +188,15 @@ try {
     }
     .button-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: 1rem;
     }
     .btn-category {
-        display: block;
-        padding: 0.6rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 65px;
+        padding: 0.5rem 1rem;
         font-size: 0.95rem;
         font-weight: 700;
         text-align: center;
