@@ -1,0 +1,182 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
+--- 
+
+<Layout title="أقساط المشروع">
+  <div id="auth-loading-message" class="auth-container">
+      <p>جارٍ التحقق من صلاحيات الدخول...</p>
+  </div>
+
+  <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+  </div>
+
+  <main id="page-content" class="installments-page" style="display: none;">
+    <div class="container">
+      <div id="loader">
+        <p>جاري تحميل بيانات الأقساط...</p>
+      </div>
+
+      <div id="installments-content" style="display: none;">
+        <div class="page-header">
+          <h1 id="project-name">أقساط المشروع: </h1>
+          <div class="header-actions">
+            <a href="/admin/projects" class="btn btn-secondary">العودة للمشاريع</a>
+          </div>
+        </div>
+        
+        <div id="installments-list">
+          <!-- Installments will be loaded here -->
+        </div>
+        <p id="no-installments-message" style="display: none;">لا توجد أقساط لهذا المشروع بعد.</p>
+      </div>
+
+       <div id="error-display" style="display: none;">
+            <h1>حدث خطأ</h1>
+            <p id="error-message"></p>
+            <a href="/admin/projects" class="btn btn-primary">العودة إلى لوحة التحكم</a>
+        </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  /* Basic Styles */
+  .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .installments-page { padding: 3rem 1.5rem; background-color: #f4f7f6; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
+  .container { max-width: 900px; margin: 0 auto; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 1.5rem;}
+  .page-header h1 { font-size: 2rem; color: #333; font-weight: 800; }
+  .header-actions { display: flex; gap: 1rem; }
+
+  #loader p { text-align: center; font-size: 1.2rem; padding: 3rem; }
+  #no-installments-message { text-align: center; font-size: 1.1rem; padding: 2rem; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  
+  #error-display { text-align: center; padding-top: 4rem; }
+  #error-display h1 { color: #e74c3c; margin-bottom: 1rem; }
+  #error-display p { font-size: 1.2rem; color: #555; margin-bottom: 2rem; }
+
+  /* Installment Item Styles */
+  .installment-item { background: #fff; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.07); padding: 1.5rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
+  .installment-details { display: flex; flex-direction: column; gap: 0.5rem; }
+  .installment-details .amount { font-size: 1.5rem; font-weight: 700; color: #3f51b5; }
+  .installment-details .due-date { font-size: 1rem; color: #555; }
+  
+  .installment-status { padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: 600; }
+  .installment-status.paid { background-color: #d4edda; color: #155724; }
+  .installment-status.unpaid { background-color: #f8d7da; color: #721c24; }
+
+  /* Buttons */
+  .btn { padding: 0.7rem 1.3rem; color: #fff; text-decoration: none; border-radius: 8px; font-size: 0.95rem; font-weight: 700; transition: background-color 0.2s; }
+  .btn-secondary { background-color: #6c757d; }
+  .btn-secondary:hover { background-color: #5a6268; }
+  .btn-primary { background-color: #3f51b5; }
+</style>
+
+<script>
+  import { auth, db } from '../../firebase/client';
+  import { onAuthStateChanged } from "firebase/auth";
+  import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const authLoadingMessage = document.getElementById('auth-loading-message');
+    const loginContainer = document.getElementById('admin-login-container');
+    const pageContent = document.getElementById('page-content');
+
+    onAuthStateChanged(auth, async (user) => {
+      authLoadingMessage.style.display = 'none';
+      if (user) {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().role === 'admin') {
+          pageContent.style.display = 'block';
+          loginContainer.style.display = 'none';
+          initializeApp();
+        } else {
+          loginContainer.style.display = 'block';
+          pageContent.style.display = 'none';
+          await auth.signOut();
+        }
+      } else {
+        loginContainer.style.display = 'block';
+        pageContent.style.display = 'none';
+      }
+    });
+  });
+
+  async function initializeApp() {
+    const loader = document.getElementById('loader');
+    const content = document.getElementById('installments-content');
+    const errorDisplay = document.getElementById('error-display');
+    const errorMessage = document.getElementById('error-message');
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectId = urlParams.get('projectId');
+
+    if (!projectId) {
+      loader.style.display = 'none';
+      errorMessage.textContent = 'لم يتم تحديد مشروع. الرجاء العودة والمحاولة مرة أخرى.';
+      errorDisplay.style.display = 'block';
+      return;
+    }
+
+    try {
+      const projectRef = doc(db, 'projects', projectId);
+      const projectSnap = await getDoc(projectRef);
+
+      if (!projectSnap.exists()) {
+        loader.style.display = 'none';
+        errorMessage.textContent = 'المشروع المحدد غير موجود.';
+        errorDisplay.style.display = 'block';
+        return;
+      }
+
+      const project = projectSnap.data();
+      document.getElementById('project-name').textContent += project.projectName || 'غير مسمى';
+      
+      const installmentsQuery = query(collection(db, 'installments'), where('projectId', '==', projectId));
+      const querySnapshot = await getDocs(installmentsQuery);
+      
+      const installmentsList = document.getElementById('installments-list');
+      if (querySnapshot.empty) {
+        document.getElementById('no-installments-message').style.display = 'block';
+      } else {
+        const installments = querySnapshot.docs.map(doc => doc.data());
+
+        installments.sort((a, b) => {
+            const dateA = a.dueDate ? (a.dueDate.toDate ? a.dueDate.toDate().getTime() : new Date(a.dueDate).getTime()) : 0;
+            const dateB = b.dueDate ? (b.dueDate.toDate ? b.dueDate.toDate().getTime() : new Date(b.dueDate).getTime()) : 0;
+            if (!dateA) return 1;
+            if (!dateB) return -1;
+            return dateA - dateB;
+        });
+
+        installments.forEach(installment => {
+          const item = document.createElement('div');
+          item.className = 'installment-item';
+
+          const dueDate = installment.dueDate ? (installment.dueDate.toDate ? installment.dueDate.toDate().toLocaleDateString('ar-EG') : new Date(installment.dueDate).toLocaleDateString('ar-EG')) : 'غير محدد';
+          const amount = installment.amount ? installment.amount.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' }) : 'غير محدد';
+
+          item.innerHTML = `
+            <div class="installment-details">
+              <span class="amount">${amount}</span>
+              <span class="due-date">تاريخ الاستحقاق: ${dueDate}</span>
+            </div>
+            <div class="installment-status ${installment.status || 'unpaid'}">${(installment.status === 'paid') ? 'مدفوع' : 'غير مدفوع'}</div>
+          `;
+          installmentsList.appendChild(item);
+        });
+      }
+
+      loader.style.display = 'none';
+      content.style.display = 'block';
+
+    } catch (error) {
+      console.error("Error fetching data: ", error);
+      loader.style.display = 'none';
+      errorMessage.textContent = 'حدث خطأ أثناء تحميل البيانات. يرجى مراجعة الـ console لمعرفة التفاصيل.';
+      errorDisplay.style.display = 'block';
+    }
+  }
+</script>
