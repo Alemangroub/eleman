@@ -1,143 +1,44 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import AdminLogin from '../../components/AdminLogin.astro';
---- 
+---
 
-<Layout title="تفاصيل العقد">
-    <div id="auth-loading-message" class="auth-container">
-        <p>جارٍ التحقق من صلاحيات الدخول...</p>
-    </div>
+<Layout title="أقساط العقد">
+  <div id="auth-loading-message" class="auth-container">
+    <p>جارٍ التحقق من صلاحيات الدخول...</p>
+  </div>
 
-    <div id="admin-login-container" class="auth-container" style="display: none;">
-      <AdminLogin />
-    </div>
+  <div id="admin-login-container" class="auth-container" style="display: none;">
+    <AdminLogin />
+  </div>
 
-    <main id="page-content" style="display: none;">
-        <div class="details-container">
-            <div id="loader">جاري تحميل تفاصيل العقد...</div>
-            <div id="error-message" style="display: none;"></div>
-            
-            <div id="contract-content" style="display: none;">
-                <div class="details-header">
-                    <h1>تفاصيل العقد</h1>
-                    <div class="header-actions">
-                        <a href="/admin/installments" class="btn btn-secondary">&larr; العودة</a>
-                        <a id="edit-contract-link" class="btn btn-primary">تعديل العقد</a> 
-                        <button id="print-contract-btn" class="btn btn-info">طباعه العقد</button>
-                        <button id="delete-contract-btn" class="btn btn-danger">حذف العقد</button>
-                        <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
-                    </div>
-                </div>
-                <div class="contract-summary card">
-                    <h2>ملخص العقد</h2>
-                    <div class="summary-grid">
-                        <div><strong>اسم العميل:</strong> <span id="customerName"></span></div>
-                        <div><strong>رقم الهاتف:</strong> <span id="customerPhone"></span></div>
-                        <div><strong>نوع الوحدة:</strong> <span id="unitType"></span></div>
-                        <div><strong>موقع الوحدة:</strong> <span id="unitLocation"></span></div>
-                        <div><strong>المبلغ الإجمالي:</strong> <span id="totalAmount"></span></div>
-                        <div><strong>عدد الأقساط:</strong> <span id="installmentsCount"></span></div>
-                    </div>
-                </div>
-                <div class="installments-section card">
-                    <h2>قائمة الأقساط</h2>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>مبلغ القسط</th>
-                                    <th>تاريخ الاستحقاق</th>
-                                    <th>الحالة</th>
-                                    <th>تعديل</th>
-                                </tr>
-                            </thead>
-                            <tbody id="installments-tbody"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+  <main id="page-content" style="display: none;">
+    <div class="details-container">
+        <div class="details-header">
+            <h1>أقساط العقد</h1>
+            <a id="back-link" href="#" class="btn btn-secondary">&larr; العودة لعقود المشروع</a>
         </div>
-
-        <!-- Custom Confirmation Modal -->
-        <div id="custom-confirm-backdrop" class="confirm-backdrop" style="display: none;">
-            <div id="custom-confirm-modal" class="confirm-modal">
-                <p id="confirm-modal-text">هل أنت متأكد؟</p>
-                <div class="confirm-modal-actions">
-                    <button id="confirm-modal-cancel-btn" class="btn btn-secondary">إلغاء</button>
-                    <button id="confirm-modal-confirm-btn" class="btn">تأكيد</button>
-                </div>
-            </div>
-        </div>
-    </main>
+        <p>هنا سيتم عرض أقساط العقد المحدد.</p>
+        <!-- محتوى أقساط العقد هيتحط هنا -->
+    </div>
+  </main>
 </Layout>
 
 <style>
-    /* Auth and Logout Styles */
     .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
-    .auth-container p { font-size: 1.2rem; }
-    .btn-logout { background-color: #e74c3c; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
-    .btn-logout:hover { background-color: #c0392b; }
-
     main#page-content { padding: 2rem; background-color: #f7f9fc; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
     .details-container { width: 100%; max-width: 900px; margin: 0 auto; }
-    .details-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
-    .details-header h1 { margin: 0; font-size: 2.2rem; color: #2c3e50; }
-    .header-actions { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;}
-    .btn { padding: 0.6rem 1.2rem; border-radius: 8px; text-decoration: none; border: none; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
-    .btn-primary { background-color: #3498db; color: white; }
-    .btn-primary:hover { background-color: #2980b9; }
-    .btn-secondary { background-color: #ecf0f1; color: #34495e; border: 1px solid #bdc3c7; }
-    .btn-secondary:hover { background-color: #e0e5e8; }
-    .btn-danger { background-color: #e74c3c; color: white; }
-    .btn-danger:hover { background-color: #c0392b; }
-    .btn-info { background-color: #17a2b8; color: white; }
-    .btn-info:hover { background-color: #138496; }
-    .btn-edit { background-color: #f39c12; color: white; font-size: 0.85rem; padding: 0.4rem 0.8rem; }
-    .btn-edit:hover { background-color: #e67e22; }
-    .card { background: #fff; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.07); margin-bottom: 2rem; }
-    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; font-size: 1.1rem; color: #34495e; }
-    .summary-grid div { background-color: #f8f9fa; padding: 1rem; border-radius: 8px; }
-    h2 { margin-top: 0; margin-bottom: 1.5rem; color: #34495e; border-bottom: 2px solid #ecf0f1; padding-bottom: 0.8rem; }
-    .table-container { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; text-align: center; }
-    th, td { padding: 1rem; border-bottom: 1px solid #ecf0f1; }
-    th { background-color: #f8f9fa; font-weight: 600; color: #7f8c8d; }
-    :global(.status-toggle-btn) { padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem; font-weight: 700; border: none; color: white; cursor: pointer; min-width: 90px; transition: background-color 0.3s ease, opacity 0.3s ease; }
-    :global(.status-toggle-btn:hover) { opacity: 0.85; }
-    :global(.status-toggle-btn[data-status="paid"]) { background-color: #27ae60; }
-    :global(.status-toggle-btn[data-status="unpaid"]) { background-color: #e74c3c; }
-    #loader, #error-message { text-align: center; padding: 4rem; font-size: 1.2rem; color: #7f8c8d; }
-
-    /* Print-only status text, hidden by default */
-    .print-only-status { display: none; }
-
-    @media print {
-        /* Hide non-essential elements for printing */
-        .header-actions, .status-toggle-btn, .btn-edit, #custom-confirm-backdrop, :global(nav), :global(footer) {
-            display: none;
-        }
-
-        /* Show the text-based status only for printing */
-        .print-only-status { display: inline; font-size: 1rem; color: #000; }
-
-        /* General print styling */
-        main { padding: 0; background-color: #fff; }
-        .card { box-shadow: none; border: 1px solid #dee2e6; page-break-inside: avoid; }
-        .details-container { width: 100%; max-width: 100%; margin: 0; }
-        a { text-decoration: none; color: black; }
-    }
-
-    /* Custom Confirm Modal Styles */
-    .confirm-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-    .confirm-modal { background: white; padding: 2.5rem; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); text-align: center; width: 90%; max-width: 400px; }
-    .confirm-modal p { font-size: 1.2rem; color: #333; margin: 0 0 1.5rem 0; }
-    .confirm-modal-actions { display: flex; justify-content: center; gap: 1rem; }
+    .details-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    h1 { margin: 0; font-size: 2.2rem; color: #2c3e50; }
+    .btn { padding: 0.7rem 1.4rem; border-radius: 8px; text-decoration: none; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+    .btn-secondary { background-color: #6c757d; color: white; }
+    .btn-secondary:hover { background-color: #5a6268; }
 </style>
 
 <script>
     import { auth, db } from '../../firebase/client';
-    import { onAuthStateChanged, signOut } from "firebase/auth";
-    import { doc, getDoc, collection, getDocs, query, where, orderBy, writeBatch, deleteDoc, updateDoc } from 'firebase/firestore';
+    import { onAuthStateChanged } from "firebase/auth";
+    import { doc, getDoc } from 'firebase/firestore';
 
     document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
@@ -146,201 +47,36 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
         onAuthStateChanged(auth, async (user) => {
             if(authLoadingMessage) authLoadingMessage.style.display = 'none';
-
             if (user) {
                 try {
-                    const userDocRef = doc(db, "users", user.uid);
-                    const userDoc = await getDoc(userDocRef);
-
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
                     if (userDoc.exists() && userDoc.data().role === 'admin') {
-                        if(pageContent) pageContent.style.display = 'block';
-                        if(loginContainer) loginContainer.style.display = 'none';
-
-                        const logoutButton = document.getElementById('logout-button');
-                        if (logoutButton) {
-                            logoutButton.addEventListener('click', async () => {
-                                await signOut(auth);
-                                window.location.href = '/admin';
-                            });
-                        }
-                        
-                        // Initialize the page content now that user is authenticated
+                        pageContent.style.display = 'block';
+                        loginContainer.style.display = 'none';
                         initializePage();
-
                     } else {
-                        await signOut(auth);
-                        if(loginContainer) loginContainer.style.display = 'block';
-                        if(pageContent) pageContent.style.display = 'none';
+                        await auth.signOut();
+                        loginContainer.style.display = 'block';
                     }
                 } catch (error) {
                     console.error('Auth Check Error:', error);
-                    await signOut(auth);
-                    if(loginContainer) loginContainer.style.display = 'block';
-                    if(pageContent) pageContent.style.display = 'none';
+                    await auth.signOut();
+                    loginContainer.style.display = 'block';
                 }
             } else {
-                if(pageContent) pageContent.style.display = 'none';
-                if(loginContainer) loginContainer.style.display = 'block';
+                loginContainer.style.display = 'none';
+                pageContent.style.display = 'none';
             }
         });
     });
 
     function initializePage() {
         const urlParams = new URLSearchParams(window.location.search);
-        const contractId = urlParams.get('id');
-        const loader = document.getElementById('loader');
-        const errorMessage = document.getElementById('error-message');
-        const contractContent = document.getElementById('contract-content');
-        const installmentsTbody = document.getElementById('installments-tbody');
-        const deleteContractBtn = document.getElementById('delete-contract-btn');
-        const printContractBtn = document.getElementById('print-contract-btn');
-
-        // Custom Modal Elements
-        const confirmBackdrop = document.getElementById('custom-confirm-backdrop');
-        const confirmModalText = document.getElementById('confirm-modal-text');
-        const confirmBtn = document.getElementById('confirm-modal-confirm-btn');
-        const cancelBtn = document.getElementById('confirm-modal-cancel-btn');
-
-        let actionToConfirm = null;
-
-        const formatCurrency = (num) => num.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
-
-        function displayError(message) {
-            loader.style.display = 'none';
-            contractContent.style.display = 'none';
-            errorMessage.textContent = message;
-            errorMessage.style.display = 'block';
+        const projectId = urlParams.get('projectId');
+        const backLink = document.getElementById('back-link');
+        if (projectId) {
+            backLink.href = `/admin/project-installments?projectId=${projectId}`;
         }
-
-        async function fetchAndDisplayContractDetails() {
-            if (!contractId) {
-                displayError('خطأ: لم يتم تحديد معرف العقد.');
-                return;
-            }
-            loader.style.display = 'block';
-            contractContent.style.display = 'none';
-            try {
-                const contractRef = doc(db, 'contracts', contractId);
-                const contractSnap = await getDoc(contractRef);
-                if (!contractSnap.exists()) {
-                    displayError('خطأ: العقد المطلوب غير موجود.');
-                    return;
-                }
-                const contract = contractSnap.data();
-                document.getElementById('customerName').textContent = contract.customerName;
-                document.getElementById('customerPhone').textContent = contract.customerPhone || 'غير متوفر';
-                document.getElementById('unitType').textContent = contract.unitType;
-                document.getElementById('unitLocation').textContent = contract.unitLocation || 'غير متوفر';
-                document.getElementById('totalAmount').textContent = formatCurrency(contract.totalAmount);
-                document.getElementById('edit-contract-link').href = `/admin/edit-contract?id=${contractId}`;
-                const qInstallments = query(collection(db, 'installments'), where('contractId', '==', contractId), orderBy('dueDate', 'asc'));
-                const installmentsSnapshot = await getDocs(qInstallments);
-                document.getElementById('installmentsCount').textContent = installmentsSnapshot.size;
-                installmentsTbody.innerHTML = '';
-                installmentsSnapshot.forEach(installmentDoc => {
-                    const installment = installmentDoc.data();
-                    const tr = document.createElement('tr');
-                    const statusText = installment.status === 'paid' ? 'مدفوع' : 'مستحق';
-                    tr.innerHTML = `
-                        <td>${formatCurrency(installment.amount)}</td>
-                        <td>${installment.dueDate}</td>
-                        <td>
-                            <button class="status-toggle-btn" data-id="${installmentDoc.id}" data-status="${installment.status}">${statusText}</button>
-                            <span class="print-only-status">${statusText}</span>
-                        </td>
-                        <td>
-                            <a href="/admin/edit-installment?id=${installmentDoc.id}&contractId=${contractId}" class="btn btn-edit">تعديل</a>
-                        </td>
-                    `;
-                    installmentsTbody.appendChild(tr);
-                });
-                loader.style.display = 'none';
-                contractContent.style.display = 'block';
-            } catch (error) {
-                console.error("Error fetching contract details: ", error);
-                displayError('حدث خطأ أثناء جلب تفاصيل العقد.');
-            }
-        }
-
-        function showConfirmModal(text, onConfirm, newStatus) {
-            confirmModalText.textContent = text;
-            actionToConfirm = onConfirm;
-            confirmBtn.className = 'btn'; 
-            if (newStatus === 'paid') {
-                confirmBtn.classList.add('btn-success');
-            } else if (newStatus === 'unpaid') {
-                confirmBtn.classList.add('btn-warning');
-            } else {
-                confirmBtn.classList.add('btn-danger');
-            }
-            confirmBackdrop.style.display = 'flex';
-        }
-
-        function hideConfirmModal() {
-            confirmBackdrop.style.display = 'none';
-            actionToConfirm = null;
-        }
-
-        installmentsTbody.addEventListener('click', async (e) => {
-            const btn = e.target.closest('.status-toggle-btn');
-            if (!btn) return;
-
-            const installmentId = btn.dataset.id;
-            const currentStatus = btn.dataset.status;
-            const newStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
-            const newStatusText = newStatus === 'paid' ? 'مدفوع' : 'مستحق';
-
-            const onConfirm = async () => {
-                btn.disabled = true;
-                btn.style.opacity = '0.5';
-                try {
-                    const installmentRef = doc(db, 'installments', installmentId);
-                    await updateDoc(installmentRef, { status: newStatus });
-                    fetchAndDisplayContractDetails();
-                } catch (error) {
-                    console.error("Error updating status: ", error);
-                    alert('حدث خطأ أثناء تحديث حالة القسط.');
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                }
-            };
-
-            showConfirmModal(`هل أنت متأكد من تغيير الحالة إلى "${newStatusText}"؟`, onConfirm, newStatus);
-        });
-
-        confirmBtn.addEventListener('click', () => {
-            if (actionToConfirm) {
-                actionToConfirm();
-            }
-            hideConfirmModal();
-        });
-
-        cancelBtn.addEventListener('click', hideConfirmModal);
-        
-        deleteContractBtn.addEventListener('click', async () => {
-            const onConfirm = async () => {
-                try {
-                    const batch = writeBatch(db);
-                    const qInstallments = query(collection(db, 'installments'), where('contractId', '==', contractId));
-                    const installmentsSnapshot = await getDocs(qInstallments);
-                    installmentsSnapshot.forEach(doc => { batch.delete(doc.ref); });
-                    const contractRef = doc(db, 'contracts', contractId);
-                    batch.delete(contractRef);
-                    await batch.commit();
-                    alert('تم حذف العقد وجميع أقساطه بنجاح.');
-                    window.location.href = '/admin/installments';
-                } catch (error) {
-                    console.error("Error deleting contract: ", error);
-                    alert('حدث خطأ أثناء حذف العقد.');
-                }
-            };
-            showConfirmModal('هل أنت متأكد من رغبتك في حذف هذا العقد؟ سيتم حذف جميع الأقساط المرتبطة به بشكل نهائي.', onConfirm, 'delete');
-        });
-
-        printContractBtn.addEventListener('click', () => {
-            window.print();
-        });
-
-        fetchAndDisplayContractDetails();
+        // أي كود تاني هنحتاجه للصفحة دي هيتحط هنا
     }
 </script>
