@@ -35,6 +35,10 @@ import AdminLogin from '../../components/AdminLogin.astro';
                             <option value="other">أخرى</option>
                         </select>
                     </div>
+                     <div class="form-group">
+                        <label for="unitLocation">موقع الوحدة</label>
+                        <input type="text" id="unitLocation" name="unitLocation" required />
+                    </div>
                     <div class="form-group">
                         <label for="customerName">اسم العميل</label>
                         <input type="text" id="customerName" name="customerName" required />
@@ -313,6 +317,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
             const commonData = {
                 projectId: projectId,
                 unitType: form.unitType.value,
+                unitLocation: form.unitLocation.value, // Added unitLocation
                 customerName: form.customerName.value,
                 customerPhone: form.customerPhone.value,
                 totalAmount: totalAmount,
