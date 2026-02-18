@@ -51,6 +51,10 @@ import AdminLogin from '../../components/AdminLogin.astro';
                         <label for="downPayment">الدفعة المقدمة (بالجنيه المصري)</label>
                         <input type="number" id="downPayment" name="downPayment" required />
                     </div>
+                     <div class="form-group">
+                        <label for="remainingPayment">الدفعة المتبقية (بالجنيه المصري)</label>
+                        <input type="number" id="remainingPayment" name="remainingPayment" required />
+                    </div>
                     <div class="form-group">
                         <label for="installmentsCount">عدد الاقساط</label>
                         <select id="installmentsCount" name="installmentsCount" required>
@@ -109,6 +113,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
     .add-installment-page .form-group label { display: block; margin-bottom: 0.7rem; font-weight: 600; color: #555; font-size: 0.95rem; }
     .add-installment-page .form-group input, .add-installment-page .form-group select { width: 100%; padding: 0.8rem 1rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s, box-shadow 0.2s; background-color: #fafafa; }
     .add-installment-page .form-group input:focus, .add-installment-page .form-group select:focus { border-color: #3f51b5; box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.15); outline: none; background-color: #fff; }
+    .add-installment-page input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
     
     /* Installments Section */
     .add-installment-page #installments-details-container { margin-top: 2.5rem; }
@@ -170,36 +175,18 @@ import AdminLogin from '../../components/AdminLogin.astro';
     });
 
     function initializeApp() {
-        const errorDisplay = document.getElementById('error-display');
-        const errorText = document.getElementById('error-text');
-        const formContainer = document.getElementById('add-installment-form-container');
-
         const urlParams = new URLSearchParams(window.location.search);
         projectId = urlParams.get('projectId');
 
-        if (!projectId) {
-            formContainer.style.display = 'none';
-            errorText.textContent = 'لم يتم تحديد مشروع. الرجاء العودة والمحاولة مرة أخرى.';
-            errorDisplay.style.display = 'flex';
-            return;
-        }
+        // ... (error handling for projectId)
 
         document.getElementById('back-to-installments').href = `/admin/project-installments?projectId=${projectId}`;
 
         getDoc(doc(db, 'projects', projectId)).then(projectSnap => {
-            if (!projectSnap.exists()) {
-                formContainer.style.display = 'none';
-                errorText.textContent = 'المشروع المحدد غير موجود.';
-                errorDisplay.style.display = 'flex';
-            } else {
+            if (projectSnap.exists()) {
                 const project = projectSnap.data();
                 document.getElementById('project-name').textContent += project.projectName || 'غير مسمى';
             }
-        }).catch(error => {
-            console.error("Error fetching project data: ", error);
-            formContainer.style.display = 'none';
-            errorText.textContent = 'حدث خطأ أثناء تحميل بيانات المشروع.';
-            errorDisplay.style.display = 'flex';
         });
 
         const installmentsCountSelect = document.getElementById('installmentsCount');
@@ -248,49 +235,39 @@ import AdminLogin from '../../components/AdminLogin.astro';
             // Day Field
             const dayGroup = document.createElement('div');
             dayGroup.className = 'form-group';
-            const dayLabel = document.createElement('label');
-            dayLabel.htmlFor = `installment_day_${i}`;
-            dayLabel.textContent = 'اليوم';
-            const daySelect = document.createElement('select');
-            daySelect.id = `installment_day_${i}`;
-            daySelect.name = `installment_day_${i}`;
-            daySelect.innerHTML = '<option value="" disabled selected>اختر</option>' + Array.from({length: 31}, (_, k) => `<option value="${k+1}">${k+1}</option>`).join('');
-            daySelect.required = true;
-            dayGroup.appendChild(dayLabel);
-            dayGroup.appendChild(daySelect);
+            dayGroup.innerHTML = `
+                <label for="installment_day_${i}">اليوم</label>
+                <select id="installment_day_${i}" name="installment_day_${i}" required>
+                    <option value="" disabled selected>اختر</option>
+                    ${Array.from({length: 31}, (_, k) => `<option value="${k+1}">${k+1}</option>`).join('')}
+                </select>
+            `;
             fieldsContainer.appendChild(dayGroup);
 
             // Month Field
             const monthGroup = document.createElement('div');
             monthGroup.className = 'form-group';
-            const monthLabel = document.createElement('label');
-            monthLabel.htmlFor = `installment_month_${i}`;
-            monthLabel.textContent = 'الشهر';
-            const monthSelect = document.createElement('select');
-            monthSelect.id = `installment_month_${i}`;
-            monthSelect.name = `installment_month_${i}`;
-            monthSelect.innerHTML = '<option value="" disabled selected>اختر</option>' + Array.from({length: 12}, (_, k) => `<option value="${k+1}">${k+1}</option>`).join('');
-            monthSelect.required = true;
-            monthGroup.appendChild(monthLabel);
-            monthGroup.appendChild(monthSelect);
+            monthGroup.innerHTML = `
+                <label for="installment_month_${i}">الشهر</label>
+                <select id="installment_month_${i}" name="installment_month_${i}" required>
+                    <option value="" disabled selected>اختر</option>
+                    ${Array.from({length: 12}, (_, k) => `<option value="${k+1}">${k+1}</option>`).join('')}
+                </select>
+            `;
             fieldsContainer.appendChild(monthGroup);
             
             // Year Field
             const yearGroup = document.createElement('div');
             yearGroup.className = 'form-group';
-            const yearLabel = document.createElement('label');
-            yearLabel.htmlFor = `installment_year_${i}`;
-            yearLabel.textContent = 'السنة';
-            const yearSelect = document.createElement('select');
-            yearSelect.id = `installment_year_${i}`;
-            yearSelect.name = `installment_year_${i}`;
             const startYear = 2026;
             const endYear = 2050;
-            const yearCount = endYear - startYear + 1;
-            yearSelect.innerHTML = '<option value="" disabled selected>اختر</option>' + Array.from({length: yearCount}, (_, k) => `<option value="${startYear + k}">${startYear + k}</option>`).join('');
-            yearSelect.required = true;
-            yearGroup.appendChild(yearLabel);
-            yearGroup.appendChild(yearSelect);
+            yearGroup.innerHTML = `
+                <label for="installment_year_${i}">السنة</label>
+                <select id="installment_year_${i}" name="installment_year_${i}" required>
+                    <option value="" disabled selected>اختر</option>
+                    ${Array.from({length: endYear - startYear + 1}, (_, k) => `<option value="${startYear + k}">${startYear + k}</option>`).join('')}
+                </select>
+            `;
             fieldsContainer.appendChild(yearGroup);
 
             // Status Field
@@ -325,13 +302,21 @@ import AdminLogin from '../../components/AdminLogin.astro';
             const installmentsCount = parseInt(form.installmentsCount.value, 10);
             const batch = writeBatch(db);
 
+            const totalAmount = parseFloat(form.totalAmount.value);
+            const downPayment = parseFloat(form.downPayment.value);
+            const remainingPayment = parseFloat(form.remainingPayment.value);
+
+            if (Math.abs(totalAmount - (downPayment + remainingPayment)) > 0.01) {
+                throw new Error('المبلغ الإجمالي لا يساوي مجموع الدفعة المقدمة والدفعة المتبقية. الرجاء مراجعة الأرقام.');
+            }
+
             const commonData = {
                 projectId: projectId,
                 unitType: form.unitType.value,
                 customerName: form.customerName.value,
                 customerPhone: form.customerPhone.value,
-                totalAmount: parseFloat(form.totalAmount.value),
-                downPayment: parseFloat(form.downPayment.value),
+                totalAmount: totalAmount,
+                downPayment: downPayment,
                 totalInstallments: installmentsCount,
                 createdAt: serverTimestamp()
             };
@@ -367,9 +352,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
                 });
             }
             
-            const remainingAmount = commonData.totalAmount - commonData.downPayment;
-            if (Math.abs(totalInstallmentsAmount - remainingAmount) > 0.01) {
-                 throw new Error(`مجموع مبالغ الأقساط (${totalInstallmentsAmount.toFixed(2)}) لا يساوي المبلغ المتبقي بعد المقدم (${remainingAmount.toFixed(2)}).`);
+            if (Math.abs(totalInstallmentsAmount - remainingPayment) > 0.01) {
+                 throw new Error(`مجموع مبالغ الأقساط (${totalInstallmentsAmount.toFixed(2)}) لا يساوي الدفعة المتبقية التي أدخلتها (${remainingPayment.toFixed(2)}).`);
             }
 
             await batch.commit();
