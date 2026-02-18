@@ -224,7 +224,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
 <script>
     import { auth, db } from '../../firebase/client';
-    import { onAuthStateChanged } from "firebase/auth";
+    import { onAuthStateChanged, signOut } from "firebase/auth";
     import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -233,27 +233,32 @@ import AdminLogin from '../../components/AdminLogin.astro';
         const pageContent = document.getElementById('page-content');
 
         onAuthStateChanged(auth, async (user) => {
-            authLoadingMessage.style.display = 'none';
-            if (user) {
-                try {
-                    const userDoc = await getDoc(doc(db, "users", user.uid));
-                    if (userDoc.exists() && userDoc.data().role === 'admin') {
-                        pageContent.style.display = 'block';
-                        loginContainer.style.display = 'none';
-                        initializeApp();
-                    } else {
-                        loginContainer.style.display = 'block';
-                        pageContent.style.display = 'none';
-                        if(auth.currentUser) await auth.signOut();
-                    }
-                } catch(e) { 
-                    loginContainer.style.display = 'block'; 
-                    pageContent.style.display = 'none';
-                }
-            } else {
-                loginContainer.style.display = 'block';
-                pageContent.style.display = 'none';
-            }
+          if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+          if (user) {
+              try {
+                  const userDocRef = doc(db, "users", user.uid);
+                  const userDoc = await getDoc(userDocRef);
+
+                  if (userDoc.exists() && userDoc.data().role === 'admin') {
+                      if(pageContent) pageContent.style.display = 'block';
+                      if(loginContainer) loginContainer.style.display = 'none';
+                      initializeApp();
+                  } else {
+                      await signOut(auth);
+                      if(loginContainer) loginContainer.style.display = 'block';
+                      if(pageContent) pageContent.style.display = 'none';
+                  }
+              } catch (error) {
+                  console.error('Auth Check Error:', error);
+                  await signOut(auth);
+                  if(loginContainer) loginContainer.style.display = 'block';
+                  if(pageContent) pageContent.style.display = 'none';
+              }
+          } else {
+              if(pageContent) pageContent.style.display = 'none';
+              if(loginContainer) loginContainer.style.display = 'block';
+          }
         });
     });
 

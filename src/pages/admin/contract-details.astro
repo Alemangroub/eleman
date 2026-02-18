@@ -176,8 +176,8 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
 
 <script>
     import { auth, db } from '../../firebase/client';
-    import { onAuthStateChanged } from "firebase/auth";
-    import { doc, collection, query, where, getDocs, writeBatch, Timestamp, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
+    import { onAuthStateChanged, signOut } from "firebase/auth";
+    import { doc, getDoc, collection, query, where, getDocs, writeBatch, Timestamp, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
 
     let currentProjectId = null;
     let currentCustomerName = null;
@@ -210,19 +210,37 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
             deleteBtn.addEventListener('click', handleDeleteContract);
         }
 
-        onAuthStateChanged(auth, user => {
-            const authLoadingMessage = document.getElementById('auth-loading-message');
-            const loginContainer = document.getElementById('admin-login-container');
-            const pageContent = document.getElementById('page-content');
-            authLoadingMessage.style.display = 'none';
-            if (user) {
-                pageContent.style.display = 'block';
-                loginContainer.style.display = 'none';
-                initializeApp();
-            } else {
-                loginContainer.style.display = 'block';
-                pageContent.style.display = 'none';
-            }
+        const authLoadingMessage = document.getElementById('auth-loading-message');
+        const loginContainer = document.getElementById('admin-login-container');
+        const pageContent = document.getElementById('page-content');
+
+        onAuthStateChanged(auth, async (user) => {
+          if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+          if (user) {
+              try {
+                  const userDocRef = doc(db, "users", user.uid);
+                  const userDoc = await getDoc(userDocRef);
+
+                  if (userDoc.exists() && userDoc.data().role === 'admin') {
+                      if(pageContent) pageContent.style.display = 'block';
+                      if(loginContainer) loginContainer.style.display = 'none';
+                      initializeApp();
+                  } else {
+                      await signOut(auth);
+                      if(loginContainer) loginContainer.style.display = 'block';
+                      if(pageContent) pageContent.style.display = 'none';
+                  }
+              } catch (error) {
+                  console.error('Auth Check Error:', error);
+                  await signOut(auth);
+                  if(loginContainer) loginContainer.style.display = 'block';
+                  if(pageContent) pageContent.style.display = 'none';
+              }
+          } else {
+              if(pageContent) pageContent.style.display = 'none';
+              if(loginContainer) loginContainer.style.display = 'block';
+          }
         });
     });
 
