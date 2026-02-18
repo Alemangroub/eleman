@@ -65,6 +65,7 @@ This application is a web-based project management dashboard named "Elemannet". 
     -   Allows admins to toggle the status of each installment (with confirmation).
     -   Provides options to edit the entire contract, delete it, or print it.
     -   Includes a link to edit each individual installment.
+    -   **Responsive Design:** The installments table transforms into a card-based view on mobile devices for better readability.
 
 -   **Installment Editing (`/admin/edit-installment`):**
     -   A dedicated page to modify the amount, due date, or status of a single installment.
@@ -82,24 +83,23 @@ This application is a web-based project management dashboard named "Elemannet". 
 -   **Secure Admin Login (`/admin`):** The generic `/admin` route serves as the primary login portal for administrators.
 -   **Logout Functionality:** A "Logout" button is available on all admin pages for secure session termination.
 
-## 3. Previous Task: Add Project-Specific Installment Management
-
-### Plan & Steps for the requested change:
-
-1.  **[Completed] Add "Add Installment" Button:** Modified the `project-installments.astro` page to include a new "إضافة قسط" (Add Installment) button in the header.
-2.  **[Completed] Create "Add Installment" Page:** Created a new page at `src/pages/admin/add-installment.astro`.
-3.  **[Completed] Build the Form & Logic:**
-    -   Designed a form with fields for amount, due date, and status.
-    -   Added Firebase logic to fetch the project's name for the header.
-    -   Implemented the `addDoc` function to save the new installment to the `installments` collection in Firestore, including the `projectId`.
-4.  **[Completed] Implement Authentication:** Secured the new page to ensure only `admin` users can access it.
-5.  **[Completed] Finalize Navigation:** Ensured that after adding an installment, the user is redirected back to the `project-installments` page to see the updated list.
-6.  **[Completed] Update Blueprint:** Updated this `blueprint.md` file to document the new feature and mark the task as complete.
-
-## 4. Current Task: Fix Installment Status Dropdown UI
+## 3. Previous Task: Fix Installment Status Dropdown UI
 
 ### Plan & Steps for the requested change:
 
 1.  **[Identify Issue]** The "Paid/Pending" status dropdown in the `contract-details.astro` page was not fully visible on smaller screens (mobile view) because its width was constrained.
 2.  **[Implement Fix]** Modified the global stylesheet within `src/pages/admin/contract-details.astro`. Specifically, I adjusted the CSS rule targeting the `select` element within the installments table. I removed the `width: 100%` property from the `select` dropdown, allowing it to size automatically based on its content ("مستحق" / "مدفوع"). This ensures the full text is always visible.
 3.  **[Update Blueprint]** Updated this `blueprint.md` file to document the UI fix and mark the task as complete.
+
+## 4. Current Task: Make Installments Table Responsive
+
+### Plan & Steps for the requested change:
+
+1.  **[Identify Need]** The installments table on the `contract-details.astro` page was not user-friendly on mobile devices, requiring horizontal scrolling to view all data.
+2.  **[Implement Responsive CSS]** Added a media query for screens up to `768px` wide.
+    -   Hid the traditional `<thead>`.
+    -   Converted each `<tr>` into a block-level element, styled to look like a card.
+    -   Transformed each `<td>` to a flex container to align its content and a `::before` pseudo-element.
+    -   Used the `data-label` attribute on each `<td>` to display the column header next to the data, creating a clear key-value pair format on mobile.
+3.  **[Update JavaScript]** Modified the `renderInstallmentsTable` function to add the `data-label` attributes to each `<td>` element dynamically, ensuring the mobile view has the correct labels for each piece of data.
+4.  **[Update Blueprint]** Updated this `blueprint.md` file to document the new responsive design for the table and mark the task as complete.

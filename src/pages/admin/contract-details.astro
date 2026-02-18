@@ -62,11 +62,11 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
                     </div>
                 </div>
 
-                <!-- Installments Table -->
+                <!-- Installments Section -->
                 <div class="installments-section">
                     <h3>جدول الأقساط</h3>
-                    <div class="table-responsive">
-                        <table id="installments-table">
+                    <div class="table-responsive-wrapper">
+                        <table id="installments-table" class="is-responsive">
                             <thead>
                                 <tr>
                                     <th>م.</th>
@@ -150,15 +150,27 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
 
     .installments-section { background: var(--white-bg); padding: 2rem; border-radius: 10px; box-shadow: var(--shadow); }
     .installments-section h3 { margin: 0 0 1.5rem 0; font-size: 1.5rem; color: var(--primary-color); }
-    .table-responsive { overflow-x: auto; }
+    
+    /* Responsive Table Styles */
+    .table-responsive-wrapper { overflow-x: auto; }
     #installments-table { width: 100%; border-collapse: collapse; }
     #installments-table th, #installments-table td { padding: 1rem; text-align: right; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-    #installments-table th { font-size: 0.9rem; color: var(--secondary-color); text-transform: uppercase; }
+    #installments-table th { font-size: 0.9rem; color: var(--secondary-color); text-transform: uppercase; background-color: var(--light-bg); }
     #installments-table td { font-size: 1rem; color: var(--primary-color); }
     #installments-table select, #installments-table .edit-input { padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); font-family: 'Cairo', sans-serif; box-sizing: border-box; }
     #installments-table .edit-input { width: 100%; }
     #installments-table tr.status-paid { background-color: var(--green-bg); }
     #installments-table tr.status-pending { background-color: var(--yellow-bg); }
+
+    @media (max-width: 768px) {
+        #installments-table.is-responsive thead { display: none; }
+        #installments-table.is-responsive tr { display: block; margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow); }
+        #installments-table.is-responsive td { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        #installments-table.is-responsive td:last-child { border-bottom: none; }
+        #installments-table.is-responsive td::before { content: attr(data-label); font-weight: bold; padding-left: 1rem; text-align: right; color: var(--primary-color); }
+        .actions-cell { justify-content: flex-end; }
+        .header-buttons { flex-wrap: wrap; justify-content: center; }
+    }
 
 </style>
 
@@ -175,7 +187,7 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
         const table = document.getElementById('installments-table');
         
         table.addEventListener('click', (e) => {
-            const target = e.target.closest('button'); // More robust event delegation
+            const target = e.target.closest('button');
             if (!target) return;
 
             if (target.classList.contains('btn-edit') || target.classList.contains('btn-save')) {
@@ -215,7 +227,6 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     });
 
     async function initializeApp() {
-        // ... initialization logic ...
         const loader = document.getElementById('loader');
         const content = document.getElementById('contract-details-content');
         const errorDisplay = document.getElementById('error-display');
@@ -243,8 +254,6 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
             const querySnapshot = await getDocs(q);
 
             if (querySnapshot.empty) {
-                // This case should ideally lead to deleting the contract reference from project-installments page
-                // For now, just show an error.
                 loader.style.display = 'none';
                 errorMessage.textContent = 'لم يتم العثور على أقساط لهذا العقد. قد يكون تم حذفه بالكامل.';
                 errorDisplay.style.display = 'block';
@@ -315,7 +324,6 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     }
 
     async function handlePartialPayment(button) {
-        // ... (code unchanged)
         const installmentId = button.dataset.id;
         const installment = allInstallments.find(inst => inst.id === installmentId);
 
@@ -362,7 +370,6 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     }
 
     async function handleStatusChange(selectElement) {
-        // ... (code unchanged)
         const id = selectElement.dataset.id;
         const newStatus = selectElement.value;
         const oldStatus = selectElement.dataset.currentStatus;
@@ -390,7 +397,6 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     }
 
     function handleEditToggle(button) {
-        // ... (code unchanged)
         const row = button.closest('tr');
         const isEditing = row.classList.contains('is-editing');
 
@@ -402,7 +408,6 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     }
 
     function enterEditMode(row, button) {
-        // ... (code unchanged)
         row.classList.add('is-editing');
         button.textContent = 'حفظ';
         button.classList.remove('btn-edit');
@@ -419,7 +424,6 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     }
 
     async function saveInstallmentChanges(row, button) {
-        // ... (code unchanged)
         const installmentId = button.dataset.id;
         const amountInput = row.querySelector('td[data-field="amount"] input');
         const dateInput = row.querySelector('td[data-field="dueDate"] input');
@@ -470,7 +474,6 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     const unitTypeTranslations = { apartment: 'شقة', shop: 'محل', basement: 'بدروم', other: 'أخرى' };
 
     function renderContractInfo(data) {
-        // ... (code unchanged)
         document.getElementById('customer-name-header').textContent = `تفاصيل عقد: ${data.customerName}`;
         document.getElementById('info-customer-name').textContent = data.customerName || '-';
         document.getElementById('info-customer-phone').textContent = data.customerPhone || '-';
@@ -479,7 +482,6 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     }
 
     function calculateSummary(installments, totalAmount) {
-        // ... (code unchanged)
         const totalPaid = installments
             .filter(inst => inst.status === 'paid' && inst.installmentAmount)
             .reduce((sum, inst) => sum + inst.installmentAmount, 0);
@@ -496,6 +498,16 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
              document.getElementById('no-installments-message').style.display = 'block';
             return;
         }
+
+        const headers = {
+            number: "م.",
+            amount: "مبلغ القسط",
+            dueDate: "تاريخ الاستحقاق",
+            status: "الحالة",
+            paymentDate: "تاريخ الدفع",
+            name: "بيان القسط",
+            actions: "إجراءات"
+        };
 
         installments.forEach((inst, index) => {
             const row = document.createElement('tr');
@@ -521,13 +533,13 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
             actionsCellContent += `<button class="btn btn-delete-installment btn-sm btn-danger" data-id="${inst.id}">حذف</button>`;
 
             row.innerHTML = `
-                <td>${index + 1}</td>
-                <td data-field="amount" data-original-value="${amountForInput}">${formatCurrency(inst.installmentAmount)}</td>
-                <td data-field="dueDate" data-original-value="${dateForInput}">${formatDate(inst.dueDate)}</td>
-                <td>${statusSelect}</td>
-                <td>${formatDate(inst.paymentDate)}</td>
-                <td>${inst.installmentName}</td>
-                <td class="actions-cell">${actionsCellContent}</td>
+                <td data-label="${headers.number}">${index + 1}</td>
+                <td data-label="${headers.amount}" data-field="amount" data-original-value="${amountForInput}">${formatCurrency(inst.installmentAmount)}</td>
+                <td data-label="${headers.dueDate}" data-field="dueDate" data-original-value="${dateForInput}">${formatDate(inst.dueDate)}</td>
+                <td data-label="${headers.status}">${statusSelect}</td>
+                <td data-label="${headers.paymentDate}">${formatDate(inst.paymentDate)}</td>
+                <td data-label="${headers.name}">${inst.installmentName}</td>
+                <td data-label="${headers.actions}" class="actions-cell">${actionsCellContent}</td>
             `;
             tableBody.appendChild(row);
         });
