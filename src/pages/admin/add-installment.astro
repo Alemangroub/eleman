@@ -4,181 +4,139 @@ import AdminLogin from '../../components/AdminLogin.astro';
 --- 
 
 <Layout title="إضافة عقد جديد">
-    <div id="auth-loading-message" class="auth-container">
-        <p>جارٍ التحقق من صلاحيات الدخول...</p>
-    </div>
+  <div id="auth-loading-message" class="auth-container">
+    <p>جارٍ التحقق من صلاحيات الدخول...</p>
+  </div>
 
-    <div id="admin-login-container" class="auth-container" style="display: none;">
-        <AdminLogin />
-    </div>
+  <div id="admin-login-container" class="auth-container" style="display: none;">
+    <AdminLogin />
+  </div>
 
-    <main id="page-content" style="display: none;">
-        <div class="form-container">
-            <div class="form-header">
-                <h1>إضافة عقد جديد</h1>
-                <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
+  <main id="page-content" class="add-installment-page" style="display: none;">
+    <div class="container">
+        <div class="page-header">
+            <h1 id="project-name">إضافة عقد جديد للمشروع: </h1>
+             <div class="header-actions">
+                <a id="back-to-installments" href="#" class="btn btn-secondary">العودة إلى العقود</a>
             </div>
+        </div>
+
+        <div id="add-installment-form-container">
             <form id="add-installment-form">
-                <div class="input-group">
-                    <label for="unitType">نوع الوحدة</label>
-                    <select id="unitType" required>
-                        <option value="" disabled selected>اختر نوع الوحدة</option>
-                        <option value="شقة">شقة</option>
-                        <option value="محل">محل</option>
-                        <option value="بدروم">بدروم</option>
-                        <option value="other">أخرى</option>
-                    </select>
-                </div>
-                <div class="input-group" id="other-unit-type-group" style="display: none;">
-                    <label for="otherUnitType">يرجى تحديد النوع</label>
-                    <input type="text" id="otherUnitType" />
-                </div>
-                <div class="input-group">
-                    <label for="unitLocation">موقع الوحدة</label>
-                    <input type="text" id="unitLocation" required />
-                </div>
-                <div class="input-group">
-                    <label for="customerName">اسم العميل</label>
-                    <input type="text" id="customerName" required />
-                </div>
-                <div class="input-group">
-                    <label for="customerPhone">رقم موبايل العميل</label>
-                    <input type="tel" id="customerPhone" required />
-                </div>
-                <div class="input-group">
-                    <label for="totalAmount">المبلغ الإجمالي</label>
-                    <input type="number" id="totalAmount" required />
-                </div>
-                <div class="input-group">
-                    <label for="installmentsCount">عدد الأقساط</label>
-                    <select id="installmentsCount" required>
-                        <option value="" disabled selected>اختر عدد الأقساط</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                        <option value="5">5</option>
-                        <option value="6">6</option>
-                        <option value="7">7</option>
-                        <option value="8">8</option>
-                        <option value="9">9</option>
-                        <option value="10">10</option>
-                    </select>
+                <div class="form-section-title">بيانات العقد الأساسية</div>
+                <div class="grid-2-col">
+                    <div class="form-group">
+                        <label for="unitType">نوع الوحدة</label>
+                        <select id="unitType" name="unitType" required>
+                            <option value="" disabled selected>اختر نوع الوحدة</option>
+                            <option value="apartment">شقة</option>
+                            <option value="shop">محل</option>
+                            <option value="basement">بدروم</option>
+                            <option value="other">أخرى</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="customerName">اسم العميل</label>
+                        <input type="text" id="customerName" name="customerName" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="customerPhone">رقم هاتف العميل</label>
+                        <input type="tel" id="customerPhone" name="customerPhone" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="totalAmount">المبلغ الإجمالي (بالجنيه المصري)</label>
+                        <input type="number" id="totalAmount" name="totalAmount" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="downPayment">الدفعة المقدمة (بالجنيه المصري)</label>
+                        <input type="number" id="downPayment" name="downPayment" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="installmentsCount">عدد الاقساط</label>
+                        <select id="installmentsCount" name="installmentsCount" required>
+                            <option value="" disabled selected>اختر عدد الأقساط</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                        </select>
+                    </div>
                 </div>
 
-                <!-- Container for dynamically generated installment fields -->
-                <div id="installments-container"></div>
+                <!-- Container for dynamic installment fields -->
+                <div id="installments-details-container"></div>
 
                 <div class="form-actions">
-                     <button type="submit" class="btn">حفظ العقد</button>
-                     <a href="/admin/installments" class="btn btn-secondary">إلغاء</a>
+                     <button type="submit" class="btn btn-primary" id="submit-button">إضافة العقد والأقساط</button>
                 </div>
+                 <p id="success-message" class="message success-message" style="display:none;">تمت إضافة العقد والأقساط بنجاح!</p>
+                 <p id="error-message" class="message error-message" style="display:none;"></p>
             </form>
         </div>
-    </main>
+         <div id="error-display" class="error-container" style="display: none;">
+            <h1 class="error-title">حدث خطأ</h1>
+            <p id="error-text"></p>
+            <a href="/admin/projects" class="btn btn-primary">العودة إلى لوحة التحكم</a>
+        </div>
+    </div>
+  </main>
 </Layout>
 
-<style>
-    /* Auth and Logout styles */
-    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
-    .auth-container p { font-size: 1.2rem; }
-    .btn-logout { background-color: #e74c3c; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; font-size: 0.9rem; }
-    .btn-logout:hover { background-color: #c0392b; }
-    .form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-    .form-header h1 { margin: 0; }
+<style is:global>
+    /* General Styles */
+    .auth-container, .error-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center; }
+    .add-installment-page { padding: 3rem 1.5rem; background-color: #f4f7f6; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
+    .add-installment-page .container { max-width: 900px; margin: 0 auto; }
 
-    main#page-content {
-        padding: 2rem;
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
-        min-height: 100vh;
-        background-color: #f4f7f6;
-        font-family: 'Cairo', sans-serif;
-        direction: rtl;
-    }
+    /* Header */
+    .add-installment-page .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 1.5rem; }
+    .add-installment-page .page-header h1 { font-size: 1.8rem; color: #333; font-weight: 800; }
+    .add-installment-page .header-actions { display: flex; gap: 1rem; }
 
-    .form-container {
-        width: 100%;
-        max-width: 600px;
-        background: #fff;
-        padding: 2.5rem;
-        border-radius: 12px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        margin-top: 2rem;
-    }
-
-    h1 {
-        text-align: center;
-        color: #333;
-    }
-
-    .input-group {
-        margin-bottom: 1.5rem;
-    }
+    /* Form Styles */
+    .add-installment-page #add-installment-form-container { background: #fff; padding: 2.5rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+    .add-installment-page .form-section-title { font-size: 1.5rem; font-weight: 700; color: #3f51b5; margin-bottom: 2rem; padding-bottom: 0.75rem; border-bottom: 2px solid #3f51b5; }
+    .add-installment-page .grid-2-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;}
+    .add-installment-page .form-group { margin-bottom: 0; }
+    .add-installment-page .form-group label { display: block; margin-bottom: 0.7rem; font-weight: 600; color: #555; font-size: 0.95rem; }
+    .add-installment-page .form-group input, .add-installment-page .form-group select { width: 100%; padding: 0.8rem 1rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s, box-shadow 0.2s; background-color: #fafafa; }
+    .add-installment-page .form-group input:focus, .add-installment-page .form-group select:focus { border-color: #3f51b5; box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.15); outline: none; background-color: #fff; }
     
-    .installment-entry {
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        background-color: #fafafa;
-    }
+    /* Installments Section */
+    .add-installment-page #installments-details-container { margin-top: 2.5rem; }
+    .add-installment-page .installments-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+    .add-installment-page .installment-card { background-color: #f9f9fb; padding: 1.5rem; border-radius: 12px; border: 1px solid #e8e8e8; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    .add-installment-page .installment-card h4 { margin: 0 0 1.5rem 0; padding-bottom: 1rem; border-bottom: 1px solid #ddd; font-size: 1.2rem; color: #3f51b5; text-align: right; font-weight: 700; }
+    .add-installment-page .installment-fields-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; align-items: flex-start; }
 
-    .installment-header {
-        font-weight: bold;
-        margin-bottom: 1rem;
-        color: #3f51b5;
-    }
+    /* Messages & Buttons */
+    .add-installment-page .message { text-align: center; padding: 1rem; margin-top: 1.5rem; border-radius: 8px; font-weight: 600; }
+    .add-installment-page .success-message { background-color: #d4edda; color: #155724; }
+    .add-installment-page .error-message { background-color: #f8d7da; color: #721c24; }
+    .add-installment-page .btn { padding: 0.8rem 1.75rem; color: #fff; text-decoration: none; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .add-installment-page .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+    .add-installment-page .btn-primary { background-color: #3f51b5; }
+    .add-installment-page .btn-primary:hover { background-color: #3645a3; }
+    .add-installment-page .btn-secondary { background-color: #6c757d; }
+    .add-installment-page .btn-secondary:hover { background-color: #5a6268; }
+    .add-installment-page .form-actions { text-align: left; margin-top: 2.5rem; border-top: 1px solid #e0e0e0; padding-top: 2rem;}
 
-    label {
-        display: block;
-        margin-bottom: 0.5rem;
-        font-weight: 600;
-        color: #555;
-    }
-
-    input, select {
-        width: 100%;
-        padding: 0.8rem 1rem;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        font-size: 1rem;
-        font-family: inherit;
-    }
-
-    .form-actions {
-        display: flex;
-        gap: 1rem;
-        margin-top: 2rem;
-    }
-
-    .btn {
-        flex: 1;
-        padding: 0.9rem;
-        border: none;
-        border-radius: 8px;
-        color: white;
-        font-size: 1.1rem;
-        font-weight: 700;
-        cursor: pointer;
-        text-decoration: none;
-        text-align: center;
-    }
-
-    .btn[type="submit"] {
-        background-color: #3f51b5;
-    }
-
-    .btn-secondary {
-        background-color: #6c757d;
-    }
 </style>
 
 <script>
     import { auth, db } from '../../firebase/client';
-    import { onAuthStateChanged, signOut } from "firebase/auth";
-    import { collection, doc, getDoc, writeBatch } from 'firebase/firestore';
+    import { onAuthStateChanged } from "firebase/auth";
+    import { doc, getDoc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
+
+    let projectId;
 
     document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
@@ -186,164 +144,250 @@ import AdminLogin from '../../components/AdminLogin.astro';
         const pageContent = document.getElementById('page-content');
 
         onAuthStateChanged(auth, async (user) => {
-            if(authLoadingMessage) authLoadingMessage.style.display = 'none';
-
+            authLoadingMessage.style.display = 'none';
             if (user) {
                 try {
-                    const userDocRef = doc(db, "users", user.uid);
-                    const userDoc = await getDoc(userDocRef);
-
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
                     if (userDoc.exists() && userDoc.data().role === 'admin') {
-                        if(pageContent) pageContent.style.display = 'flex'; // Changed to flex
-                        if(loginContainer) loginContainer.style.display = 'none';
-
-                        const logoutButton = document.getElementById('logout-button');
-                        if (logoutButton) {
-                            logoutButton.addEventListener('click', async () => {
-                                await signOut(auth);
-                                window.location.href = '/admin';
-                            });
-                        }
-
-                        // Initialize form logic now that user is authenticated
-                        initializeForm();
-
+                        pageContent.style.display = 'block';
+                        loginContainer.style.display = 'none';
+                        initializeApp();
                     } else {
-                        await signOut(auth);
-                        if(loginContainer) loginContainer.style.display = 'block';
-                        if(pageContent) pageContent.style.display = 'none';
+                        loginContainer.style.display = 'block';
+                        pageContent.style.display = 'none';
+                        if(auth.currentUser) await auth.signOut();
                     }
                 } catch (error) {
-                    console.error('Auth Check Error:', error);
-                    await signOut(auth);
-                    if(loginContainer) loginContainer.style.display = 'block';
-                    if(pageContent) pageContent.style.display = 'none';
+                    console.error("Auth check error:", error);
+                    loginContainer.style.display = 'block';
+                    pageContent.style.display = 'none';
                 }
             } else {
-                if(pageContent) pageContent.style.display = 'none';
-                if(loginContainer) loginContainer.style.display = 'block';
+                loginContainer.style.display = 'block';
+                pageContent.style.display = 'none';
             }
         });
     });
 
-    function initializeForm() {
-        const unitTypeSelect = document.getElementById('unitType');
-        const otherUnitTypeGroup = document.getElementById('other-unit-type-group');
-        const otherUnitTypeInput = document.getElementById('otherUnitType');
+    function initializeApp() {
+        const errorDisplay = document.getElementById('error-display');
+        const errorText = document.getElementById('error-text');
+        const formContainer = document.getElementById('add-installment-form-container');
 
-        unitTypeSelect.addEventListener('change', () => {
-            if (unitTypeSelect.value === 'other') {
-                otherUnitTypeGroup.style.display = 'block';
-                otherUnitTypeInput.required = true;
+        const urlParams = new URLSearchParams(window.location.search);
+        projectId = urlParams.get('projectId');
+
+        if (!projectId) {
+            formContainer.style.display = 'none';
+            errorText.textContent = 'لم يتم تحديد مشروع. الرجاء العودة والمحاولة مرة أخرى.';
+            errorDisplay.style.display = 'flex';
+            return;
+        }
+
+        document.getElementById('back-to-installments').href = `/admin/project-installments?projectId=${projectId}`;
+
+        getDoc(doc(db, 'projects', projectId)).then(projectSnap => {
+            if (!projectSnap.exists()) {
+                formContainer.style.display = 'none';
+                errorText.textContent = 'المشروع المحدد غير موجود.';
+                errorDisplay.style.display = 'flex';
             } else {
-                otherUnitTypeGroup.style.display = 'none';
-                otherUnitTypeInput.required = false;
+                const project = projectSnap.data();
+                document.getElementById('project-name').textContent += project.projectName || 'غير مسمى';
             }
+        }).catch(error => {
+            console.error("Error fetching project data: ", error);
+            formContainer.style.display = 'none';
+            errorText.textContent = 'حدث خطأ أثناء تحميل بيانات المشروع.';
+            errorDisplay.style.display = 'flex';
         });
 
         const installmentsCountSelect = document.getElementById('installmentsCount');
-        const totalAmountInput = document.getElementById('totalAmount');
-        const installmentsContainer = document.getElementById('installments-container');
-
-        function generateInstallmentFields() {
-            const count = parseInt(installmentsCountSelect.value) || 0;
-            const totalAmount = parseFloat(totalAmountInput.value) || 0;
-            
-            installmentsContainer.innerHTML = '';
-
-            if (count > 0) {
-                const installmentAmount = (totalAmount / count).toFixed(2);
-
-                for (let i = 1; i <= count; i++) {
-                    const entry = document.createElement('div');
-                    entry.className = 'installment-entry';
-
-                    const dueDate = new Date();
-                    dueDate.setDate(dueDate.getDate() + 1);
-                    dueDate.setMonth(dueDate.getMonth() + (i - 1));
-                    const formattedDueDate = dueDate.toISOString().split('T')[0];
-                    
-                    entry.innerHTML = `
-                        <div class="installment-header">القسط رقم ${i}</div>
-                        <div class="input-group">
-                            <label for="installment-amount-${i}">مبلغ القسط</label>
-                            <input type="number" step="0.01" id="installment-amount-${i}" value="${installmentAmount > 0 ? installmentAmount : '0.00'}" required />
-                        </div>
-                        <div class="input-group">
-                            <label for="installment-due-date-${i}">تاريخ الاستحقاق</label>
-                            <input type="date" id="installment-due-date-${i}" value="${formattedDueDate}" required />
-                        </div>
-                        <div class="input-group">
-                            <label for="installment-status-${i}">الحالة</label>
-                            <select id="installment-status-${i}" required>
-                                <option value="unpaid" selected>مستحق</option>
-                                <option value="paid">مدفوع</option>
-                            </select>
-                        </div>
-                    `;
-                    installmentsContainer.appendChild(entry);
-                }
-            }
-        }
-
         installmentsCountSelect.addEventListener('change', generateInstallmentFields);
-        totalAmountInput.addEventListener('input', generateInstallmentFields);
-
-        const form = document.getElementById('add-installment-form');
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const submitButton = form.querySelector('button[type="submit"]');
-            submitButton.disabled = true;
-            submitButton.textContent = 'جاري الحفظ...';
-
-            try {
-                const unitType = document.getElementById('unitType').value === 'other'
-                    ? document.getElementById('otherUnitType').value
-                    : document.getElementById('unitType').value;
-
-                const contractData = {
-                    unitType: unitType,
-                    unitLocation: document.getElementById('unitLocation').value,
-                    customerName: document.getElementById('customerName').value,
-                    customerPhone: document.getElementById('customerPhone').value,
-                    totalAmount: parseFloat(totalAmountInput.value),
-                    installmentsCount: parseInt(installmentsCountSelect.value),
-                    createdAt: new Date(),
-                };
-
-                const installments = [];
-                let calculatedTotal = 0;
-                for (let i = 1; i <= contractData.installmentsCount; i++) {
-                    const amount = parseFloat(document.getElementById(`installment-amount-${i}`).value);
-                    const dueDate = document.getElementById(`installment-due-date-${i}`).value;
-                    const status = document.getElementById(`installment-status-${i}`).value;
-                    installments.push({ amount, dueDate, status });
-                    calculatedTotal += amount;
-                }
-
-                if (Math.abs(contractData.totalAmount - calculatedTotal) > 0.01) {
-                    throw new Error(`مجموع الأقساط لا يساوي المبلغ الإجمالي`);
-                }
-
-                const batch = writeBatch(db);
-                const contractRef = doc(collection(db, "contracts"));
-                batch.set(contractRef, contractData);
-
-                installments.forEach(inst => {
-                    const installmentRef = doc(collection(db, "installments"));
-                    batch.set(installmentRef, { ...inst, contractId: contractRef.id, customerName: contractData.customerName, unitLocation: contractData.unitLocation });
-                });
-
-                await batch.commit();
-                alert('تم حفظ العقد والأقساط بنجاح!');
-                window.location.href = '/admin/installments';
-
-            } catch (error) {
-                console.error("Error adding document: ", error);
-                alert(`حدث خطأ أثناء الحفظ: ${error.message}`);
-                submitButton.disabled = false;
-                submitButton.textContent = 'حفظ العقد';
-            }
-        });
     }
+
+    function generateInstallmentFields() {
+        const count = parseInt(document.getElementById('installmentsCount').value, 10);
+        const container = document.getElementById('installments-details-container');
+        container.innerHTML = '';
+
+        if (isNaN(count) || count <= 0) return;
+
+        const title = document.createElement('div');
+        title.className = 'form-section-title';
+        title.textContent = 'تفاصيل الأقساط';
+        container.appendChild(title);
+        
+        const grid = document.createElement('div');
+        grid.className = 'installments-grid';
+        container.appendChild(grid);
+
+        for (let i = 1; i <= count; i++) {
+            const card = document.createElement('div');
+            card.className = 'installment-card';
+
+            const cardTitle = document.createElement('h4');
+            cardTitle.textContent = `القسط رقم ${i}`;
+            card.appendChild(cardTitle);
+
+            const fieldsContainer = document.createElement('div');
+            fieldsContainer.className = 'installment-fields-container';
+            card.appendChild(fieldsContainer);
+
+            // Amount Field
+            const amountGroup = document.createElement('div');
+            amountGroup.className = 'form-group';
+            amountGroup.innerHTML = `
+                <label for="installment_amount_${i}">مبلغ القسط</label>
+                <input type="number" id="installment_amount_${i}" name="installment_amount_${i}" required placeholder="مثال: 5000">
+            `;
+            fieldsContainer.appendChild(amountGroup);
+
+            // --- Date Fields (New Structure) ---
+
+            // Day Field
+            const dayGroup = document.createElement('div');
+            dayGroup.className = 'form-group';
+            const dayLabel = document.createElement('label');
+            dayLabel.htmlFor = `installment_day_${i}`;
+            dayLabel.textContent = 'اليوم';
+            const daySelect = document.createElement('select');
+            daySelect.id = `installment_day_${i}`;
+            daySelect.name = `installment_day_${i}`;
+            daySelect.innerHTML = '<option value="" disabled selected>اختر</option>' + Array.from({length: 31}, (_, k) => `<option value="${k+1}">${k+1}</option>`).join('');
+            daySelect.required = true;
+            dayGroup.appendChild(dayLabel);
+            dayGroup.appendChild(daySelect);
+            fieldsContainer.appendChild(dayGroup);
+
+            // Month Field
+            const monthGroup = document.createElement('div');
+            monthGroup.className = 'form-group';
+            const monthLabel = document.createElement('label');
+            monthLabel.htmlFor = `installment_month_${i}`;
+            monthLabel.textContent = 'الشهر';
+            const monthSelect = document.createElement('select');
+            monthSelect.id = `installment_month_${i}`;
+            monthSelect.name = `installment_month_${i}`;
+            monthSelect.innerHTML = '<option value="" disabled selected>اختر</option>' + Array.from({length: 12}, (_, k) => `<option value="${k+1}">${k+1}</option>`).join('');
+            monthSelect.required = true;
+            monthGroup.appendChild(monthLabel);
+            monthGroup.appendChild(monthSelect);
+            fieldsContainer.appendChild(monthGroup);
+            
+            // Year Field
+            const yearGroup = document.createElement('div');
+            yearGroup.className = 'form-group';
+            const yearLabel = document.createElement('label');
+            yearLabel.htmlFor = `installment_year_${i}`;
+            yearLabel.textContent = 'السنة';
+            const yearSelect = document.createElement('select');
+            yearSelect.id = `installment_year_${i}`;
+            yearSelect.name = `installment_year_${i}`;
+            const startYear = 2026;
+            const endYear = 2050;
+            const yearCount = endYear - startYear + 1;
+            yearSelect.innerHTML = '<option value="" disabled selected>اختر</option>' + Array.from({length: yearCount}, (_, k) => `<option value="${startYear + k}">${startYear + k}</option>`).join('');
+            yearSelect.required = true;
+            yearGroup.appendChild(yearLabel);
+            yearGroup.appendChild(yearSelect);
+            fieldsContainer.appendChild(yearGroup);
+
+            // Status Field
+            const statusGroup = document.createElement('div');
+            statusGroup.className = 'form-group';
+            statusGroup.innerHTML = `
+                <label for="installment_status_${i}">الحالة</label>
+                <select id="installment_status_${i}" name="installment_status_${i}">
+                    <option value="due" selected>مستحق</option>
+                    <option value="paid">مدفوع</option>
+                </select>
+            `;
+            fieldsContainer.appendChild(statusGroup);
+            
+            grid.appendChild(card);
+        }
+    }
+
+    const form = document.getElementById('add-installment-form');
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitButton = document.getElementById('submit-button');
+        const successMessage = document.getElementById('success-message');
+        const errorMessage = document.getElementById('error-message');
+
+        submitButton.disabled = true;
+        submitButton.textContent = 'جارٍ الحفظ...';
+        successMessage.style.display = 'none';
+        errorMessage.style.display = 'none';
+
+        try {
+            const installmentsCount = parseInt(form.installmentsCount.value, 10);
+            const batch = writeBatch(db);
+
+            const commonData = {
+                projectId: projectId,
+                unitType: form.unitType.value,
+                customerName: form.customerName.value,
+                customerPhone: form.customerPhone.value,
+                totalAmount: parseFloat(form.totalAmount.value),
+                downPayment: parseFloat(form.downPayment.value),
+                totalInstallments: installmentsCount,
+                createdAt: serverTimestamp()
+            };
+
+            let totalInstallmentsAmount = 0;
+
+            for (let i = 1; i <= installmentsCount; i++) {
+                const amount = parseFloat(document.getElementById(`installment_amount_${i}`).value);
+                const day = parseInt(document.getElementById(`installment_day_${i}`).value, 10);
+                const month = parseInt(document.getElementById(`installment_month_${i}`).value, 10);
+                const year = parseInt(document.getElementById(`installment_year_${i}`).value, 10);
+                const status = document.getElementById(`installment_status_${i}`).value;
+
+                if (isNaN(amount) || amount <= 0 || !day || !month || !year) {
+                    throw new Error(`الرجاء إدخال بيانات صالحة وكاملة للقسط رقم ${i}.`);
+                }
+                
+                const dueDate = new Date(year, month - 1, day);
+
+                if (isNaN(dueDate.getTime()) || dueDate.getDate() !== day || dueDate.getMonth() !== month - 1 || dueDate.getFullYear() !== year) {
+                    throw new Error(`التاريخ الذي أدخلته غير صالح للقسط رقم ${i} (مثال: يوم 31 في شهر فبراير).`);
+                }
+
+                totalInstallmentsAmount += amount;
+
+                const installmentRef = doc(collection(db, 'installments')); 
+                batch.set(installmentRef, {
+                    ...commonData,
+                    installmentNumber: i,
+                    amount: amount,
+                    dueDate: dueDate,
+                    status: status
+                });
+            }
+            
+            const remainingAmount = commonData.totalAmount - commonData.downPayment;
+            if (Math.abs(totalInstallmentsAmount - remainingAmount) > 0.01) {
+                 throw new Error(`مجموع مبالغ الأقساط (${totalInstallmentsAmount.toFixed(2)}) لا يساوي المبلغ المتبقي بعد المقدم (${remainingAmount.toFixed(2)}).`);
+            }
+
+            await batch.commit();
+
+            successMessage.style.display = 'block';
+            form.reset();
+            document.getElementById('installments-details-container').innerHTML = '';
+            setTimeout(() => {
+                 window.location.href = `/admin/project-installments?projectId=${projectId}`;
+            }, 2000);
+
+        } catch (error) {
+            console.error("Error adding installments: ", error);
+            errorMessage.textContent = error.message || 'حدث خطأ غير متوقع أثناء إضافة العقد.';
+            errorMessage.style.display = 'block';
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = 'إضافة العقد والأقساط';
+        }
+    });
 </script>

@@ -22,6 +22,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         <div class="page-header">
           <h1 id="project-name">أقساط المشروع: </h1>
           <div class="header-actions">
+            <a id="add-installment-btn" href="#" class="btn btn-primary">إضافة قسط</a>
             <a href="/admin/projects" class="btn btn-secondary">العودة للمشاريع</a>
           </div>
         </div>
@@ -72,6 +73,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
   .btn-secondary { background-color: #6c757d; }
   .btn-secondary:hover { background-color: #5a6268; }
   .btn-primary { background-color: #3f51b5; }
+  .btn-primary:hover { background-color: #3645a3; }
 </style>
 
 <script>
@@ -109,6 +111,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
     const content = document.getElementById('installments-content');
     const errorDisplay = document.getElementById('error-display');
     const errorMessage = document.getElementById('error-message');
+    const addInstallmentBtn = document.getElementById('add-installment-btn');
 
     const urlParams = new URLSearchParams(window.location.search);
     const projectId = urlParams.get('projectId');
@@ -119,6 +122,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
       errorDisplay.style.display = 'block';
       return;
     }
+
+    addInstallmentBtn.href = `/admin/add-installment?projectId=${projectId}`;
 
     try {
       const projectRef = doc(db, 'projects', projectId);
@@ -141,7 +146,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
       if (querySnapshot.empty) {
         document.getElementById('no-installments-message').style.display = 'block';
       } else {
-        const installments = querySnapshot.docs.map(doc => doc.data());
+        const installments = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
         installments.sort((a, b) => {
             const dateA = a.dueDate ? (a.dueDate.toDate ? a.dueDate.toDate().getTime() : new Date(a.dueDate).getTime()) : 0;
@@ -154,6 +159,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         installments.forEach(installment => {
           const item = document.createElement('div');
           item.className = 'installment-item';
+          item.setAttribute('data-id', installment.id);
 
           const dueDate = installment.dueDate ? (installment.dueDate.toDate ? installment.dueDate.toDate().toLocaleDateString('ar-EG') : new Date(installment.dueDate).toLocaleDateString('ar-EG')) : 'غير محدد';
           const amount = installment.amount ? installment.amount.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' }) : 'غير محدد';

@@ -30,7 +30,15 @@ This application is a web-based project management dashboard named "Elemannet". 
 
 -   **Project Details Page (`/admin/projects/[id]`):**
     -   Provides a central hub for a single project, displaying its main information.
-    -   Features navigation to "Daily Reports" and "Expense Reports".
+    -   Features navigation to "Daily Reports", "Expense Reports", and "Project Installments".
+
+-   **Project Installment Management:**
+    -   **Installments List (`/admin/project-installments`):** Displays a list of all financial installments associated with a specific project, showing amount, due date, and status (paid/unpaid).
+    -   **Add Installment (`/admin/add-installment`):**
+        -   A dedicated page with a form to add a new installment to a project.
+        -   The form includes fields for Amount, Due Date, and Status.
+        -   It links the new installment directly to the project via its ID.
+        -   Redirects back to the project's installment list upon successful submission.
 
 -   **Daily & Expense Reports (`/admin/projects/[id]/...`):**
     -   Admins can view all daily work and expense reports submitted for a project.
@@ -39,7 +47,7 @@ This application is a web-based project management dashboard named "Elemannet". 
 -   **Supervisor Submission Form (`/`):**
     -   A comprehensive form for supervisors to submit "Daily Reports" or an "Expense Reports" for their assigned projects, including image uploads.
 
-#### 2.2.2. Installment & Contract Management
+#### 2.2.2. Customer Contract & Standalone Installment Management
 
 -   **Installments Dashboard (`/admin/installments`):**
     -   Provides a summary of total contracts, total installment amounts, and total paid amounts.
@@ -55,7 +63,7 @@ This application is a web-based project management dashboard named "Elemannet". 
     -   Displays a complete summary of a single contract.
     -   Lists all associated installments with their status (paid/unpaid), amount, and due date.
     -   Allows admins to toggle the status of each installment (with confirmation).
-    -   Provides options to edit the entire contract, delete it (which also deletes all its installments), or print it.
+    -   Provides options to edit the entire contract, delete it, or print it.
     -   Includes a link to edit each individual installment.
 
 -   **Installment Editing (`/admin/edit-installment`):**
@@ -63,30 +71,27 @@ This application is a web-based project management dashboard named "Elemannet". 
 
 -   **Contract Editing (`/admin/edit-contract`):**
     -   Allows modification of core contract details.
-    -   Recalculates the schedule for *unpaid* installments if the total amount or number of installments is changed, preserving the records of already paid installments.
+    -   Recalculates the schedule for *unpaid* installments if the total amount or number of installments is changed.
 
 -   **Installment Notifications (`/admin/notifications`):**
-    -   A dedicated page that automatically categorizes and displays unpaid installments that are either overdue or due within the next 7 days, helping admins track urgent payments.
+    -   A dedicated page that automatically categorizes and displays unpaid installments that are either overdue or due within the next 7 days.
 
 #### 2.2.3. Security & Authentication
 
--   **Role-Based Access Control:** A robust authentication system has been implemented across all administrative sections.
-    -   Access to all pages under `/admin/...` is restricted to logged-in users.
-    -   Users with a `supervisor` role are redirected away from admin pages to their dashboard.
-    -   Only users with an `admin` role can view and interact with the project and installment management pages.
--   **Secure Admin Login (`/admin`):** The generic `/admin` route now serves as the primary login portal for administrators. Unauthorized users are shown the login form.
--   **Logout Functionality:** A "تسجيل الخروج" (Logout) button has been added to all admin pages, allowing for a secure session termination.
+-   **Role-Based Access Control:** A robust authentication system is implemented across all `/admin/...` sections, restricting access to `admin` users only.
+-   **Secure Admin Login (`/admin`):** The generic `/admin` route serves as the primary login portal for administrators.
+-   **Logout Functionality:** A "Logout" button is available on all admin pages for secure session termination.
 
-## 3. Current Task: Secure the Installment Management System
+## 3. Current Task: Add Project-Specific Installment Management
 
 ### Plan & Steps for the requested change:
 
-1.  **[Completed] Identify Target Pages:** Located all pages related to installment and contract management: `installments`, `add-installment`, `edit-installment`, `contract-details`, `edit-contract`, and `notifications`.
-2.  **[Completed] Implement Authentication Wrapper:** On each target page, implemented a unified authentication check.
-    -   The page content is hidden by default.
-    -   An `onAuthStateChanged` listener verifies the user's login status and role.
-    -   If the user is a logged-in `admin`, the main content is displayed.
-    -   If the user is not an `admin` or is not logged in, they are shown the `AdminLogin` component or redirected.
-3.  **[Completed] Add Logout Functionality:** Added a "Logout" button to the header of each secured page to allow admins to sign out easily.
-4.  **[Completed] Update Navigation & Links:** Added "Edit Installment" links to the contract details page and ensured all navigation remains consistent.
-5.  **[Completed] Update Blueprint:** Finalized the task by updating this `blueprint.md` file to document the new security architecture and the full suite of installment management features.
+1.  **[Completed] Add "Add Installment" Button:** Modified the `project-installments.astro` page to include a new "إضافة قسط" (Add Installment) button in the header.
+2.  **[Completed] Create "Add Installment" Page:** Created a new page at `src/pages/admin/add-installment.astro`.
+3.  **[Completed] Build the Form & Logic:**
+    -   Designed a form with fields for amount, due date, and status.
+    -   Added Firebase logic to fetch the project's name for the header.
+    -   Implemented the `addDoc` function to save the new installment to the `installments` collection in Firestore, including the `projectId`.
+4.  **[Completed] Implement Authentication:** Secured the new page to ensure only `admin` users can access it.
+5.  **[Completed] Finalize Navigation:** Ensured that after adding an installment, the user is redirected back to the `project-installments` page to see the updated list.
+6.  **[Completed] Update Blueprint:** Updated this `blueprint.md` file to document the new feature and mark the task as complete.
