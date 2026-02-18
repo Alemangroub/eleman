@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import AdminLogin from '../../components/AdminLogin.astro';
---- 
+---
 
 <Layout title="تنبيهات الأقساط">
     <div id="auth-loading-message" class="auth-container">
@@ -9,37 +9,36 @@ import AdminLogin from '../../components/AdminLogin.astro';
     </div>
 
     <div id="admin-login-container" class="auth-container" style="display: none;">
-        <AdminLogin />
+      <AdminLogin />
     </div>
 
     <main id="page-content" style="display: none;">
         <div class="notifications-container">
-            <div class="header">
-                <h1>تنبيهات الأقساط</h1>
-                <div>
-                    <a href="/admin/installments" class="btn btn-secondary">&larr; العودة إلى العقود</a>
-                    <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
-                </div>
+            <div class="notifications-header">
+                <h1 id="project-name-header">تنبيهات الأقساط للمشروع</h1>
+                <a id="back-link" href="#" class="btn btn-secondary">العودة للعقود</a>
             </div>
 
-            <div id="loader" class="loader-container">
-                <div class="loader"></div>
-                <p>جاري تحليل الأقساط...</p>
-            </div>
+            <div id="loader">جاري تحميل التنبيهات...</div>
+            <div id="error-display" class="message-card" style="display: none;"></div>
 
             <div id="notifications-content" style="display: none;">
                 <!-- Overdue Installments -->
-                <div class="notification-category card overdue">
-                    <h2>أقساط مستحقة (فات موعدها)</h2>
-                    <div id="overdue-list" class="notification-list"></div>
-                    <div id="no-overdue" class="no-data-message" style="display: none;">لا توجد أقساط مستحقة حاليًا.</div>
+                <div class="notification-section">
+                    <h2>أقساط متأخرة</h2>
+                    <div id="overdue-installments-list" class="installments-list">
+                        <!-- Overdue items will be inserted here -->
+                    </div>
+                    <p id="no-overdue-message" class="empty-message" style="display: none;">لا توجد أقساط متأخرة حاليًا.</p>
                 </div>
 
-                <!-- Due Soon Installments -->
-                <div class="notification-category card due-soon">
-                    <h2>أقساط تستحق قريبًا (خلال 7 أيام)</h2>
-                    <div id="due-soon-list" class="notification-list"></div>
-                    <div id="no-due-soon" class="no-data-message" style="display: none;">لا توجد أقساط تستحق خلال الأيام السبعة القادمة.</div>
+                <!-- Upcoming Installments -->
+                <div class="notification-section">
+                    <h2>أقساط تستحق خلال 7 أيام</h2>
+                    <div id="upcoming-installments-list" class="installments-list">
+                        <!-- Upcoming items will be inserted here -->
+                    </div>
+                    <p id="no-upcoming-message" class="empty-message" style="display: none;">لا توجد أقساط تستحق قريبًا.</p>
                 </div>
             </div>
         </div>
@@ -47,286 +46,302 @@ import AdminLogin from '../../components/AdminLogin.astro';
 </Layout>
 
 <style is:global>
-    /* Auth and Logout Styles */
-    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
-    .auth-container p { font-size: 1.2rem; }
-    .btn-logout { background-color: #e74c3c; color: white; border: none; padding: 0.7rem 1.4rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
-    .btn-logout:hover { background-color: #c0392b; }
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #7f8c8d;
+        --danger-color: #c0392b;
+        --warning-color: #f39c12;
+        --light-bg: #f7f9fc;
+        --white-bg: #ffffff;
+        --border-color: #e0e0e0;
+        --shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    body {
+        font-family: 'Cairo', sans-serif;
+        direction: rtl;
+    }
+
+    .auth-container { 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        min-height: 100vh; 
+        width: 100%; 
+    }
 
     main#page-content {
-        padding: 2rem;
-        background-color: #f7f9fc;
-        direction: rtl;
-        font-family: 'Cairo', sans-serif;
+        padding: 2rem 1rem;
+        background-color: var(--light-bg);
         min-height: 100vh;
     }
+
     .notifications-container {
-        max-width: 900px;
+        width: 100%;
+        max-width: 950px;
         margin: 0 auto;
     }
-    .header {
+
+    .notifications-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
         margin-bottom: 2rem;
         padding-bottom: 1.5rem;
-        border-bottom: 1px solid #e0e0e0;
+        border-bottom: 1px solid var(--border-color);
     }
-     .header div {
-        display: flex;
-        gap: 1rem;
-     }
-    h1 {
-        font-size: 2rem;
-        color: #2c3e50;
+
+    .notifications-header h1 {
         margin: 0;
+        font-size: 2rem;
+        color: var(--primary-color);
     }
-    .btn-secondary {
-        background-color: #ecf0f1;
-        color: #34495e;
-        border: 1px solid #bdc3c7;
+
+    .btn {
         padding: 0.7rem 1.4rem;
         border-radius: 8px;
         text-decoration: none;
-        transition: background-color 0.2s ease;
-    }
-    .btn-secondary:hover {
-        background-color: #e0e5e8;
-    }
-    .card {
-        background: #fff;
-        border-radius: 10px;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-        overflow: hidden;
-    }
-    .notification-category h2 {
-        font-size: 1.5rem;
-        padding: 1rem 1.5rem;
-        margin: 0;
-        color: white;
-    }
-    .notification-list {
-        padding: 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    .no-data-message {
-        padding: 2rem;
-        text-align: center;
-        color: #7f8c8d;
-    }
-    .overdue h2 {
-        background-color: #e74c3c;
-    }
-    .due-soon h2 {
-        background-color: #000000; /* Changed to black */
-    }
-
-    /* --- ITEM & BUTTON REWRITE --- */
-    .notification-item {
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        padding: 1rem !important;
-        border-bottom: 1px solid #ecf0f1;
-    }
-    .notification-item:last-child {
-        border-bottom: none;
-    }
-
-    .item-info {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 0.2rem !important;
-        text-align: right; /* Ensure text is right-aligned */
-    }
-
-    .item-info .customer-name {
-        font-weight: 700 !important;
-        font-size: 1.1rem !important;
-        color: #34495e !important;
-    }
-
-    .item-info .due-date,
-    .item-info .amount {
-        font-size: 0.95rem !important;
-        color: #7f8c8d !important;
-    }
-
-    .item-actions {
-        flex-shrink: 0 !important;
-    }
-
-    .btn-primary {
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 0.5rem !important;
-        padding: 0.7rem 1.3rem !important;
-        font-size: 0.9rem !important;
-        font-weight: 600 !important;
-        color: white !important;
-        background-color: #3B82F6 !important; /* Solid Professional Blue */
-        border: none !important;
-        border-radius: 8px !important;
-        text-decoration: none !important;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-        transition: all 0.2s ease-in-out !important;
-        cursor: pointer !important;
-        white-space: nowrap !important;
-    }
-
-    .btn-primary:hover {
-        background-color: #2563EB !important;
-        box-shadow: 0 5px 12px rgba(59, 130, 246, 0.3) !important;
-        transform: translateY(-2px) !important;
-    }
-
-    .btn-primary svg {
-        width: 16px !important;
-        height: 16px !important;
-        stroke: white !important;
-        stroke-width: 2.5 !important;
+        border: none;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
     }
     
-    .loader-container {
+    .btn-secondary { background-color: var(--secondary-color); color: white; }
+    .btn-secondary:hover { background-color: #6a7374; }
+
+    #loader, .message-card, .empty-message {
         text-align: center;
-        padding: 4rem;
+        padding: 2rem;
+        margin-top: 1rem;
+        background: var(--white-bg);
+        border-radius: 10px;
+        box-shadow: var(--shadow);
+        color: var(--secondary-color);
+        font-size: 1.1rem;
     }
-    .loader {
-        margin: 0 auto 1rem auto;
-        width: 50px;
-        height: 50px;
-        border: 5px solid #f3f3f3;
-        border-top: 5px solid #3498db;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
+    
+    .message-card {
+        color: var(--danger-color);
+        border-left: 5px solid var(--danger-color);
     }
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+
+    .notification-section {
+        background: var(--white-bg);
+        padding: 1.5rem 2rem;
+        border-radius: 10px;
+        box-shadow: var(--shadow);
+        margin-bottom: 2rem;
     }
+
+    .notification-section h2 {
+        font-size: 1.5rem;
+        color: var(--primary-color);
+        margin: 0 0 1.5rem 0;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .installments-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1rem;
+    }
+
+    .installment-card {
+        background-color: #fdfdfe;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1.2rem;
+        transition: box-shadow 0.3s ease;
+    }
+    
+    .installment-card.overdue {
+        border-right: 5px solid var(--danger-color);
+    }
+
+    .installment-card.upcoming {
+        border-right: 5px solid var(--warning-color);
+    }
+
+    .installment-card:hover {
+        box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+    }
+    
+    .card-header {
+        font-weight: 700;
+        font-size: 1.2rem;
+        color: var(--primary-color);
+        margin-bottom: 0.75rem;
+    }
+
+    .card-details p {
+        margin: 0.4rem 0;
+        font-size: 0.95rem;
+        color: #555;
+    }
+
+    .card-details p strong {
+        font-weight: 600;
+        min-width: 100px;
+        display: inline-block;
+    }
+    
+    .amount {
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .overdue .amount { color: var(--danger-color); }
+    .upcoming .amount { color: var(--warning-color); }
+
 </style>
 
 <script>
     import { auth, db } from '../../firebase/client';
-    import { onAuthStateChanged, signOut } from "firebase/auth";
-    import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
+    import { onAuthStateChanged } from "firebase/auth";
+    import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 
     document.addEventListener('DOMContentLoaded', () => {
-        const authLoadingMessage = document.getElementById('auth-loading-message');
-        const loginContainer = document.getElementById('admin-login-container');
-        const pageContent = document.getElementById('page-content');
-
-        onAuthStateChanged(auth, async (user) => {
-            if(authLoadingMessage) authLoadingMessage.style.display = 'none';
-
+        onAuthStateChanged(auth, user => {
+            const authLoadingMessage = document.getElementById('auth-loading-message');
+            const loginContainer = document.getElementById('admin-login-container');
+            const pageContent = document.getElementById('page-content');
+            
+            authLoadingMessage.style.display = 'none';
             if (user) {
-                try {
-                    const userDocRef = doc(db, "users", user.uid);
-                    const userDoc = await getDoc(userDocRef);
-
-                    if (userDoc.exists() && userDoc.data().role === 'admin') {
-                        if(pageContent) pageContent.style.display = 'block';
-                        if(loginContainer) loginContainer.style.display = 'none';
-
-                        const logoutButton = document.getElementById('logout-button');
-                        if (logoutButton) {
-                            logoutButton.addEventListener('click', async () => {
-                                await signOut(auth);
-                                window.location.href = '/admin';
-                            });
-                        }
-                        
-                        fetchNotifications();
-
-                    } else {
-                        await signOut(auth);
-                        if(loginContainer) loginContainer.style.display = 'block';
-                        if(pageContent) pageContent.style.display = 'none';
-                    }
-                } catch (error) {
-                    console.error('Auth Check Error:', error);
-                    await signOut(auth);
-                    if(loginContainer) loginContainer.style.display = 'block';
-                    if(pageContent) pageContent.style.display = 'none';
-                }
+                pageContent.style.display = 'block';
+                loginContainer.style.display = 'none';
+                initializeApp();
             } else {
-                if(pageContent) pageContent.style.display = 'none';
-                if(loginContainer) loginContainer.style.display = 'block';
+                loginContainer.style.display = 'block';
+                pageContent.style.display = 'none';
             }
         });
     });
 
-    async function fetchNotifications() {
+    async function initializeApp() {
         const loader = document.getElementById('loader');
-        const notificationsContent = document.getElementById('notifications-content');
-        const overdueList = document.getElementById('overdue-list');
-        const noOverdue = document.getElementById('no-overdue');
-        const dueSoonList = document.getElementById('due-soon-list');
-        const noDueSoon = document.getElementById('no-due-soon');
+        const content = document.getElementById('notifications-content');
+        const errorDisplay = document.getElementById('error-display');
+        const backLink = document.getElementById('back-link');
 
-        const formatCurrency = (num) => num ? num.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' }) : '';
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('projectId');
+
+        if (!projectId) {
+            loader.style.display = 'none';
+            errorDisplay.textContent = 'لم يتم تحديد مشروع. الرجاء العودة والمحاولة مرة أخرى.';
+            errorDisplay.style.display = 'block';
+            return;
+        }
+
+        backLink.href = `/admin/project-installments?projectId=${projectId}`;
 
         try {
-            const contractsSnapshot = await getDocs(collection(db, 'contracts'));
-            const contractMap = new Map();
-            contractsSnapshot.forEach(doc => {
-                contractMap.set(doc.id, doc.data().customerName);
-            });
-
-            const q = query(collection(db, 'installments'), where('status', '==', 'unpaid'));
-            const installmentsSnapshot = await getDocs(q);
+            const projectSnap = await getDoc(doc(db, 'projects', projectId));
+            if(projectSnap.exists()){
+                document.getElementById('project-name-header').textContent += `: ${projectSnap.data().projectName}`;
+            }
 
             const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const sevenDaysFromNow = new Date(today);
-            sevenDaysFromNow.setDate(today.getDate() + 7);
+            today.setHours(0, 0, 0, 0); // Normalize to start of day
 
-            let overdueCount = 0;
-            let dueSoonCount = 0;
+            const upcomingDate = new Date();
+            upcomingDate.setDate(today.getDate() + 7);
 
-            installmentsSnapshot.forEach(doc => {
-                const installment = doc.data();
-                const dueDate = new Date(installment.dueDate);
-                const customerName = contractMap.get(installment.contractId) || 'عميل غير معروف';
+            const q = query(
+                collection(db, 'installments'),
+                where('projectId', '==', projectId),
+                where('status', '==', 'pending')
+            );
 
-                const itemHTML = `
-                    <div class="notification-item">
-                        <div class="item-info">
-                            <span class="customer-name">${customerName}</span>
-                            <span class="amount">المبلغ: ${formatCurrency(installment.amount)}</span>
-                            <span class="due-date">تاريخ الاستحقاق: ${installment.dueDate}</span>
-                        </div>
-                        <div class="item-actions">
-                            <a href="/admin/contract-details?id=${installment.contractId}" class="btn btn-primary">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                <span>عرض العقد</span>
-                            </a>
-                        </div>
-                    </div>
-                `;
+            const querySnapshot = await getDocs(q);
 
-                if (dueDate < today) {
-                    overdueList.innerHTML += itemHTML;
-                    overdueCount++;
-                } else if (dueDate <= sevenDaysFromNow) {
-                    dueSoonList.innerHTML += itemHTML;
-                    dueSoonCount++;
-                }
+            const allPendingInstallments = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+            const overdueInstallments = allPendingInstallments.filter(inst => 
+                inst.dueDate.toDate() < today
+            );
+
+            const upcomingInstallments = allPendingInstallments.filter(inst => {
+                const dueDate = inst.dueDate.toDate();
+                return dueDate >= today && dueDate <= upcomingDate;
             });
-
-            if (overdueCount === 0) noOverdue.style.display = 'block';
-            if (dueSoonCount === 0) noDueSoon.style.display = 'block';
+            
+            renderInstallments('overdue', overdueInstallments);
+            renderInstallments('upcoming', upcomingInstallments);
+            
+            loader.style.display = 'none';
+            content.style.display = 'block';
 
         } catch (error) {
             console.error("Error fetching notifications: ", error);
-            overdueList.innerHTML = `<p style="color: red;">حدث خطأ أثناء تحميل التنبيهات.</p>`;
-        } finally {
             loader.style.display = 'none';
-            notificationsContent.style.display = 'block';
+            errorDisplay.textContent = 'حدث خطأ أثناء تحميل التنبيهات.';
+            errorDisplay.style.display = 'block';
         }
     }
+
+    function renderInstallments(type, installments) {
+        const listId = `${type}-installments-list`;
+        const messageId = `no-${type}-message`;
+        
+        const listContainer = document.getElementById(listId);
+        const noItemsMessage = document.getElementById(messageId);
+
+        if (installments.length === 0) {
+            noItemsMessage.style.display = 'block';
+            listContainer.style.display = 'none';
+            return;
+        }
+        
+        listContainer.innerHTML = '';
+        noItemsMessage.style.display = 'none';
+        listContainer.style.display = 'grid';
+
+        const sortedInstallments = installments.sort((a,b) => a.dueDate.toDate() - b.dueDate.toDate());
+
+        sortedInstallments.forEach(inst => {
+            const card = document.createElement('div');
+            card.className = `installment-card ${type}`;
+
+            const daysDiff = calculateDaysDifference(inst.dueDate.toDate());
+            let diffText = '';
+            if (type === 'overdue') {
+                diffText = `متأخر ${-daysDiff} يوم`;
+            } else {
+                diffText = daysDiff === 0 ? 'اليوم' : `خلال ${daysDiff} يوم`;
+            }
+
+            card.innerHTML = `
+                <div class="card-header">${inst.customerName}</div>
+                <div class="card-details">
+                    <p><strong>بيان القسط:</strong> ${inst.installmentName || '-'}</p>
+                    <p><strong>المبلغ:</strong> <span class="amount">${formatCurrency(inst.installmentAmount)}</span></p>
+                    <p><strong>تاريخ الاستحقاق:</strong> ${formatDate(inst.dueDate)}</p>
+                    <p><strong>الحالة:</strong> <span class="status-${type}">${diffText}</span></p>
+                </div>
+            `;
+            listContainer.appendChild(card);
+        });
+    }
+
+    const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+    const formatDate = (timestamp) => {
+        if (!timestamp) return '-';
+        return timestamp.toDate().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+    const calculateDaysDifference = (date) => {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const targetDate = new Date(date);
+        targetDate.setHours(0,0,0,0);
+        const diffTime = targetDate - today;
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+
 </script>

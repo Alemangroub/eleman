@@ -18,6 +18,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
                 <h1 id="project-name">عقود المشروع: </h1>
                 <div class="header-actions">
                     <a id="add-contract-btn" href="#" class="btn btn-primary">+ إضافة عقد جديد</a>
+                    <a id="notifications-btn" href="#" class="btn btn-info">تنبيهات الأقساط <span class="notification-badge" style="display: none;"></span></a>
                     <a href="/admin/projects" class="btn btn-secondary">العودة للمشاريع</a>
                 </div>
             </div>
@@ -130,12 +131,30 @@ import AdminLogin from '../../components/AdminLogin.astro';
         font-size: 1rem;
         font-weight: 600;
         cursor: pointer;
+        position: relative;
     }
     
     .btn.btn-primary { background-color: #27ae60; color: white; }
     .btn.btn-secondary { background-color: #6c757d; color: white; }
+    .btn.btn-info { background-color: #3498db; color: white; }
     .btn.btn-primary:hover { background-color: #219d52; }
     .btn.btn-secondary:hover { background-color: #5a6268; }
+    .btn.btn-info:hover { background-color: #2980b9; }
+
+    .notification-badge {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background-color: #c0392b;
+        color: white;
+        border-radius: 50%;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.8rem;
+        font-weight: bold;
+        min-width: 20px;
+        text-align: center;
+        line-height: 1.2;
+    }
 
     .contracts-list-container {
         display: flex;
@@ -206,7 +225,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
 <script>
     import { auth, db } from '../../firebase/client';
     import { onAuthStateChanged } from "firebase/auth";
-    import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+    import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 
     document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
@@ -244,6 +263,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         const errorMessage = document.getElementById('error-message');
         const noContractsMessage = document.getElementById('no-contracts-message');
         const addContractBtn = document.getElementById('add-contract-btn');
+        const notificationsBtn = document.getElementById('notifications-btn');
 
         const urlParams = new URLSearchParams(window.location.search);
         const projectId = urlParams.get('projectId');
@@ -256,6 +276,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         }
 
         addContractBtn.href = `/admin/add-contract?projectId=${projectId}`;
+        notificationsBtn.href = `/admin/notifications?projectId=${projectId}`;
         const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
 
         try {
@@ -274,6 +295,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
             
             const installmentsQuery = query(collection(db, 'installments'), where('projectId', '==', projectId));
             const querySnapshot = await getDocs(installmentsQuery);
+
+            await fetchAndDisplayNotifications(projectId);
             
             const contracts = new Map();
             let totalPaidAmount = 0;
@@ -282,7 +305,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
             if (!querySnapshot.empty) {
                 querySnapshot.forEach(docSnap => {
                     const data = docSnap.data();
-                    if (data.paymentDate) { // Or check status === 'paid'
+                    if (data.status === 'paid') {
                         totalPaidAmount += data.installmentAmount || 0;
                     }
 
@@ -314,6 +337,40 @@ import AdminLogin from '../../components/AdminLogin.astro';
             loader.style.display = 'none';
             errorMessage.textContent = 'حدث خطأ أثناء تحميل البيانات. يرجى مراجعة الـ console لمعرفة التفاصيل.';
             errorDisplay.style.display = 'block';
+        }
+    }
+    
+    async function fetchAndDisplayNotifications(projectId) {
+        const badge = document.querySelector('.notification-badge');
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const upcomingDate = new Date();
+            upcomingDate.setDate(today.getDate() + 7);
+
+            const q = query(
+                collection(db, 'installments'),
+                where('projectId', '==', projectId),
+                where('status', '==', 'pending')
+            );
+
+            const querySnapshot = await getDocs(q);
+            const allPending = querySnapshot.docs.map(d => d.data());
+
+            const notificationCount = allPending.filter(inst => {
+                const dueDate = inst.dueDate.toDate();
+                return dueDate < today || (dueDate >= today && dueDate <= upcomingDate);
+            }).length;
+
+            if (notificationCount > 0) {
+                badge.textContent = notificationCount;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        } catch (error) {
+            console.error("Error fetching notifications count: ", error);
+            badge.style.display = 'none';
         }
     }
 
