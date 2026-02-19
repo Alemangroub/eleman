@@ -89,21 +89,6 @@ try {
                         </div>
                     </section>
 
-                    <section class="cost-categories-card">
-                        <h2>تكاليف المشروع</h2>
-                        <div class="button-grid">
-                            <a href={`/admin/projects/${id}/costs/daily-expenses`} class="btn btn-category">المصروفات اليوميه</a>
-                            <a href={`/admin/projects/${id}/costs/labor-wages`} class="btn btn-category">أجرة العمال</a>
-                            <a href={`/admin/projects/${id}/costs/concrete-wages`} class="btn btn-category">أجرة خرسانه</a>
-                            <a href={`/admin/projects/${id}/costs/building-wages`} class="btn btn-category">أجرة مباني</a>
-                            <a href={`/admin/projects/${id}/costs/electricity-wages`} class="btn btn-category">أجرة كهرباء</a>
-                            <a href={`/admin/projects/${id}/costs/plumbing-wages`} class="btn btn-category">أجرة السباكة</a>
-                            <a href={`/admin/projects/${id}/costs/excavation-wages`} class="btn btn-category">أجرة الحفر</a>
-                            <a href={`/admin/projects/${id}/costs/demolition-wages`} class="btn btn-category">أجرة الهدم</a>
-                            <a href={`/admin/projects/${id}/costs/contractor-wages`} class="btn btn-category">أجرة مقاول</a>
-                        </div>
-                    </section>
-
                     <section class="report-links-section">
                         <a href={`/admin/projects/${id}/expense-reports`} class="report-link-card">
                             {unreadExpenseReports > 0 && 
@@ -235,49 +220,6 @@ try {
     .info-item div { display: flex; flex-direction: column; }
     .info-item strong { font-weight: 700; font-size: 0.9rem; color: #6c757d; }
     .info-item span { font-weight: 600; font-size: 1.1rem; }
-
-    .cost-categories-card {
-        background: #fff; 
-        border-radius: 12px; 
-        box-shadow: var(--card-shadow); 
-        padding: 1.75rem; 
-        margin-bottom: 2.5rem;
-    }
-    .cost-categories-card h2 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin-top: 0;
-        margin-bottom: 1.5rem;
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 1rem;
-    }
-    .button-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: 1rem;
-    }
-    .btn-category {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 65px;
-        padding: 0.5rem 1rem;
-        font-size: 0.95rem;
-        font-weight: 700;
-        text-align: center;
-        text-decoration: none;
-        color: #fff;
-        background-color: var(--primary-color);
-        border: 1px solid var(--primary-color);
-        border-radius: 8px;
-        transition: all 0.2s ease;
-    }
-    .btn-category:hover {
-        background-color: #0056b3;
-        border-color: #0056b3;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
 
     .report-links-section { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
     .report-link-card { position: relative; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); text-decoration: none; color: inherit; display: flex; align-items: center; padding: 2rem; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid var(--border-color); }

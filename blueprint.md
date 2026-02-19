@@ -83,15 +83,7 @@ This application is a web-based project management dashboard named "Elemannet". 
 -   **Secure Admin Login (`/admin`):** The generic `/admin` route serves as the primary login portal for administrators.
 -   **Logout Functionality:** A "Logout" button is available on all admin pages for secure session termination.
 
-## 3. Previous Task: Fix Installment Status Dropdown UI
-
-### Plan & Steps for the requested change:
-
-1.  **[Identify Issue]** The "Paid/Pending" status dropdown in the `contract-details.astro` page was not fully visible on smaller screens (mobile view) because its width was constrained.
-2.  **[Implement Fix]** Modified the global stylesheet within `src/pages/admin/contract-details.astro`. Specifically, I adjusted the CSS rule targeting the `select` element within the installments table. I removed the `width: 100%` property from the `select` dropdown, allowing it to size automatically based on its content ("مستحق" / "مدفوع"). This ensures the full text is always visible.
-3.  **[Update Blueprint]** Updated this `blueprint.md` file to document the UI fix and mark the task as complete.
-
-## 4. Current Task: Make Installments Table Responsive
+## 3. Previous Task: Make Installments Table Responsive
 
 ### Plan & Steps for the requested change:
 
@@ -103,3 +95,13 @@ This application is a web-based project management dashboard named "Elemannet". 
     -   Used the `data-label` attribute on each `<td>` to display the column header next to the data, creating a clear key-value pair format on mobile.
 3.  **[Update JavaScript]** Modified the `renderInstallmentsTable` function to add the `data-label` attributes to each `<td>` element dynamically, ensuring the mobile view has the correct labels for each piece of data.
 4.  **[Update Blueprint]** Updated this `blueprint.md` file to document the new responsive design for the table and mark the task as complete.
+
+## 4. Current Task: Refactor Cost Pages into a Single Dynamic Route
+
+### Plan & Steps for the requested change:
+
+1.  **[Identify Problem]** The `src/pages/admin/projects/[id]/costs/` directory contained numerous individual, static `.astro` files for each cost type (e.g., `concrete-wages.astro`, `electrical-wages.astro`). This structure was highly inefficient, difficult to maintain, and not scalable for adding new cost categories.
+2.  **[Delete Redundant Files]** Systematically deleted all the individual static cost pages from the `costs` directory to clean up the project structure.
+3.  **[Create Dynamic Route]** Created a single dynamic Astro page: `src/pages/admin/projects/[id]/costs/[costType].astro`.
+4.  **[Implement Dynamic Content]** This new page utilizes the `costType` parameter from the URL to dynamically fetch and display the relevant cost information. This approach simplifies the codebase, significantly improves maintainability, and allows for the easy addition of new cost types in the future without needing to create new files.
+5.  **[Update Blueprint]** Updated this `blueprint.md` file to document the refactoring process and the new dynamic route structure.
