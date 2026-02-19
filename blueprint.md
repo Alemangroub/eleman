@@ -30,7 +30,7 @@ This application is a web-based project management dashboard named "Elemannet". 
 
 -   **Project Details Page (`/admin/projects/[id]`):**
     -   Provides a central hub for a single project, displaying its main information.
-    -   Features navigation to "Daily Reports", "Expense Reports", and "Project Installments".
+    -   Features navigation to "Daily Reports", "Expense Reports", "Project Installments", and "Items".
 
 -   **Project Installment Management:**
     -   **Installments List (`/admin/project-installments`):** Displays a list of all financial installments associated with a specific project, showing amount, due date, and status (paid/unpaid).
@@ -83,20 +83,7 @@ This application is a web-based project management dashboard named "Elemannet". 
 -   **Secure Admin Login (`/admin`):** The generic `/admin` route serves as the primary login portal for administrators.
 -   **Logout Functionality:** A "Logout" button is available on all admin pages for secure session termination.
 
-## 3. Previous Task: Make Installments Table Responsive
-
-### Plan & Steps for the requested change:
-
-1.  **[Identify Need]** The installments table on the `contract-details.astro` page was not user-friendly on mobile devices, requiring horizontal scrolling to view all data.
-2.  **[Implement Responsive CSS]** Added a media query for screens up to `768px` wide.
-    -   Hid the traditional `<thead>`.
-    -   Converted each `<tr>` into a block-level element, styled to look like a card.
-    -   Transformed each `<td>` to a flex container to align its content and a `::before` pseudo-element.
-    -   Used the `data-label` attribute on each `<td>` to display the column header next to the data, creating a clear key-value pair format on mobile.
-3.  **[Update JavaScript]** Modified the `renderInstallmentsTable` function to add the `data-label` attributes to each `<td>` element dynamically, ensuring the mobile view has the correct labels for each piece of data.
-4.  **[Update Blueprint]** Updated this `blueprint.md` file to document the new responsive design for the table and mark the task as complete.
-
-## 4. Current Task: Refactor Cost Pages into a Single Dynamic Route
+## 3. Previous Task: Refactor Cost Pages into a Single Dynamic Route
 
 ### Plan & Steps for the requested change:
 
@@ -105,3 +92,13 @@ This application is a web-based project management dashboard named "Elemannet". 
 3.  **[Create Dynamic Route]** Created a single dynamic Astro page: `src/pages/admin/projects/[id]/costs/[costType].astro`.
 4.  **[Implement Dynamic Content]** This new page utilizes the `costType` parameter from the URL to dynamically fetch and display the relevant cost information. This approach simplifies the codebase, significantly improves maintainability, and allows for the easy addition of new cost types in the future without needing to create new files.
 5.  **[Update Blueprint]** Updated this `blueprint.md` file to document the refactoring process and the new dynamic route structure.
+
+## 4. Current Task: Add "Items" (البنود) Page to Projects
+
+### Plan & Steps for the requested change:
+
+1.  **[Add Navigation Link]** Modified the Project Details page (`src/pages/admin/projects/[id].astro`) to include a new navigation card that links to the "Items" page for that specific project.
+2.  **[Style the Link]** Updated the CSS in `[id].astro` to handle a three-column layout for the navigation cards, ensuring the new "Items" card displays correctly alongside the existing "Expense Reports" and "Daily Reports" cards. Added a new CSS variable (`--items-color`) for styling.
+3.  **[Create New Page]** Created a new, placeholder page at `src/pages/admin/projects/[id]/items.astro`.
+4.  **[Implement Page Structure]** The new `items.astro` page includes the standard layout, authentication checks, a title, and a link to return to the main project details page. It currently contains a placeholder message indicating that the feature will be implemented soon.
+5.  **[Update Blueprint]** Updated this `blueprint.md` file to document the addition of the new page and navigation link.

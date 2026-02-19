@@ -120,6 +120,23 @@ try {
                                 <p>سجل يوضح سير العمل اليومي والملاحظات والمرفقات.</p>
                             </div>
                         </a>
+                         <a href={`/admin/projects/${id}/items`} class="report-link-card">
+                            <div class="card-icon items-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-list-details" width="36" height="36" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                   <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                   <path d="M13 5h8" />
+                                   <path d="M13 9h5" />
+                                   <path d="M13 15h8" />
+                                   <path d="M13 19h5" />
+                                   <rect x="3" y="4" width="6" height="6" rx="1" />
+                                   <rect x="3" y="14" width="6" height="6" rx="1" />
+                                </svg>
+                            </div>
+                            <div class="card-content">
+                                <h3>البنود</h3>
+                                <p>عرض وإدارة بنود المشروع.</p>
+                            </div>
+                        </a>
                     </section>
                 </>
             ) : (
@@ -202,8 +219,9 @@ try {
         --primary-color: #007bff; 
         --border-color: #e9ecef; 
         --card-shadow: 0 4px 15px rgba(0,0,0,0.06);
-        --expense-color: #007bff; 
-        --daily-color: #007bff;   
+        --expense-color: #dc3545;
+        --daily-color: #17a2b8;
+        --items-color: #28a745;
         --notification-color: #ff5252;
     }
     .project-details-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; min-height: 100vh; padding: 2.5rem; }
@@ -221,12 +239,13 @@ try {
     .info-item strong { font-weight: 700; font-size: 0.9rem; color: #6c757d; }
     .info-item span { font-weight: 600; font-size: 1.1rem; }
 
-    .report-links-section { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    .report-links-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
     .report-link-card { position: relative; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); text-decoration: none; color: inherit; display: flex; align-items: center; padding: 2rem; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid var(--border-color); }
     .report-link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
     .card-icon { margin-left: 1.5rem; padding: 1rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; }
     .expense-icon { background-color: var(--expense-color); }
     .daily-icon { background-color: var(--daily-color); }
+    .items-icon { background-color: var(--items-color); }
     .card-content h3 { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.5rem 0; }
     .card-content p { margin: 0; color: #6c757d; line-height: 1.7; }
     
@@ -257,7 +276,6 @@ try {
     .error-card h2 { color: var(--danger-color); font-size: 2rem; margin-bottom: 1rem; }
 
     @media (max-width: 768px) {
-        .report-links-section { grid-template-columns: 1fr; }
         .button-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
     }
 </style>
