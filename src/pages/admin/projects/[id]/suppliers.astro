@@ -1,3 +1,4 @@
+
 ---
 import Layout from '../../../../layouts/Layout.astro';
 import AdminLogin from '../../../../components/AdminLogin.astro';
@@ -10,14 +11,12 @@ let project = null;
 
 try {
     const projectDoc = await db.collection('projects').doc(id).get();
-
     if (projectDoc.exists) {
         const projectData = projectDoc.data();
         project = { 
             id: projectDoc.id, 
             projectName: projectData.projectName || 'اسم غير متوفر',
         };
-
     } else {
         return Astro.redirect('/404');
     }
@@ -27,7 +26,7 @@ try {
 }
 ---
 
-<Layout title={`موردو مشروع: ${project ? project.projectName : 'خطأ'}`}>
+<Layout title={`واردات المشروع: ${project ? project.projectName : ''}`}>
     <div id="auth-loading-message" class="auth-container">
         <p>جارٍ التحقق من صلاحيات الدخول...</p>
     </div>
@@ -36,27 +35,43 @@ try {
       <AdminLogin />
     </div>
 
-    <main id="page-content" class="project-details-page" style="display: none;">
+    <main id="page-content" class="imports-admin-page" style="display: none;">
         <div class="container">
              {project ? (
                 <>
                     <header class="page-header">
                         <div>
-                            <h1>موردو المشروع: {project.projectName}</h1>
-                            <p class="page-subtitle">هنا يمكنك عرض وإدارة موردي المشروع.</p>
+                            <h1>واردات المشروع: {project.projectName}</h1>
+                            <p class="page-subtitle">هنا يمكنك عرض وإدارة واردات ومشتريات المشروع.</p>
                         </div>
-                        <div>
-                          <a href={`/admin/projects/${id}`} class="back-link">&larr; العودة إلى تفاصيل المشروع</a>
-                          <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
+                        <div class="header-actions">
+                           <button id="add-import-btn" class="btn btn-primary">+ إضافة وارد جديد</button>
+                           <a href={`/admin/projects/${id}`} class="btn btn-secondary">&larr; العودة للتفاصيل</a>
                         </div>
                     </header>
 
-                    <section class="suppliers-content">
-                       <div class="placeholder-card">
-                         <p>سيتم هنا عرض وإدارة الموردين الخاصين بالمشروع.</p>
-                         
-                       </div>
-                    </section>
+                    <!-- Imports List -->
+                    <div class="imports-list-container">
+                        <h2>قائمة الواردات</h2>
+                        <div class="table-wrapper">
+                        <table id="imports-table">
+                            <thead>
+                            <tr>
+                                <th>الصنف</th>
+                                <th>الكمية</th>
+                                <th>سعر الوحدة</th>
+                                <th>السعر الإجمالي</th>
+                                <th>المورد</th>
+                                <th>التاريخ</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                            </thead>
+                            <tbody id="imports-list">
+                            </tbody>
+                        </table>
+                        </div>
+                        <p id="no-imports-message">جاري تحميل الواردات...</p>
+                    </div>
                 </>
             ) : (
                 <div class="error-card">
@@ -67,12 +82,88 @@ try {
             )}
         </div>
     </main>
+
+    <!-- Add/Edit Import Modal -->
+    <div id="import-modal" class="modal-overlay">
+      <div class="modal-box">
+        <h3 id="modal-title">إضافة وارد جديد</h3>
+        <form id="import-form">
+            <div class="form-group">
+                <label for="item-category">الصنف</label>
+                <select id="item-category" required>
+                    <option value="" disabled selected>-- اختر الصنف --</option>
+                    <option value="حديد">حديد</option>
+                    <option value="اسمنت">اسمنت</option>
+                    <option value="رمله">رمله</option>
+                    <option value="زلط">زلط</option>
+                    <option value="طوب">طوب</option>
+                    <option value="كهرباء">كهرباء</option>
+                    <option value="سباكة">سباكة</option>
+                    <option value="رخام">رخام</option>
+                    <option value="دهانات">دهانات</option>
+                    <option value="اخري">اخري</option>
+                </select>
+            </div>
+            <div class="form-group" id="other-item-name-group" style="display: none;">
+                <label for="item-name">اسم الصنف (آخر)</label>
+                <input type="text" id="item-name">
+            </div>
+
+          <div class="form-grid">
+                <div class="form-group">
+                    <label for="item-quantity">الكمية</label>
+                    <input type="number" id="item-quantity" required>
+                </div>
+                <div class="form-group">
+                    <label for="item-unit-price">سعر الوحدة</label>
+                    <input type="number" id="item-unit-price" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="item-price">السعر الإجمالي</label>
+                    <input type="number" id="item-price" step="0.01" required readonly>
+                </div>
+          </div>
+          <div class="form-group">
+            <label for="item-supplier">المورد</label>
+            <input type="text" id="item-supplier">
+          </div>
+          <div class="form-group">
+            <label for="import-date">تاريخ التوريد</label>
+            <input type="date" id="import-date" required>
+          </div>
+           <div class="form-group">
+            <label for="item-notes">ملاحظات</label>
+            <textarea id="item-notes" rows="3"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="button" id="cancel-import-btn" class="btn btn-secondary">إلغاء</button>
+            <button type="submit" class="btn btn-primary">حفظ</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="modal-overlay">
+      <div class="modal-box">
+        <h3>تأكيد الحذف</h3>
+        <p>هل أنت متأكد من أنك تريد حذف هذا الصنف؟</p>
+        <div class="modal-actions">
+          <button id="cancel-delete-btn" class="btn btn-secondary">إلغاء</button>
+          <button id="confirm-delete-btn" class="btn btn-danger">تأكيد الحذف</button>
+        </div>
+      </div>
+    </div>
 </Layout>
 
 <script>
     import { auth, db } from '../../../../firebase/client';
     import { onAuthStateChanged, signOut } from "firebase/auth";
-    import { doc, getDoc } from "firebase/firestore";
+    import { collection, doc, getDoc, addDoc, onSnapshot, updateDoc, deleteDoc, query, orderBy, Timestamp } from 'firebase/firestore';
+
+    let projectId = "{id}";
+    let currentEditImportId = null;
+    const predefinedCategories = ["حديد", "اسمنت", "رمله", "زلط", "طوب", "كهرباء", "سباكة", "رخام", "دهانات"];
 
     document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
@@ -80,68 +171,341 @@ try {
         const pageContent = document.getElementById('page-content');
 
         onAuthStateChanged(auth, async (user) => {
-            if(authLoadingMessage) authLoadingMessage.style.display = 'none';
-
+            authLoadingMessage.style.display = 'none';
             if (user) {
-                try {
-                    const userDocRef = doc(db, "users", user.uid);
-                    const userDoc = await getDoc(userDocRef);
-
-                    if (userDoc.exists() && userDoc.data().role === 'admin') {
-                        if(pageContent) pageContent.style.display = 'block';
-                        if(loginContainer) loginContainer.style.display = 'none';
-
-                        const logoutButton = document.getElementById('logout-button');
-                        if (logoutButton) {
-                            logoutButton.addEventListener('click', async () => {
-                                await signOut(auth);
-                                window.location.href = '/admin';
-                            });
-                        }
-
-                    } else {
-                        await signOut(auth);
-                        window.location.href = '/admin';
-                    }
-                } catch (error) {
-                    console.error('Auth Check Error:', error);
-                    await signOut(auth);
-                    if(loginContainer) loginContainer.style.display = 'block';
-                    if(pageContent) pageContent.style.display = 'none';
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (userDoc.exists() && userDoc.data().role === 'admin') {
+                    pageContent.style.display = 'block';
+                    loginContainer.style.display = 'none';
+                    initializePage();
+                } else {
+                    signOut(auth);
+                    pageContent.style.display = 'none';
+                    loginContainer.style.display = 'block';
                 }
             } else {
-                if(pageContent) pageContent.style.display = 'none';
-                if(loginContainer) loginContainer.style.display = 'block';
+                pageContent.style.display = 'none';
+                loginContainer.style.display = 'block';
             }
         });
     });
+
+    function initializePage() {
+        setupEventListeners();
+        listenForImports();
+    }
+
+    const addImportBtn = document.getElementById('add-import-btn');
+    const importModal = document.getElementById('import-modal');
+    const deleteModal = document.getElementById('delete-modal');
+    const cancelImportBtn = document.getElementById('cancel-import-btn');
+    const importForm = document.getElementById('import-form');
+    const modalTitle = document.getElementById('modal-title');
+    const importsList = document.getElementById('imports-list');
+    let importIdToDelete = null;
+
+    function showModal(modal) { modal.classList.add('visible'); }
+    function hideModal(modal) { modal.classList.remove('visible'); }
+
+    function setupEventListeners() {
+        const itemCategorySelect = document.getElementById('item-category');
+        const otherItemGroup = document.getElementById('other-item-name-group');
+        const itemNameInput = document.getElementById('item-name');
+        
+        const quantityInput = document.getElementById('item-quantity');
+        const unitPriceInput = document.getElementById('item-unit-price');
+        const totalPriceInput = document.getElementById('item-price');
+
+        function calculateTotal() {
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const unitPrice = parseFloat(unitPriceInput.value) || 0;
+            totalPriceInput.value = (quantity * unitPrice).toFixed(2);
+        }
+
+        if(quantityInput) quantityInput.addEventListener('input', calculateTotal);
+        if(unitPriceInput) unitPriceInput.addEventListener('input', calculateTotal);
+
+        if (itemCategorySelect) {
+             itemCategorySelect.addEventListener('change', () => {
+                if (itemCategorySelect.value === 'اخري') {
+                    otherItemGroup.style.display = 'block';
+                    itemNameInput.required = true;
+                } else {
+                    otherItemGroup.style.display = 'none';
+                    itemNameInput.required = false;
+                }
+            });
+        }
+
+        if (addImportBtn) {
+            addImportBtn.addEventListener('click', () => {
+                currentEditImportId = null;
+                modalTitle.textContent = 'إضافة وارد جديد';
+                importForm.reset();
+                otherItemGroup.style.display = 'none';
+                itemNameInput.required = false;
+                totalPriceInput.value = '';
+                document.getElementById('import-date').valueAsDate = new Date();
+                showModal(importModal);
+            });
+        }
+
+        if (cancelImportBtn) cancelImportBtn.addEventListener('click', () => hideModal(importModal));
+        if (importModal) importModal.addEventListener('click', (e) => { if (e.target === importModal) hideModal(importModal); });
+        
+        if (importForm) {
+            importForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const categoryValue = document.getElementById('item-category').value;
+                let itemNameValue = categoryValue;
+                if (categoryValue === 'اخري') {
+                    itemNameValue = document.getElementById('item-name').value;
+                }
+
+                const importData = {
+                    name: itemNameValue,
+                    quantity: parseFloat(quantityInput.value),
+                    unitPrice: parseFloat(unitPriceInput.value),
+                    price: parseFloat(totalPriceInput.value),
+                    supplier: document.getElementById('item-supplier').value,
+                    date: Timestamp.fromDate(new Date(document.getElementById('import-date').value)),
+                    notes: document.getElementById('item-notes').value,
+                };
+
+                const importsColRef = collection(db, 'projects', projectId, 'imports');
+                if (currentEditImportId) {
+                    await updateDoc(doc(importsColRef, currentEditImportId), importData);
+                } else {
+                    await addDoc(importsColRef, {
+                        ...importData,
+                        createdAt: Timestamp.now()
+                    });
+                }
+                hideModal(importModal);
+                importForm.reset();
+            });
+        }
+
+        if (importsList) {
+            importsList.addEventListener('click', (e) => {
+                const target = e.target.closest('button');
+                if (!target) return;
+
+                const row = target.closest('tr');
+                const importId = row.dataset.id;
+
+                if (target.classList.contains('btn-edit-custom')) {
+                    const importData = JSON.parse(row.dataset.import);
+                    openEditModal(importId, importData);
+                }
+                if (target.classList.contains('btn-delete-custom')) {
+                    importIdToDelete = importId;
+                    showModal(deleteModal);
+                }
+            });
+        }
+
+        const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+        if (cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', () => hideModal(deleteModal));
+        if (deleteModal) deleteModal.addEventListener('click', (e) => { if (e.target === deleteModal) hideModal(deleteModal); });
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.addEventListener('click', async () => {
+                if (importIdToDelete) {
+                    const importRef = doc(db, 'projects', projectId, 'imports', importIdToDelete);
+                    await deleteDoc(importRef);
+                    hideModal(deleteModal);
+                    importIdToDelete = null;
+                }
+            });
+        }
+    }
+
+    function listenForImports() {
+        const importsQuery = query(collection(db, 'projects', projectId, 'imports'), orderBy('date', 'desc'));
+        const noImportsMessage = document.getElementById('no-imports-message');
+        const tableWrapper = document.querySelector('.table-wrapper');
+
+        onSnapshot(importsQuery, (snapshot) => {
+            if (snapshot.empty) {
+                importsList.innerHTML = '';
+                noImportsMessage.textContent = 'لم يتم إضافة أي واردات لهذا المشروع بعد.';
+                tableWrapper.style.display = 'none';
+                noImportsMessage.style.display = 'block';
+            } else {
+                tableWrapper.style.display = '';
+                noImportsMessage.style.display = 'none';
+                importsList.innerHTML = snapshot.docs.map(doc => renderImportRow(doc.id, doc.data())).join('');
+            }
+        });
+    }
+
+    function renderImportRow(id, data) {
+        const date = data.date.toDate();
+        const timezoneOffset = date.getTimezoneOffset() * 60000;
+        const correctedDate = new Date(date.getTime() - timezoneOffset);
+        const dateForInput = correctedDate.toISOString().split('T')[0];
+        const storedData = { ...data, date: dateForInput, notes: data.notes || '', unitPrice: data.unitPrice || '' };
+
+        return `
+            <tr data-id="${id}" data-import='${JSON.stringify(storedData)}'>
+                <td data-label="الصنف">${data.name}</td>
+                <td data-label="الكمية">${data.quantity}</td>
+                <td data-label="سعر الوحدة">${(data.unitPrice || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</td>
+                <td data-label="السعر الإجمالي">${(data.price || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</td>
+                <td data-label="المورد">${data.supplier || '-'}</td>
+                <td data-label="التاريخ">${date.toLocaleDateString('ar-EG')}</td>
+                <td data-label="الإجراءات" class="btn-action-cell">
+                    <button class="btn btn-edit-custom">تعديل</button>
+                    <button class="btn btn-delete-custom">حذف</button>
+                </td>
+            </tr>
+        `;
+    }
+    
+    function openEditModal(id, data) {
+        currentEditImportId = id;
+        modalTitle.textContent = 'تعديل وارد';
+        importForm.reset(); // Reset form first
+
+        const itemCategorySelect = document.getElementById('item-category');
+        const otherItemGroup = document.getElementById('other-item-name-group');
+        const itemNameInput = document.getElementById('item-name');
+
+        if (predefinedCategories.includes(data.name)) {
+            itemCategorySelect.value = data.name;
+            otherItemGroup.style.display = 'none';
+            itemNameInput.required = false;
+        } else {
+            itemCategorySelect.value = 'اخري';
+            otherItemGroup.style.display = 'block';
+            itemNameInput.value = data.name || '';
+            itemNameInput.required = true;
+        }
+
+        document.getElementById('item-quantity').value = data.quantity || '';
+        document.getElementById('item-unit-price').value = data.unitPrice || '';
+        document.getElementById('item-price').value = data.price || '';
+        document.getElementById('item-supplier').value = data.supplier || '';
+        document.getElementById('import-date').value = data.date || '';
+        document.getElementById('item-notes').value = data.notes || '';
+
+        showModal(importModal);
+    }
 </script>
 
-<style>
-.auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
-.auth-container p { font-size: 1.2rem; }
-.btn-logout { background-color: #ef4444; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
-.btn-logout:hover { background-color: #dc2626; }
-.page-header div:last-child { display: flex; align-items: center; gap: 1rem; }
-
-:root { 
-    --primary-color: #007bff; 
-    --border-color: #e9ecef; 
-    --card-shadow: 0 4px 15px rgba(0,0,0,0.06);
-    --danger-color: #dc3545;
+<style is:global>
+:root {
+    --primary-color: #3f51b5;
+    --secondary-color: #6c757d;
+    --danger-color: #d9534f;
+    --success-color: #28a745;
+    --light-gray: #f4f7f6;
+    --dark-text: #333;
+    --light-text: #555;
+    --white: #fff;
+    --border-color: #e0e0e0;
+    --shadow: 0 4px 6px rgba(0,0,0,0.05);
 }
-.project-details-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; min-height: 100vh; padding: 2.5rem; }
-.container { max-width: 1100px; margin: 0 auto; }
 
-.page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
-h1 { font-size: 2.25rem; font-weight: 800; }
-.page-subtitle { color: #6c757d; }
-.back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; padding: 0.6rem 1rem; }
+/* General Styles */
+.imports-admin-page { padding: 3rem 1.5rem; background-color: var(--light-gray); min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
+.container { max-width: 1200px; margin: 0 auto; }
 
-.suppliers-content { background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); padding: 2rem; }
-.placeholder-card { text-align: center; padding: 4rem; background-color: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px; }
-.placeholder-card p { font-size: 1.2rem; color: #6c757d; margin:0; }
+/* Auth & Error */
+.auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
+.auth-container p { font-size: 1.2rem; }
+.error-card { text-align: center; padding: 4rem; background: var(--white); border-radius: 12px; box-shadow: var(--shadow); }
+.error-card h2 { color: var(--danger-color); }
 
-.error-card { text-align: center; padding: 4rem; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); }
-.error-card h2 { color: var(--danger-color); font-size: 2rem; margin-bottom: 1rem; }
+/* Header */
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); }
+.page-header h1 { font-size: 2.2rem; color: var(--dark-text); font-weight: 900; }
+.page-subtitle { color: var(--light-text); margin-top: 0.25rem; }
+.header-actions { display: flex; gap: 1rem; }
+
+/* General Button Styles */
+.btn { display: inline-block; padding: 0.7rem 1.3rem; color: var(--white); text-decoration: none; border-radius: 8px; font-size: 0.95rem; font-weight: 700; transition: all 0.2s ease-in-out; text-align: center; border: 1px solid transparent; cursor: pointer; }
+.btn:hover { transform: translateY(-2px); }
+.btn-primary { background-color: var(--primary-color); border-color: var(--primary-color); }
+.btn-primary:hover { background-color: #303f9f; }
+.btn-secondary { background-color: var(--secondary-color); border-color: var(--secondary-color); color: var(--white); }
+.btn-secondary:hover { background-color: #5a6268; }
+.btn-danger { background-color: var(--danger-color); border-color: var(--danger-color); }
+.btn-danger:hover { background-color: #c9302c; }
+
+/* Imports List */
+.imports-list-container { background-color: var(--white); padding: 2rem; border-radius: 12px; box-shadow: var(--shadow); }
+.imports-list-container h2 { font-size: 1.8rem; margin-bottom: 1.5rem; font-weight: 800; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 1rem; }
+
+/* Table Styles */
+.table-wrapper { overflow-x: auto; }
+#imports-table { width: 100%; border-collapse: separate; border-spacing: 0 1rem; margin-top: 1rem; }
+#imports-table thead { display: table-header-group; }
+#imports-table th {
+    padding: 1rem 1.25rem;
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 700;
+    text-align: right;
+    background-color: #f9fafb;
+}
+#imports-table th:first-of-type { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
+#imports-table th:last-of-type { border-top-left-radius: 10px; border-bottom-left-radius: 10px; }
+
+#imports-table tbody tr { background-color: #fdfdfd; box-shadow: 0 1px 3px rgba(0,0,0,0.03); border-radius: 10px; transition: transform 0.2s ease, box-shadow 0.2s ease; overflow: hidden; }
+#imports-table tbody tr:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.07); }
+#imports-table td { padding: 1rem 1.25rem; font-size: 0.95rem; color: var(--light-text); vertical-align: middle; text-align: right; border-bottom: 1px solid var(--border-color); }
+#imports-table tr td:first-child { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
+#imports-table tr td:last-child { border-top-left-radius: 10px; border-bottom-left-radius: 10px; text-align: center; }
+#imports-table tr:last-child td { border-bottom: none; }
+
+.btn-action-cell { display: flex; gap: 0.5rem; justify-content: center; }
+.btn-edit-custom, .btn-delete-custom { background: transparent; padding: 0.4rem 0.8rem; font-size: 0.85rem; border-radius: 6px; cursor: pointer; }
+.btn-edit-custom { color: var(--primary-color); border: 1px solid var(--primary-color); }
+.btn-edit-custom:hover { background-color: var(--primary-color); color: var(--white); }
+.btn-delete-custom { color: var(--danger-color); border: 1px solid var(--danger-color); }
+.btn-delete-custom:hover { background-color: var(--danger-color); color: var(--white); }
+
+/* Message for no imports */
+#no-imports-message { text-align: center; padding: 3rem 0; font-size: 1.1rem; color: #777; background-color: #f9fafb; border-radius: 8px; }
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+    background: rgba(0, 0, 0, 0.6); 
+    z-index: 1000; 
+    visibility: hidden; opacity: 0; 
+    transition: opacity 0.3s ease; 
+    display: flex; 
+    align-items: flex-start; 
+    justify-content: center; 
+    padding: 2rem 1rem; 
+    overflow-y: auto; 
+}
+.modal-overlay.visible { visibility: visible; opacity: 1; }
+.modal-box { background: var(--white); padding: 2.5rem; border-radius: 12px; width: 100%; max-width: 550px; text-align: right; transform: scale(0.95); transition: transform 0.3s ease; margin: auto; }
+.modal-overlay.visible .modal-box { transform: scale(1); }
+.modal-box h3 { font-size: 1.8rem; margin: 0 0 2rem; color: var(--dark-text); text-align: center; font-weight: 800; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; }
+
+/* Form Styles */
+#import-form { display: flex; flex-direction: column; gap: 1rem; }
+.form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.form-group label { font-weight: 700; color: var(--light-text); margin-bottom: 0.5rem; display: block; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.8rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; background-color: #fff; }
+.form-group input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .page-header { flex-direction: column; align-items: stretch; gap: 1.5rem; }
+    .form-grid { grid-template-columns: 1fr; }
+    #imports-table thead { display: none; }
+    #imports-table tr, #imports-table td { display: block; width: 100%; }
+    #imports-table tr { margin-bottom: 1rem; box-shadow: none; border: 1px solid var(--border-color); }
+    #imports-table td { text-align: right; padding-left: 50%; position: relative; border-bottom: 1px solid #f0f0f0; }
+    #imports-table td:last-child { border-bottom: none; }
+    #imports-table td::before { content: attr(data-label); position: absolute; left: 1rem; width: 40%; padding-right: 10px; font-weight: 700; text-align: left; color: var(--primary-color); }
+}
 </style>

@@ -17,6 +17,11 @@ service cloud.firestore {
         allow read: if isUserRole('admin') || isUserRole('supervisor');
         allow write, delete: if isUserRole('admin');
       }
+
+      // Subcollection for project imports
+      match /imports/{importId} {
+        allow read, write, delete: if isUserRole('admin');
+      }
     }
 
     // Daily Expenses: Supervisors with the correct role can create, Admins can read/write
