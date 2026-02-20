@@ -76,7 +76,6 @@ try {
     error = "حدث خطأ أثناء تحميل بيانات المشروع.";
 }
 
-// This is no longer used for the filter dropdown directly, but can be kept for other purposes if needed.
 const uniqueItemNames = [...new Set(items.map(item => item.name))];
 ---
 <Layout title={`بنود المشروع: ${project ? project.name : ''}`}>
@@ -176,7 +175,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 <div class="table-header">
                     <h2 class="table-title">قائمة البنود الحالية</h2>
                     <div class="filter-container">
-                         <div class="form-group">
+                        <div class="form-group">
                             <label for="main-category-filter">الفئة الرئيسية:</label>
                             <select id="main-category-filter">
                                 <option value="" disabled selected>-- اختر فئة --</option>
@@ -216,16 +215,19 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
 										<td data-label="سعر الوحدة" data-field="unitPrice">{item.unitPrice.toFixed(2)}</td>
 										<td data-label="الإجمالي" data-field="totalPrice">{item.totalPrice.toFixed(2)}</td>
 										<td data-label="ملاحظات" data-field="notes">{item.notes || '-'}</td>
-                                            <td data-label="إجراءات" class="actions-cell">
-												<div class="action-buttons-view">
-													<button class="btn-action btn-edit">تعديل</button>
-													<button class="btn-action btn-delete" data-project-id={id} data-item-id={item.id}>حذف</button>
-												</div>
-												<div class="action-buttons-edit" style="display: none;">
-													<button class="btn-action btn-save">حفظ</button>
-													<button class="btn-action btn-cancel">إلغاء</button>
-												</div>
-                                            </td>
+                                        <td data-label="إجراءات" class="actions-cell">
+                                            <div class="action-buttons-view">
+                                                <button class="btn-action btn-edit">تعديل</button>
+                                                <button class="btn-action btn-delete" data-project-id={id} data-item-id={item.id}>حذف</button>
+                                                <button class="btn-action btn-print">طباعة</button>
+                                                <button class="btn-action btn-pdf">تصدير PDF</button>
+                                                <button class="btn-action btn-excel">تصدير Excel</button>
+                                            </div>
+                                            <div class="action-buttons-edit" style="display: none;">
+                                                <button class="btn-action btn-save">حفظ</button>
+                                                <button class="btn-action btn-cancel">إلغاء</button>
+                                            </div>
+                                        </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -309,7 +311,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 });
             }
 
-            // Modal elements
             const deleteModal = document.getElementById('delete-confirm-modal');
             const deleteModalConfirmBtn = document.getElementById('delete-modal-confirm-btn');
             const deleteModalCancelBtn = document.getElementById('delete-modal-cancel-btn');
@@ -324,19 +325,18 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
             const itemsTableBody = document.getElementById('items-table-body');
             if (itemsTableBody) {
                 itemsTableBody.addEventListener('click', (e) => {
-                    const target = e.target;
+                    const target = e.target.closest('.btn-action');
+                    if (!target) return;
                     const row = target.closest('.item-row');
                     if (!row) return;
 
-                    if (target.classList.contains('btn-delete')) {
-                        handleDeleteClick(target);
-                    } else if (target.classList.contains('btn-edit')) {
-                        handleEditClick(row);
-                    } else if (target.classList.contains('btn-cancel')) {
-                        handleCancelClick(row);
-                    } else if (target.classList.contains('btn-save')) {
-                        handleSaveClick(row);
-                    }
+                    if (target.classList.contains('btn-delete')) handleDeleteClick(target);
+                    else if (target.classList.contains('btn-edit')) handleEditClick(row);
+                    else if (target.classList.contains('btn-cancel')) handleCancelClick(row);
+                    else if (target.classList.contains('btn-save')) handleSaveClick(row);
+                    else if (target.classList.contains('btn-print')) handlePrintItem(row);
+                    else if (target.classList.contains('btn-pdf')) handlePdfExport(row);
+                    else if (target.classList.contains('btn-excel')) handleExcelExport(row);
                 });
             }
 
@@ -365,6 +365,62 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 itemToSave = row;
                 if(saveModal) saveModal.style.display = 'flex';
             }
+            
+            // --- ITEM-SPECIFIC EXPORT/PRINT FUNCTIONS ---
+            function handlePrintItem(row) {
+                const projectName = document.querySelector('h1').textContent || "تفاصيل البند";
+                const cells = row.querySelectorAll('td[data-label]');
+                let printContent = `
+                    <style>
+                        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+                        body { font-family: 'Cairo', sans-serif; direction: rtl; margin: 20px; }
+                        h1, h2 { text-align: center; color: #333; }
+                        h1 { font-size: 1.5rem; }
+                        h2 { font-size: 1.2rem; color: #555; margin-bottom: 20px; }
+                        table { width: 100%; border-collapse: collapse; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                        tr { border-bottom: 1px solid #eee; }
+                        th, td { padding: 12px 15px; text-align: right; }
+                        th { background-color: #f8f8f8; font-weight: 700; color: #555; width: 30%; }
+                        @media print { body { -webkit-print-color-adjust: exact; } h1 {color: #000;} }
+                    </style>
+                    <h1>${projectName}</h1>
+                    <h2>تفاصيل البند</h2>
+                    <table>
+                        <tbody>`;
+
+                cells.forEach(cell => {
+                    const label = cell.getAttribute('data-label');
+                    if (label === 'إجراءات') return; // Skip the actions cell
+                    const value = cell.dataset.originalValue || cell.textContent.trim();
+                    printContent += `<tr><th>${label}</th><td>${value}</td></tr>`;
+                });
+
+                printContent += `</tbody></table>`;
+                
+                const printWindow = window.open('', '', 'height=700,width=800');
+                
+                if (!printWindow) {
+                    alert('فشل فتح نافذة الطباعة. يرجى التأكد من السماح بالنوافذ المنبثقة (Pop-ups) لهذا الموقع.');
+                    return;
+                }
+
+                printWindow.document.write(printContent);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => { printWindow.print(); }, 500);
+            }
+
+            function handlePdfExport(row) {
+                alert('سيتم تنفيذ خاصية تصدير هذا البند كـ PDF قريبًا! عند الموافقة سيتم تركيب المكتبة المطلوبة.');
+                console.log('Exporting row to PDF:', row.dataset.itemId);
+            }
+
+            function handleExcelExport(row) {
+                alert('سيتم تنفيذ خاصية تصدير هذا البند كـ Excel قريبًا! عند الموافقة سيتم تركيب المكتبة المطلوبة.');
+                console.log('Exporting row to Excel:', row.dataset.itemId);
+            }
+            // --- END FUNCTIONS ---
+
 
             async function executeSave(row) {
                 const itemId = row.dataset.itemId;
@@ -638,6 +694,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
         --success-color: #28a745; 
         --danger-color: #dc3545; 
         --warning-color: #ffc107; 
+        --info-color: #17a2b8;
         --border-color: #dee2e6;
         --background-color: #f4f6f9; 
         --white-color: #fff;
@@ -659,6 +716,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
     .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 86, 179, 0.25); }
     .btn-secondary { background-color: var(--secondary-color); color: var(--white-color); }
     .btn-logout { background-color: var(--danger-color); color: white;}
+    .btn-danger { background-color: var(--danger-color); color: var(--white-color); }
 
     .success-message, .error-message { padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 600; }
     .success-message { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -675,10 +733,10 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
     .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; }
     
     .content-area { background: var(--white-color); border-radius: 12px; padding: 2rem; box-shadow: var(--shadow); }
-    .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .table-header { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;}
     .table-title { font-size: 1.5rem; font-weight: 700; color: #333; margin: 0; }
-    .filter-container { display: flex; align-items: flex-end; gap: 1rem; }
-
+    .filter-container { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;}
+    
     .table-wrapper { overflow-x: auto; }
     .items-table { width: 100%; border-collapse: collapse; }
     .items-table th, .items-table td { padding: 1.25rem 1rem; text-align: right; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
@@ -687,26 +745,19 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
     .items-table tbody tr:hover { background-color: var(--table-hover-bg); }
     .no-items-message { text-align: center; padding: 2rem; font-size: 1.1rem; color: var(--secondary-color); }
     
-    .items-table tr.editing td {
-        padding-top: 0.75rem;
-        padding-bottom: 0.75rem;
-    }
-    .form-control-inline {
-        width: 100%;
-        padding: 0.5rem;
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        font-size: 0.95rem;
-    }
+    .items-table tr.editing td { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+    .form-control-inline { width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; }
 
-    .actions-cell { display: flex; gap: 0.75rem; justify-content: flex-end; align-items: center; }
-    .btn-action { padding: 0.4rem 0.9rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: transform 0.2s; border: none; color: var(--white-color); cursor: pointer;}
+    .actions-cell .action-buttons-view, .actions-cell .action-buttons-edit { display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
+    .btn-action { padding: 0.4rem 0.8rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; transition: transform 0.2s; border: none; color: var(--white-color); cursor: pointer; margin: 2px 0;}
     .btn-action:hover { transform: translateY(-2px); }
     .btn-edit { background-color: var(--warning-color); color: #333;}
     .btn-delete { background-color: var(--danger-color);}
     .btn-save { background-color: var(--success-color); }
     .btn-cancel { background-color: var(--secondary-color); }
-
+    .btn-print { background-color: var(--primary-color); }
+    .btn-pdf { background-color: #E63946; } /* Custom Red */
+    .btn-excel { background-color: #1D6F42; } /* Custom Green */
 
     /* Modal Styles */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
@@ -723,6 +774,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
         .items-table td:last-child { border-bottom: none; }
         .items-table td::before { content: attr(data-label); position: absolute; left: 1rem; width: 40%; padding-right: 10px; font-weight: 700; text-align: right; }
         .actions-cell { justify-content: flex-start; padding-left: 50%; }
+        .actions-cell .action-buttons-view { justify-content: flex-start; }
     }
 
     .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
