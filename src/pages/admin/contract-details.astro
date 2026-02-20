@@ -421,50 +421,53 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     }
 
     async function handlePartialPayment(button) {
-        const installmentId = button.dataset.id;
-        const installment = allInstallments.find(inst => inst.id === installmentId);
+    const installmentId = button.dataset.id;
+    const installment = allInstallments.find(inst => inst.id === installmentId);
 
-        if (!installment) return;
+    if (!installment) return;
 
-        const paidAmount = await window.showPartialPaymentModal(installmentId, installment.installmentAmount);
+    const paidAmount = await window.showPartialPaymentModal(installmentId, installment.installmentAmount);
 
-        if (paidAmount && paidAmount > 0 && paidAmount < installment.installmentAmount) {
-            const remainingAmount = installment.installmentAmount - paidAmount;
+    if (paidAmount && paidAmount > 0 && paidAmount < installment.installmentAmount) {
+        const remainingAmount = installment.installmentAmount - paidAmount;
 
-            const confirmationMessage = `سيتم تقسيم القسط إلى: \n- قسط مدفوع بقيمة: ${formatCurrency(paidAmount)} \n- قسط جديد مستحق بقيمة: ${formatCurrency(remainingAmount)}. هل أنت متأكد؟`;
+        const confirmationMessage = `سيتم تقسيم القسط إلى: \n- قسط مدفوع بقيمة: ${formatCurrency(paidAmount)} \n- قسط جديد مستحق بقيمة: ${formatCurrency(remainingAmount)}. هل أنت متأكد؟`;
 
-            const confirmed = await window.showConfirmationModal(confirmationMessage);
+        const confirmed = await window.showConfirmationModal(confirmationMessage);
 
-            if (confirmed) {
-                try {
-                    const batch = writeBatch(db);
+        if (confirmed) {
+            try {
+                const batch = writeBatch(db);
 
-                    const originalInstallmentRef = doc(db, 'installments', installmentId);
-                    batch.update(originalInstallmentRef, {
-                        installmentAmount: paidAmount,
-                        status: 'paid',
-                        paymentDate: Timestamp.now()
-                    });
+                const originalInstallmentRef = doc(db, 'installments', installmentId);
+                batch.update(originalInstallmentRef, {
+                    installmentAmount: paidAmount,
+                    status: 'paid',
+                    paymentDate: Timestamp.now()
+                });
 
-                    const newInstallmentRef = doc(collection(db, 'installments'));
-                    batch.set(newInstallmentRef, {
-                        ...installment,
-                        installmentAmount: remainingAmount,
-                        installmentName: `بقية - ${installment.installmentName || 'القسط'}`,
-                        status: 'pending',
-                        paymentDate: null,
-                    });
+                const { id, ...installmentData } = installment;
 
-                    await batch.commit();
-                    initializeApp();
+                const newInstallmentRef = doc(collection(db, 'installments'));
+                batch.set(newInstallmentRef, {
+                    ...installmentData,
+                    installmentAmount: remainingAmount,
+                    installmentName: `بقية - ${installment.installmentName || 'القسط'}`,
+                    status: 'pending',
+                    paymentDate: null,
+                });
 
-                } catch (error) {
-                    console.error("Error during partial payment: ", error);
-                    alert("حدث خطأ أثناء عملية السداد الجزئي.");
-                }
+                await batch.commit();
+                initializeApp();
+
+            } catch (error) {
+                console.error("Error during partial payment: ", error);
+                alert("حدث خطأ أثناء عملية السداد الجزئي.");
             }
         }
     }
+}
+
 
     async function handleStatusChange(selectElement) {
         const id = selectElement.dataset.id;
@@ -538,19 +541,37 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
         if (confirmed) {
             button.disabled = true;
             button.textContent = 'جارٍ الحفظ...';
-            const installmentRef = doc(db, 'installments', installmentId);
-            const updateData = {
-                installmentAmount: newAmount,
-                dueDate: Timestamp.fromDate(new Date(newDate))
-            };
-
+            
             try {
-                await updateDoc(installmentRef, updateData);
+                const oldInstallment = allInstallments.find(inst => inst.id === installmentId);
+                if (!oldInstallment) throw new Error("لم يتم العثور على القسط المراد تعديله.");
+
+                const amountDifference = newAmount - oldInstallment.installmentAmount;
+                const newTotalAmount = oldInstallment.totalAmount + amountDifference;
+
+                const batch = writeBatch(db);
+
+                allInstallments.forEach(inst => {
+                    const installmentRef = doc(db, 'installments', inst.id);
+                    if (inst.id === installmentId) {
+                        batch.update(installmentRef, {
+                            installmentAmount: newAmount,
+                            dueDate: Timestamp.fromDate(new Date(newDate)),
+                            totalAmount: newTotalAmount
+                        });
+                    } else {
+                        batch.update(installmentRef, { totalAmount: newTotalAmount });
+                    }
+                });
+
+                await batch.commit();
                 initializeApp();
+
             } catch (error) {
                 console.error("Error saving changes: ", error);
-                alert('فشل حفظ التغييرات.');
+                alert(`فشل حفظ التغييرات: ${error.message}`);
                 button.disabled = false;
+                button.textContent = 'حفظ';
             }
         }
     }
