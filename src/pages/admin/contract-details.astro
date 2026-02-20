@@ -195,24 +195,26 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     document.addEventListener('DOMContentLoaded', () => {
         const table = document.getElementById('installments-table');
         
-        table.addEventListener('click', (e) => {
-            const target = e.target.closest('button');
-            if (!target) return;
+        if (table) {
+            table.addEventListener('click', (e) => {
+                const target = e.target.closest('button');
+                if (!target) return;
 
-            if (target.classList.contains('btn-edit') || target.classList.contains('btn-save')) {
-                handleEditToggle(target);
-            } else if (target.classList.contains('btn-partial')) {
-                handlePartialPayment(target);
-            } else if (target.classList.contains('btn-delete-installment')) {
-                handleDeleteInstallment(target);
-            }
-        });
+                if (target.classList.contains('btn-edit') || target.classList.contains('btn-save')) {
+                    handleEditToggle(target);
+                } else if (target.classList.contains('btn-partial')) {
+                    handlePartialPayment(target);
+                } else if (target.classList.contains('btn-delete-installment')) {
+                    handleDeleteInstallment(target);
+                }
+            });
 
-        table.addEventListener('change', (e) => {
-            if (e.target && e.target.classList.contains('status-select')) {
-                handleStatusChange(e.target);
-            }
-        });
+            table.addEventListener('change', (e) => {
+                if (e.target && e.target.classList.contains('status-select')) {
+                    handleStatusChange(e.target);
+                }
+            });
+        }
 
         const deleteBtn = document.getElementById('delete-contract-btn');
         if(deleteBtn) {
@@ -535,8 +537,35 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     }
 
     async function handleDeleteContract() {
-        // ... (code unchanged)
+    const confirmationMessage = `سيتم حذف العقد بالكامل بما في ذلك جميع الأقساط المرتبطة به. هل أنت متأكد من هذا الإجراء؟ لا يمكن التراجع عنه.`;
+    
+    const confirmed = await window.showConfirmationModal(confirmationMessage);
+
+    if (confirmed) {
+        const deleteBtn = document.getElementById('delete-contract-btn');
+        deleteBtn.disabled = true;
+        deleteBtn.textContent = 'جارٍ الحذف...';
+
+        try {
+            const batch = writeBatch(db);
+            allInstallments.forEach(inst => {
+                const installmentRef = doc(db, 'installments', inst.id);
+                batch.delete(installmentRef);
+            });
+
+            await batch.commit();
+            
+            alert('تم حذف العقد بنجاح.');
+            window.location.href = `/admin/project-installments?projectId=${currentProjectId}`;
+
+        } catch (error) {
+            console.error("Error deleting contract: ", error);
+            alert('حدث خطأ أثناء حذف العقد.');
+            deleteBtn.disabled = false;
+            deleteBtn.textContent = 'حذف العقد';
+        }
     }
+}
 
     const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
     const formatDate = (timestamp, format = 'long') => {
