@@ -10,9 +10,10 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@astrojs/node": "^9.5.4",
     "@astrojs/react": "^4.4.2",
     "@astrojs/tailwind": "^5.1.0",
-    "astro": "^4.10.2",
+    "astro": "^5.17.3",
     "axios": "^1.7.2",
     "firebase": "^10.12.2",
     "firebase-admin": "^13.6.1",
