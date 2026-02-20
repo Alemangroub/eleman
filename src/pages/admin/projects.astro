@@ -49,18 +49,6 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
     </div>
 
-    <!-- Delete Confirmation Modal -->
-    <div id="delete-modal" class="modal-overlay">
-      <div class="modal-box">
-        <h3>تأكيد الحذف</h3>
-        <p>هل أنت متأكد من أنك تريد حذف هذا المشروع؟ لا يمكن التراجع عن هذا الإجراء.</p>
-        <div class="modal-actions">
-          <button id="cancel-delete-btn" class="btn btn-secondary">إلغاء</button>
-          <button id="confirm-delete-btn" class="btn btn-danger">تأكيد الحذف</button>
-        </div>
-      </div>
-    </div>
-
     <!-- Archive Confirmation Modal -->
     <div id="archive-modal" class="modal-overlay">
       <div class="modal-box">
@@ -302,9 +290,6 @@ import AdminLogin from '../../components/AdminLogin.astro';
     const noProjectsMessage = document.getElementById('no-projects-message');
     const tableWrapper = document.querySelector('.table-wrapper');
     // Modals
-    const deleteModal = document.getElementById('delete-modal');
-    const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
-    const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
     const editModal = document.getElementById('edit-modal');
     const editForm = document.getElementById('edit-form');
     const cancelEditBtn = document.getElementById('cancel-edit-btn');
@@ -318,7 +303,6 @@ import AdminLogin from '../../components/AdminLogin.astro';
     const addSupervisorSelect = document.getElementById('add-supervisor-select');
     const addSupervisorBtn = document.getElementById('add-supervisor-btn');
     
-    let projectIdToDelete = null;
     let projectIdToEdit = null;
     let projectIdToArchive = null;
     let allSupervisors = [];
@@ -351,7 +335,6 @@ import AdminLogin from '../../components/AdminLogin.astro';
                 <a href="/admin/project-installments?projectId=${doc.id}" class="btn btn-installments-custom">الأقساط</a>
                 <button class="btn btn-edit-custom">تعديل</button>
                 <button class="btn btn-archive-custom">أرشفة</button>
-                <button class="btn btn-delete-custom">حذف</button>
               </td>
             </tr>
           `;
@@ -368,11 +351,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
       const row = e.target.closest('tr');
       if (!row) return;
 
-      if (e.target.classList.contains('btn-delete-custom')) {
-        e.stopPropagation();
-        projectIdToDelete = row.dataset.id;
-        showModal(deleteModal);
-      } else if (e.target.classList.contains('btn-edit-custom')) {
+      if (e.target.classList.contains('btn-edit-custom')) {
         e.stopPropagation();
         projectIdToEdit = row.dataset.id;
         const projectData = JSON.parse(row.dataset.project.replace(/&apos;/g, "'"));
@@ -388,17 +367,6 @@ import AdminLogin from '../../components/AdminLogin.astro';
         if (projectId) {
             window.location.href = `/admin/projects/${projectId}`;
         }
-      }
-    });
-
-    // --- DELETE PROJECT LOGIC ---
-    function hideDeleteModal() { hideModal(deleteModal); projectIdToDelete = null; }
-    cancelDeleteBtn.addEventListener('click', hideDeleteModal);
-    deleteModal.addEventListener('click', (e) => { if (e.target === deleteModal) hideDeleteModal(); });
-    confirmDeleteBtn.addEventListener('click', async () => {
-      if (projectIdToDelete) {
-        try { await deleteDoc(doc(db, 'projects', projectIdToDelete)); } catch (error) { console.error("Error deleting document: ", error); }
-        hideDeleteModal();
       }
     });
     
