@@ -21,7 +21,7 @@ if (Astro.request.method === 'POST') {
         const quantity = parseFloat(formData.get('quantity'));
         const unitPrice = parseFloat(formData.get('unitPrice'));
         const itemDate = formData.get('itemDate');
-        const notes = formData.get('notes'); // Get notes from the form
+        const notes = formData.get('notes');
 
         if (!name || !personName || isNaN(quantity) || isNaN(unitPrice) || !itemDate) {
             throw new Error('يرجى ملء جميع الحقول المطلوبة والتأكد من صحة البيانات.');
@@ -36,7 +36,7 @@ if (Astro.request.method === 'POST') {
             quantity,
             unitPrice,
             totalPrice,
-            notes, // Save notes
+            notes,
             createdAt
         });
 
@@ -76,7 +76,6 @@ try {
     error = "حدث خطأ أثناء تحميل بيانات المشروع.";
 }
 
-// Get unique item names for the filter dropdown
 const uniqueItemNames = [...new Set(items.map(item => item.name))];
 ---
 <Layout title={`بنود المشروع: ${project ? project.name : ''}`}>
@@ -105,12 +104,11 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
             {success && <p class="success-message">{success}</p>}
             {error && <p class="error-message">{error}</p>}
 
-            <!-- Add Item Form (Hidden by default) -->
+            <!-- Add Item Form -->
             <div id="add-item-form" style="display: none;" class="form-container">
                  <h2>نموذج إضافة بند جديد</h2>
                 <form method="POST">
                     <input type="hidden" id="name" name="name" />
-
                     <div class="form-grid">
                          <div class="form-group">
                             <label for="itemDate">التاريخ</label>
@@ -158,7 +156,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                         </div>
                         <div class="form-group">
                             <label for="totalPrice">الإجمالي</label>
-                            <input type="number" id="totalPrice" name="totalPrice" step="0.01" disabled style="background-color: #e9ecef;">
+                            <input type="number" id="totalPrice" name="totalPrice" step="0.01" disabled>
                         </div>
                          <div class="form-group form-group-full-width">
                             <label for="notes">ملاحظات</label>
@@ -202,9 +200,9 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                                         <th>إجراءات</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="items-table-body">
                                     {items.map(item => (
-                                        <tr class="item-row" data-item-name={item.name}>
+                                        <tr class="item-row" data-item-name={item.name} id={`item-${item.id}`}>
                                             <td data-label="التاريخ">{item.createdAt}</td>
                                             <td data-label="اسم البند">{item.name}</td>
                                             <td data-label="اسم الشخص/الجهة">{item.personName || '-'}</td>
@@ -213,8 +211,8 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                                             <td data-label="الإجمالي">{item.totalPrice.toFixed(2)}</td>
                                             <td data-label="ملاحظات">{item.notes || '-'}</td>
                                             <td data-label="إجراءات" class="actions-cell">
-                                                <a href="#" class="btn-action btn-edit">تعديل</a>
-                                                <a href="#" class="btn-action btn-delete">حذف</a>
+                                                <button class="btn-action btn-edit">تعديل</button>
+                                                <button class="btn-action btn-delete" data-project-id={id} data-item-id={item.id}>حذف</button>
                                             </td>
                                         </tr>
                                     ))}
@@ -222,11 +220,23 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                             </table>
                         </div>
                     ) : (
-                        <p class="no-items-message">لا توجد بنود حالياً في هذا المشروع. يمكنك إضافة بند جديد باستخدام الزر أعلاه.</p>
+                        <p class="no-items-message">لا توجد بنود حالياً في هذا المشروع.</p>
                     )}
                 </div>
                  <p id="initial-message" class="no-items-message">الرجاء اختيار بند من القائمة أعلاه لعرض البيانات.</p>
             </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div id="delete-confirm-modal" class="modal-overlay" style="display: none;">
+          <div class="modal-content">
+            <h4>تأكيد الحذف</h4>
+            <p>هل أنت متأكد من رغبتك في حذف هذا البند؟ لا يمكن التراجع عن هذا الإجراء.</p>
+            <div class="modal-actions">
+              <button id="modal-cancel-btn" class="btn btn-secondary">إلغاء</button>
+              <button id="modal-confirm-btn" class="btn btn-danger">تأكيد الحذف</button>
+            </div>
+          </div>
         </div>
     </main>
 </Layout>
@@ -234,10 +244,9 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
 <script>
     import { auth, db } from '../../../../firebase/client';
     import { onAuthStateChanged, signOut } from "firebase/auth";
-    import { doc, getDoc } from "firebase/firestore";
+    import { doc, getDoc, deleteDoc } from "firebase/firestore";
 
     document.addEventListener('DOMContentLoaded', () => {
-        // Auth Check Logic 
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
         const pageContent = document.getElementById('page-content');
@@ -262,14 +271,12 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 }
             } catch (error) {
                 console.error('Auth Check Error:', error);
-                await signOut(auth);
                 if(loginContainer) loginContainer.style.display = 'block';
                 if(pageContent) pageContent.style.display = 'none';
             }
         });
 
         function setupPageInteractions() {
-            // Logout Button
             const logoutButton = document.getElementById('logout-button');
             if (logoutButton) {
                 logoutButton.addEventListener('click', async () => {
@@ -278,12 +285,58 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 });
             }
 
+            // --- Modal Elements ---
+            const modal = document.getElementById('delete-confirm-modal');
+            const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+            const modalCancelBtn = document.getElementById('modal-cancel-btn');
+            let itemToDelete = null; // To store which item to delete
+
+            // --- Delete Item Logic with Modal ---
+            const itemsTableBody = document.getElementById('items-table-body');
+            itemsTableBody.addEventListener('click', (e) => {
+                if (e.target.classList.contains('btn-delete')) {
+                    const button = e.target;
+                    itemToDelete = {
+                        projectId: button.dataset.projectId,
+                        itemId: button.dataset.itemId
+                    };
+                    modal.style.display = 'flex';
+                }
+            });
+
+            modalCancelBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+                itemToDelete = null;
+            });
+
+            modalConfirmBtn.addEventListener('click', async () => {
+                if (!itemToDelete) return;
+
+                const { projectId, itemId } = itemToDelete;
+                const row = document.getElementById(`item-${itemId}`);
+
+                modalConfirmBtn.disabled = true;
+                modalConfirmBtn.textContent = 'جاري الحذف...';
+
+                try {
+                    const itemRef = doc(db, 'projects', projectId, 'items', itemId);
+                    await deleteDoc(itemRef);
+                    if(row) row.remove();
+
+                } catch (error) {
+                    console.error("Error deleting item: ", error);
+                    alert("حدث خطأ أثناء محاولة الحذف. يرجى المحاولة مرة أخرى.");
+                } finally {
+                    modal.style.display = 'none';
+                    itemToDelete = null;
+                    modalConfirmBtn.disabled = false;
+                    modalConfirmBtn.textContent = 'تأكيد الحذف';
+                }
+            });
+
             // --- Set default date ---
             const itemDateInput = document.getElementById('itemDate');
-            if(itemDateInput) {
-                // toLocaleDateString with 'en-CA' gives YYYY-MM-DD format
-                itemDateInput.value = new Date().toLocaleDateString('en-CA'); 
-            }
+            if(itemDateInput) itemDateInput.value = new Date().toLocaleDateString('en-CA');
 
             // Form Toggle Logic
             const toggleBtn = document.getElementById('toggle-form-btn');
@@ -297,117 +350,28 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                     toggleBtn.textContent = isHidden ? '- إلغاء الإضافة' : '+ إضافة بند جديد';
                 });
             }
-             if (cancelBtn && addItemForm && toggleBtn) {
+            if (cancelBtn && addItemForm && toggleBtn) {
                 cancelBtn.addEventListener('click', () => {
                     addItemForm.style.display = 'none';
                     toggleBtn.textContent = '+ إضافة بند جديد';
                 });
             }
 
-            // --- Dynamic Dropdown Logic ---
-            const subCategories = {
-                'بند العماله': ['بند المصروف اليومي', 'بند اجرة العمال'],
-                 'بند المقاول': ['بند لبشه عاديه', 'بند لبشه مسلحه'],
-                'بند الخرسانه': ['الاسمنت', 'الحديد', 'الزلط', 'الرمله', 'المقاول'],
-                'بند المباني': ['رمله', 'اسمنت', 'طوب', 'تشوين', 'اجرة مباني'],
-                'بند الكهرباء': ['بند الاساسيات', 'بند اجرة التركيب'],
-                'بند السباكه': ['بند الاساسيات', 'بند اجرة التركيب'],
-                'بند المحاره': ['الاسمنت', 'الرمله', 'اجرة عمال', 'تشوين'],
-                'بند الرخام': ['تمن الرخام', 'تمن التركيب'],
-                'بند الدهانات': ['مونه', 'اجره'],
-                'بند تشطيبات الكهرباء': ['مونه', 'اجره'],
-                'بند المجلس': ['مصروف الرخصه', 'التصالح', 'المحاضر'],
-                'بند الحفر': ['اجرة العمال', 'المعدات'],
-                'بند الهدم': ['اجرة عمال', 'المعدات']
-            };
-
-            const mainCategorySelect = document.getElementById('main-category');
-            const subCategoryGroup = document.getElementById('sub-category-group');
-            const subCategorySelect = document.getElementById('sub-category');
-            const otherNameGroup = document.getElementById('other-name-group');
-            const otherNameInput = document.getElementById('other-name');
-            const hiddenNameInput = document.getElementById('name');
-
-            function updateHiddenItemName() {
-                const mainCategory = mainCategorySelect.value;
-                if (mainCategory === 'اخرى') {
-                    hiddenNameInput.value = otherNameInput.value;
-                } else if (subCategories[mainCategory]) {
-                    hiddenNameInput.value = subCategorySelect.value;
-                } else {
-                    hiddenNameInput.value = mainCategory;
-                }
-            }
-
-            mainCategorySelect.addEventListener('change', () => {
-                const selectedCategory = mainCategorySelect.value;
-                subCategoryGroup.style.display = 'none';
-                otherNameGroup.style.display = 'none';
-                otherNameInput.required = false;
-                
-                if (subCategories[selectedCategory]) {
-                    subCategorySelect.innerHTML = '';
-                    subCategories[selectedCategory].forEach(sub => {
-                        const option = document.createElement('option');
-                        option.value = sub;
-                        option.textContent = sub;
-                        subCategorySelect.appendChild(option);
-                    });
-                    subCategoryGroup.style.display = 'block';
-                } else if (selectedCategory === 'اخرى') {
-                    otherNameGroup.style.display = 'block';
-                    otherNameInput.required = true;
-                }
-                updateHiddenItemName();
-            });
-
-            subCategorySelect.addEventListener('change', updateHiddenItemName);
-            otherNameInput.addEventListener('input', updateHiddenItemName);
-
+            // --- Dynamic Dropdown & Form Logic (No changes here) ---
+            const subCategories = { 'بند العماله': ['بند المصروف اليومي','بند اجرة العمال'],'بند المقاول':['بند لبشه عاديه','بند لبشه مسلحه'],'بند الخرسانه':['الاسمنت','الحديد','الزلط','الرمله','المقاول'],'بند المباني':['رمله','اسمنت','طوب','تشوين','اجرة مباني'],'بند الكهرباء':['بند الاساسيات','بند اجرة التركيب'],'بند السباكه':['بند الاساسيات','بند اجرة التركيب'],'بند المحاره':['الاسمنت','الرمله','اجرة عمال','تشوين'],'بند الرخام':['تمن الرخام','تمن التركيب'],'بند الدهانات':['مونه','اجره'],'بند تشطيبات الكهرباء':['مونه','اجره'],'بند المجلس':['مصروف الرخصه','التصالح','المحاضر'],'بند الحفر':['اجرة العمال','المعدات'],'بند الهدم':['اجرة عمال','المعدات'] };
+            const mainCategorySelect=document.getElementById('main-category');const subCategoryGroup=document.getElementById('sub-category-group');const subCategorySelect=document.getElementById('sub-category');const otherNameGroup=document.getElementById('other-name-group');const otherNameInput=document.getElementById('other-name');const hiddenNameInput=document.getElementById('name');function updateHiddenItemName(){const mainCategory=mainCategorySelect.value;if(mainCategory==='اخرى'){hiddenNameInput.value=otherNameInput.value}else if(subCategories[mainCategory]){hiddenNameInput.value=subCategorySelect.value}else{hiddenNameInput.value=mainCategory}}mainCategorySelect.addEventListener('change',()=>{const selectedCategory=mainCategorySelect.value;subCategorySelect.innerHTML='';otherNameGroup.style.display='none';otherNameInput.required=false;if(subCategories[selectedCategory]){subCategories[selectedCategory].forEach(sub=>{const option=document.createElement('option');option.value=sub;option.textContent=sub;subCategorySelect.appendChild(option)});subCategoryGroup.style.display='block'}else if(selectedCategory==='اخرى'){otherNameGroup.style.display='block';otherNameInput.required=true}updateHiddenItemName()});subCategorySelect.addEventListener('change',updateHiddenItemName);otherNameInput.addEventListener('input',updateHiddenItemName);updateHiddenItemName();
 
             // --- Auto-calculate Total Price ---
             const quantityInput = document.getElementById('quantity');
             const unitPriceInput = document.getElementById('unitPrice');
             const totalPriceInput = document.getElementById('totalPrice');
-
-            function calculateTotal() {
-                const quantity = parseFloat(quantityInput.value) || 0;
-                const unitPrice = parseFloat(unitPriceInput.value) || 0;
-                const total = quantity * unitPrice;
-                totalPriceInput.value = total.toFixed(2);
-            }
-
-            quantityInput.addEventListener('input', calculateTotal);
-            unitPriceInput.addEventListener('input', calculateTotal);
+            function calculateTotal(){const quantity=parseFloat(quantityInput.value)||0;const unitPrice=parseFloat(unitPriceInput.value)||0;totalPriceInput.value=(quantity*unitPrice).toFixed(2)}quantityInput.addEventListener('input',calculateTotal);unitPriceInput.addEventListener('input',calculateTotal);
 
             // --- Filter Logic ---
             const itemFilter = document.getElementById('item-filter');
             const tableContainer = document.getElementById('table-container');
             const initialMessage = document.getElementById('initial-message');
-            const itemRows = document.querySelectorAll('.item-row');
-
-            itemFilter.addEventListener('change', () => {
-                const selectedValue = itemFilter.value;
-
-                if (!selectedValue) {
-                    tableContainer.style.display = 'none';
-                    initialMessage.style.display = 'block';
-                    return;
-                }
-
-                tableContainer.style.display = 'block';
-                initialMessage.style.display = 'none';
-
-                itemRows.forEach(row => {
-                    if (selectedValue === 'all' || row.dataset.itemName === selectedValue) {
-                        row.style.display = ''; // Show the row
-                    } else {
-                        row.style.display = 'none'; // Hide the row
-                    }
-                });
-            });
-             // Set initial name on load
-            updateHiddenItemName();
+            itemFilter.addEventListener('change',()=>{const selectedValue=itemFilter.value;if(!selectedValue){tableContainer.style.display='none';initialMessage.style.display='block';return}tableContainer.style.display='block';initialMessage.style.display='none';document.querySelectorAll('.item-row').forEach(row=>{if(selectedValue==='all'||row.dataset.itemName===selectedValue){row.style.display=''}else{row.style.display='none'}})});
         }
     });
 </script>
@@ -435,7 +399,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
     .header-actions { display: flex; align-items: center; gap: 1rem; }
     .back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; padding: 0.7rem 1.2rem; border-radius: 8px; transition: background-color 0.2s; }
     .back-link:hover { background-color: #e9ecef; }
-    .btn { padding: 0.7rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem; text-decoration: none; text-align: center; border: none; transition: transform 0.2s, box-shadow 0.2s;}
+    .btn { padding: 0.7rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem; text-decoration: none; text-align: center; border: none; transition: all 0.2s;}
     .btn-primary { background-color: var(--primary-color); color: var(--white-color); }
     .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 86, 179, 0.25); }
     .btn-secondary { background-color: var(--secondary-color); color: var(--white-color); }
@@ -471,10 +435,18 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
     .no-items-message { text-align: center; padding: 2rem; font-size: 1.1rem; color: var(--secondary-color); }
 
     .actions-cell { display: flex; gap: 0.75rem; justify-content: flex-end; }
-    .btn-action { padding: 0.4rem 0.9rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: transform 0.2s; border: none; color: var(--white-color);}
+    .btn-action { padding: 0.4rem 0.9rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: transform 0.2s; border: none; color: var(--white-color); cursor: pointer;}
     .btn-action:hover { transform: translateY(-2px); }
     .btn-edit { background-color: var(--warning-color); color: #333;}
     .btn-delete { background-color: var(--danger-color);}
+
+    /* Modal Styles */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-content { background: #fff; padding: 2.5rem; border-radius: 12px; width: 90%; max-width: 450px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    .modal-content h4 { margin-top: 0; font-size: 1.5rem; color: #333; font-weight: 800; }
+    .modal-content p { margin-bottom: 1rem; color: #555; font-size: 1.1rem; }
+    .modal-actions { display: flex; justify-content: center; gap: 1rem; margin-top: 2rem; }
+    .modal-actions .btn { font-size: 1rem; padding: 0.7rem 1.5rem; }
 
     @media (max-width: 992px) {
         .items-table thead { display: none; }

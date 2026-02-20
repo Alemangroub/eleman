@@ -4,14 +4,19 @@ service cloud.firestore {
 
     // Function to check if a user has a specific role
     function isUserRole(role) {
-      // Check if the user is authenticated and their role in the /users collection matches
       return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
     }
 
-    // Projects: Admins can do anything, supervisors can only read
+    // Projects Collection
     match /projects/{projectId} {
       allow read: if isUserRole('admin') || isUserRole('supervisor');
       allow write: if isUserRole('admin');
+
+      // Subcollection for project items
+      match /items/{itemId} {
+        allow read: if isUserRole('admin') || isUserRole('supervisor');
+        allow write, delete: if isUserRole('admin');
+      }
     }
 
     // Daily Expenses: Supervisors with the correct role can create, Admins can read/write
@@ -29,7 +34,6 @@ service cloud.firestore {
     // Users: Admins can manage users
     match /users/{userId} {
        allow read, write: if isUserRole('admin');
-       // Allow a user to read their own data (which is what isUserRole function does)
        allow get: if request.auth != null && request.auth.uid == userId;
     }
 
