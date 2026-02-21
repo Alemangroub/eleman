@@ -35,7 +35,7 @@ try {
       <AdminLogin />
     </div>
 
-    <main id="page-content" class="imports-admin-page" style="display: none;">
+    <main id="page-content" class="imports-admin-page" style="display: none;" data-project-id={project?.id} data-project-name={project?.projectName}>
         <div class="container">
              {project ? (
                 <>
@@ -66,22 +66,29 @@ try {
                                     </div>
                                 </div>
                             </div>
-                            <div class="filter-container">
-                                <label for="category-filter">فلترة حسب الصنف:</label>
-                                <select id="category-filter">
-                                    <option value="none" selected>-- اختر صنفًا --</option>
-                                    <option value="all">عرض الكل</option>
-                                    <option value="حديد">حديد</option>
-                                    <option value="اسمنت">اسمنت</option>
-                                    <option value="رمله">رمله</option>
-                                    <option value="زلط">زلط</option>
-                                    <option value="طوب">طوب</option>
-                                    <option value="كهرباء">كهرباء</option>
-                                    <option value="سباكة">سباكة</option>
-                                    <option value="رخام">رخام</option>
-                                    <option value="دهانات">دهانات</option>
-                                    <option value="اخري">أصناف أخرى</option>
-                                </select>
+                            <div class="controls-container">
+                                <div class="filter-container">
+                                    <label for="category-filter">فلترة حسب الصنف:</label>
+                                    <select id="category-filter">
+                                        <option value="none" selected>-- اختر صنفًا --</option>
+                                        <option value="all">عرض الكل</option>
+                                        <option value="حديد">حديد</option>
+                                        <option value="اسمنت">اسمنت</option>
+                                        <option value="رمله">رمله</option>
+                                        <option value="زلط">زلط</option>
+                                        <option value="طوب">طوب</option>
+                                        <option value="كهرباء">كهرباء</option>
+                                        <option value="سباكة">سباكة</option>
+                                        <option value="رخام">رخام</option>
+                                        <option value="دهانات">دهانات</option>
+                                        <option value="اخري">أصناف أخرى</option>
+                                    </select>
+                                </div>
+                                <div class="export-buttons">
+                                    <button id="print-btn" class="btn btn-secondary">طباعة</button>
+                                    <button id="export-pdf-btn" class="btn btn-primary">تصدير PDF</button>
+                                    <button id="export-excel-btn" class="btn btn-secondary">تصدير Excel</button>
+                                </div>
                             </div>
                         </div>
                         <div class="table-wrapper" style="display: none;">
@@ -94,7 +101,7 @@ try {
                                 <th>السعر الإجمالي</th>
                                 <th>المورد</th>
                                 <th>التاريخ</th>
-                                <th>الإجراءات</th>
+                                <th class="actions-header">الإجراءات</th>
                             </tr>
                             </thead>
                             <tbody id="imports-list">
@@ -191,8 +198,12 @@ try {
     import { auth, db } from '../../../../firebase/client';
     import { onAuthStateChanged, signOut } from "firebase/auth";
     import { collection, doc, getDoc, addDoc, onSnapshot, updateDoc, deleteDoc, query, orderBy, Timestamp } from 'firebase/firestore';
+    import * as XLSX from 'xlsx';
 
-    let projectId = "{id}";
+    const pageContent = document.getElementById('page-content');
+    const projectId = pageContent.dataset.projectId;
+    const projectName = pageContent.dataset.projectName;
+
     let currentEditImportId = null;
     let allImportsData = []; // Cache for all imports data
     const predefinedCategories = ["حديد", "اسمنت", "رمله", "زلط", "طوب", "كهرباء", "سباكة", "رخام", "دهانات"];
@@ -200,7 +211,6 @@ try {
     document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
-        const pageContent = document.getElementById('page-content');
 
         onAuthStateChanged(auth, async (user) => {
             authLoadingMessage.style.display = 'none';
@@ -223,6 +233,7 @@ try {
     });
 
     function initializePage() {
+        if (!projectId) return;
         setupEventListeners();
         listenForImports();
     }
@@ -357,6 +368,114 @@ try {
         if (filterSelect) {
             filterSelect.addEventListener('change', applyFilter);
         }
+
+        // Export and Print Buttons
+        const printBtn = document.getElementById('print-btn');
+        if(printBtn) {
+            printBtn.addEventListener('click', () => window.print());
+        }
+
+        const exportPdfBtn = document.getElementById('export-pdf-btn');
+        if (exportPdfBtn) {
+            exportPdfBtn.addEventListener('click', handlePdfExport);
+        }
+
+        const exportExcelBtn = document.getElementById('export-excel-btn');
+        if(exportExcelBtn) {
+            exportExcelBtn.addEventListener('click', () => {
+                const table = document.getElementById('imports-table');
+                const wb = XLSX.utils.table_to_book(table, { sheet: "Sheet JS" });
+                XLSX.writeFile(wb, `project-imports-${projectName}.xlsx`);
+            });
+        }
+    }
+    
+    async function handlePdfExport(e) {
+        const button = e.currentTarget;
+        button.disabled = true;
+        button.textContent = 'جارٍ التصدير...';
+
+        try {
+            const { default: html2canvas } = await import('html2canvas');
+            const { jsPDF } = await import('jspdf');
+
+            const tableToExport = document.getElementById('imports-table');
+            if (!tableToExport || tableToExport.style.display === 'none') {
+                alert("لا يوجد جدول لعرضه أو تصديره. يرجى اختيار فلتر لعرض البيانات أولاً.");
+                return;
+            }
+            
+            // Create a container for the export content
+            const exportContainer = document.createElement('div');
+            exportContainer.style.direction = 'rtl';
+            exportContainer.style.padding = '20px';
+            exportContainer.style.backgroundColor = 'white';
+            exportContainer.style.width = '800px'; // Fixed width for better canvas rendering
+
+            const projectTitle = document.createElement('h1');
+            projectTitle.textContent = document.querySelector('.page-header h1').textContent;
+            projectTitle.style.textAlign = 'center';
+            exportContainer.appendChild(projectTitle);
+
+            const filterStatus = document.createElement('p');
+            filterStatus.textContent = `فلترة حسب: ${document.getElementById('category-filter').selectedOptions[0].text}`;
+            filterStatus.style.textAlign = 'center';
+            exportContainer.appendChild(filterStatus);
+
+            const clonedTable = tableToExport.cloneNode(true);
+            // Remove the actions column from the cloned table
+            clonedTable.querySelectorAll('.actions-header, .btn-action-cell').forEach(el => el.remove());
+            exportContainer.appendChild(clonedTable);
+
+            document.body.appendChild(exportContainer);
+
+            const canvas = await html2canvas(exportContainer, {
+                scale: 2,
+                useCORS: true,
+                onclone: (clonedDoc) => {
+                    const style = clonedDoc.createElement('style');
+                     style.innerHTML = `
+                        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+                        body, div, table { font-family: 'Cairo', sans-serif !important; direction: rtl; }
+                        h1 { font-size: 1.5rem; text-align: center; color: #333; margin-bottom: 0.5rem; }
+                        p { font-size: 1rem; text-align: center; color: #666; margin-bottom: 1.5rem; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+                        th, td { border: 1px solid #ddd; padding: 10px; text-align: right; font-size: 0.9rem; }
+                        th { background-color: #f2f2f2; font-weight: 700; }
+                    `;
+                    clonedDoc.body.appendChild(style);
+                }
+            });
+
+            document.body.removeChild(exportContainer);
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            
+            let heightLeft = pdfHeight;
+            let position = 0;
+            pdf.addImage(imgData, 'PNG', 10, position, pdfWidth - 20, pdfHeight);
+            heightLeft -= pdf.internal.pageSize.getHeight();
+
+            while (heightLeft >= 0) {
+                position = heightLeft - pdfHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 10, position, pdfWidth - 20, pdfHeight);
+                heightLeft -= pdf.internal.pageSize.getHeight();
+            }
+            
+            pdf.save(`واردات - ${projectName}.pdf`);
+
+        } catch (err) {
+            console.error("PDF Export Error:", err);
+            alert("فشل تصدير PDF. يرجى المحاولة مرة أخرى.");
+        } finally {
+            button.disabled = false;
+            button.textContent = 'تصدير PDF';
+        }
     }
 
     function calculateAndDisplayGrandTotal() {
@@ -439,6 +558,7 @@ try {
     }
 
     function listenForImports() {
+        if (!projectId) return;
         const importsQuery = query(collection(db, 'projects', projectId, 'imports'), orderBy('date', 'desc'));
         
         onSnapshot(importsQuery, (snapshot) => {
@@ -553,9 +673,8 @@ try {
 /* Imports List */
 .imports-list-container { background-color: var(--white); padding: 2rem; border-radius: 12px; box-shadow: var(--shadow); }
 
-/* List Header & Summaries */
-.list-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border-color); padding-bottom: 1.5rem;}
-.title-and-summaries { display: flex; flex-wrap: wrap; align-items: center; gap: 1.5rem; }
+.list-header { display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border-color); padding-bottom: 1.5rem; }
+.title-and-summaries { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.5rem; }
 .title-and-summaries h2 { font-size: 1.8rem; font-weight: 800; color: var(--primary-color); margin: 0; }
 
 .summaries-inline { display: flex; flex-wrap: wrap; gap: 1rem; }
@@ -565,10 +684,12 @@ try {
 #grand-total-card p { color: var(--success-color); }
 #filtered-total-card p { color: var(--primary-color); }
 
-/* Filter Styles */
+.controls-container { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; }
 .filter-container { display: flex; align-items: center; gap: 0.75rem; }
 .filter-container label { font-weight: 700; color: var(--light-text); font-size: 0.95rem; }
 .filter-container select { padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid var(--border-color); min-width: 200px; background-color: #fff; }
+
+.export-buttons { display: flex; gap: 1rem; }
 
 /* Table Styles */
 .table-wrapper { overflow-x: auto; }
@@ -599,44 +720,36 @@ try {
 .btn-delete-custom { color: var(--danger-color); border: 1px solid var(--danger-color); }
 .btn-delete-custom:hover { background-color: var(--danger-color); color: var(--white); }
 
-/* Message for no imports */
 #no-imports-message { text-align: center; padding: 3rem 0; font-size: 1.1rem; color: #777; background-color: #f9fafb; border-radius: 8px; }
 
-/* Modal Styles */
-.modal-overlay {
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-    background: rgba(0, 0, 0, 0.6); 
-    z-index: 1000; 
-    visibility: hidden; opacity: 0; 
-    transition: opacity 0.3s ease; 
-    display: flex; 
-    align-items: flex-start; 
-    justify-content: center; 
-    padding: 2rem 1rem; 
-    overflow-y: auto; 
-}
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 1000; visibility: hidden; opacity: 0; transition: opacity 0.3s ease; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
 .modal-overlay.visible { visibility: visible; opacity: 1; }
 .modal-box { background: var(--white); padding: 2.5rem; border-radius: 12px; width: 100%; max-width: 550px; text-align: right; transform: scale(0.95); transition: transform 0.3s ease; margin: auto; }
 .modal-overlay.visible .modal-box { transform: scale(1); }
 .modal-box h3 { font-size: 1.8rem; margin: 0 0 2rem; color: var(--dark-text); text-align: center; font-weight: 800; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; }
 
-/* Form Styles */
 #import-form { display: flex; flex-direction: column; gap: 1rem; }
 .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
 .form-group label { font-weight: 700; color: var(--light-text); margin-bottom: 0.5rem; display: block; }
 .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.8rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; background-color: #fff; }
 .form-group input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
 
-/* Responsive */
-@media (max-width: 992px) {
-    .summary-grid {
-        grid-template-columns: 1fr;
-    }
+@media print {
+  body > *:not(.imports-admin-page),
+  .imports-admin-page > .container > *:not(.imports-list-container),
+  .page-header, .header-actions, .list-header, .modal-overlay, .btn-action-cell, .actions-header {
+    display: none !important;
+  }
+  .imports-list-container, .table-wrapper, #imports-table { display: block !important; width: 100% !important; box-shadow: none !important; border: none !important; }
+  #imports-table th, #imports-table td { display: table-cell !important; font-size: 10pt; padding: 8px; }
+  #imports-table thead { display: table-header-group !important; }
+  #imports-table tbody tr { display: table-row !important; }
+   h1, h2 { display: block !important; text-align: center; font-size: 16pt; }
 }
+
 @media (max-width: 768px) {
-    .page-header { flex-direction: column; align-items: stretch; gap: 1.5rem; }
-    .list-header { flex-direction: column; align-items: stretch; gap: 1rem; }
+    .page-header, .controls-container, .title-and-summaries { flex-direction: column; align-items: stretch; gap: 1.5rem; }
     .form-grid { grid-template-columns: 1fr; }
     #imports-table thead { display: none; }
     #imports-table tr, #imports-table td { display: block; width: 100%; }
@@ -645,4 +758,5 @@ try {
     #imports-table td:last-child { border-bottom: none; }
     #imports-table td::before { content: attr(data-label); position: absolute; left: 1rem; width: 40%; padding-right: 10px; font-weight: 700; text-align: left; color: var(--primary-color); }
 }
+
 </style>
