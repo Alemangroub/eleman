@@ -8,7 +8,7 @@ export default defineConfig({
   output: 'server', 
   adapter: vercel({
     // Enable Astro's built-in CSRF protection
-    checkOrigin: true
+    checkOrigin: false
   }), 
   integrations: [tailwind(), react()]
 });
