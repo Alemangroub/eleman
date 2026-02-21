@@ -6,6 +6,8 @@ import { Timestamp } from "firebase-admin/firestore";
 
 export const prerender = false;
 
+const csrfToken = Astro.locals.csrfToken;
+
 const { id } = Astro.params;
 let project = null;
 let items = [];
@@ -106,6 +108,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
             <div id="add-item-form" style="display: none;" class="form-container">
                  <h2>نموذج إضافة بند جديد</h2>
                 <form method="POST">
+                    <input type="hidden" name="csrf_token" value={csrfToken} />
                     <input type="hidden" id="name" name="name" />
                     <div class="form-grid">
                          <div class="form-group">

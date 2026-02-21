@@ -7,9 +7,8 @@ import vercel from "@astrojs/vercel";
 export default defineConfig({
   output: 'server', 
   adapter: vercel({
-    // Disable Astro's built-in CSRF protection
-    // This is safe to do on Vercel as they provide their own protection
-    checkOrigin: false
+    // Enable Astro's built-in CSRF protection
+    checkOrigin: true
   }), 
   integrations: [tailwind(), react()]
 });
