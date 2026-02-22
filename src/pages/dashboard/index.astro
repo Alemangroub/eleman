@@ -13,7 +13,7 @@ import Layout from '../../layouts/Layout.astro';
       <header class="dashboard-header">
         <div>
           <h1>لوحة تحكم المشرف</h1>
-          <p>مرحباً بك، <span id="user-name-placeholder"></span>! هذه هي المشاريع المسؤولة عنها.</p>
+          <p>مرحباً بك، <span id="user-name-placeholder"></span>! هذه هي المشاريع المسؤول عنها.</p>
         </div>
         <button id="logout-button" class="btn btn-logout">تسجيل الخروج</button>
       </header>
@@ -50,24 +50,31 @@ import Layout from '../../layouts/Layout.astro';
         const form = e.target;
         const projectId = form.dataset.projectId;
         const submitButton = form.querySelector('button[type="submit"]');
+        const isDailyReportForm = form.matches('.report-form');
+
         submitButton.disabled = true;
         submitButton.textContent = 'جارٍ الحفظ...';
 
         try {
-            if (form.matches('.report-form')) {
+            if (isDailyReportForm) {
                 await saveDailyReport(form, projectId);
             } else if (form.matches('.expense-form')) {
                 await saveExpenseReport(form, projectId);
             } else if (form.matches('.leftovers-form')) {
                 await saveLeftoversReport(form, projectId);
             }
+
             alert('تم حفظ التقرير بنجاح!');
-            form.reset();
-            // Find the correct form card and hide it
-            const projectGroup = document.querySelector(`[data-project-group-id="${projectId}"]`);
-            if (projectGroup) {
-                const formCard = form.closest('.form-card');
-                if (formCard) formCard.style.display = 'none';
+
+            if (isDailyReportForm) {
+                window.location.reload();
+            } else {
+                form.reset();
+                const projectGroup = document.querySelector(`[data-project-group-id="${projectId}"]`);
+                if (projectGroup) {
+                    const formCard = form.closest('.form-card');
+                    if (formCard) formCard.style.display = 'none';
+                }
             }
 
         } catch (error) {
@@ -84,10 +91,15 @@ import Layout from '../../layouts/Layout.astro';
             }
             alert(errorMessage);
         } finally {
-            submitButton.disabled = false;
-            if (form.matches('.report-form')) submitButton.textContent = 'حفظ التقرير';
-            else if (form.matches('.expense-form')) submitButton.textContent = 'حفظ المصروفات';
-            else if (form.matches('.leftovers-form')) submitButton.textContent = 'حفظ البواقي';
+            // Only re-enable the button if the page is not going to be reloaded
+            if (!isDailyReportForm) {
+                submitButton.disabled = false;
+                 if (form.matches('.expense-form')) {
+                    submitButton.textContent = 'حفظ المصروفات';
+                } else if (form.matches('.leftovers-form')) {
+                    submitButton.textContent = 'حفظ البواقي';
+                }
+            }
         }
     }
 
@@ -147,6 +159,7 @@ import Layout from '../../layouts/Layout.astro';
             const stagedItems = isLeftovers ? stagedLeftovers : stagedExpenses;
             const listClassName = isLeftovers ? 'staged-leftovers-list' : 'staged-expenses-list';
 
+            if (!stagedItems[projectId]) stagedItems[projectId] = [];
             stagedItems[projectId].push({ id: Date.now(), name: itemName, amount: amount });
             renderStagedItems(projectId, form, listClassName, stagedItems);
 
@@ -160,8 +173,10 @@ import Layout from '../../layouts/Layout.astro';
             const stagedItems = isLeftovers ? stagedLeftovers : stagedExpenses;
             const listClassName = isLeftovers ? 'staged-leftovers-list' : 'staged-expenses-list';
             const itemId = parseInt(target.getAttribute('data-id'), 10);
-            stagedItems[projectId] = stagedItems[projectId].filter(item => item.id !== itemId);
-            renderStagedItems(projectId, form, listClassName, stagedItems);
+            if(stagedItems[projectId]) {
+                stagedItems[projectId] = stagedItems[projectId].filter(item => item.id !== itemId);
+                renderStagedItems(projectId, form, listClassName, stagedItems);
+            }
         }
     });
 
@@ -205,6 +220,7 @@ import Layout from '../../layouts/Layout.astro';
         await addDoc(collection(db, 'daily_reports'), {
             projectId: projectId,
             supervisorId: currentSupervisor.uid,
+            supervisorName: currentSupervisor.name, 
             reportText: reportText,
             imageUrls: imageUrls,
             isRead: false,
@@ -223,6 +239,7 @@ import Layout from '../../layouts/Layout.astro';
         await addDoc(collection(db, 'daily_expenses'), {
             projectId: projectId,
             supervisorId: currentSupervisor.uid,
+            supervisorName: currentSupervisor.name,
             items: items.map(item => ({ name: item.name, amount: parseFloat(item.amount) })), // Storing clean data
             notes: notes,
             imageUrls: imageUrls,
@@ -240,6 +257,7 @@ import Layout from '../../layouts/Layout.astro';
         await addDoc(collection(db, 'remains_reports'), {
             projectId: projectId,
             supervisorId: currentSupervisor.uid,
+            supervisorName: currentSupervisor.name,
             items: items, // Storing items as they are
             notes: notes,
             isRead: false,
