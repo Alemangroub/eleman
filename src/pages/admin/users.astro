@@ -68,7 +68,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
     <div id="delete-confirm-modal" class="modal-overlay" style="display: none;">
       <div class="modal-content">
         <h4>تأكيد الحذف</h4>
-        <p id="modal-text">هل أنت متأكد من حذف هذا المستخدم من القائمة؟</p>
+        <p id="modal-text">هل أنت متأكد من حذف هذا المستخدم نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.</p>
         <div class="modal-actions">
           <button id="modal-cancel-btn" class="btn btn-secondary">إلغاء</button>
           <button id="modal-confirm-btn" class="btn btn-danger">تأكيد الحذف</button>
@@ -154,8 +154,12 @@ import AdminLogin from '../../components/AdminLogin.astro';
               try {
                   const userDocRef = doc(db, "users", user.uid);
                   const userDoc = await getDoc(userDocRef);
+                  const userData = userDoc.data();
 
-                  if (userDoc.exists() && userDoc.data().role === 'admin') {
+                  // Inject role into the user object for the API call
+                  user.role = userData?.role;
+
+                  if (userDoc.exists() && userData.role === 'admin') {
                       if(pageContent) pageContent.style.display = 'block';
                       if(loginContainer) loginContainer.style.display = 'none';
 
@@ -283,22 +287,45 @@ import AdminLogin from '../../components/AdminLogin.astro';
       modal.style.display = 'none';
       userIdToDelete = null;
     });
+
     modalConfirmBtn.addEventListener('click', async () => {
-      if (!userIdToDelete) return;
-      modalConfirmBtn.disabled = true;
-      modalConfirmBtn.textContent = 'جاري الحذف...';
-      try {
-        await deleteDoc(doc(db, 'users', userIdToDelete));
-        alert('تم حذف المستخدم من القائمة بنجاح.');
-      } catch (error) {
-        console.error("Error deleting user document: ", error);
-        alert(`حدث خطأ أثناء حذف المستخدم: ${error.message}`);
-      } finally {
-        modal.style.display = 'none';
-        modalConfirmBtn.disabled = false;
-        modalConfirmBtn.textContent = 'تأكيد الحذف';
-        userIdToDelete = null;
-      }
+        if (!userIdToDelete || !adminUser) return;
+
+        modalConfirmBtn.disabled = true;
+        modalConfirmBtn.textContent = 'جاري الحذف...';
+
+        try {
+            // 1. Get the ID token for the logged-in admin
+            const idToken = await adminUser.getIdToken(true);
+
+            // 2. Call the secure API endpoint
+            const response = await fetch('/api/delete-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                },
+                body: JSON.stringify({ uid: userIdToDelete })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert('تم حذف المستخدم بنجاح!'); 
+            } else {
+                console.error("Error deleting user:", result.error);
+                alert(`فشل حذف المستخدم: ${result.error}`);
+            }
+
+        } catch (error) {
+            console.error("API call failed: ", error);
+            alert(`حدث خطأ أثناء الاتصال بالخادم: ${error.message}`);
+        } finally {
+            modal.style.display = 'none';
+            modalConfirmBtn.disabled = false;
+            modalConfirmBtn.textContent = 'تأكيد الحذف';
+            userIdToDelete = null;
+        }
     });
   }
 </script>
