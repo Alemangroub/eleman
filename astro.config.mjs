@@ -6,10 +6,7 @@ import vercel from "@astrojs/vercel";
 // https://astro.build/config
 export default defineConfig({
   site: 'https://www.elemancompany.net',
-  output: 'server', 
-  adapter: vercel({
-    // Disable origin checking in development
-    checkOrigin: process.env.NODE_ENV === 'production'
-  }), 
+  output: 'server',
+  adapter: vercel(), 
   integrations: [tailwind(), react()]
 });
