@@ -1,0 +1,333 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
+---
+
+<Layout title="المشاريع المؤرشفة">
+  <div id="auth-loading-message" class="auth-container">
+      <p>جارٍ التحقق من صلاحيات الدخول...</p>
+  </div>
+
+  <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+  </div>
+
+  <main id="page-content" class="projects-admin-page" style="display: none;">
+    <div class="container">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1>المشاريع المؤرشفة</h1>
+        <div class="header-actions">
+          <a href="/admin/projects" class="btn btn-primary">&larr; العودة إلى المشاريع النشطة</a>
+          <button id="logout-button" class="btn btn-danger">تسجيل الخروج</button>
+        </div>
+      </div>
+
+      <!-- Projects Table -->
+      <div class="projects-list-container">
+        <h2>قائمة المشاريع المؤرشفة</h2>
+        <div class="table-wrapper">
+          <table id="projects-table">
+            <thead>
+              <tr>
+                <th>اسم المشروع</th>
+                <th>العنوان</th>
+                <th>المشرفون</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="projects-list">
+              <!-- Rows are dynamically inserted here -->
+            </tbody>
+          </table>
+        </div>
+        <p id="no-projects-message">جاري تحميل المشاريع المؤرشفة...</p>
+      </div>
+
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="modal-overlay">
+      <div class="modal-box">
+        <h3>تأكيد الحذف</h3>
+        <p>هل أنت متأكد من أنك تريد حذف هذا المشروع؟ لا يمكن التراجع عن هذا الإجراء.</p>
+        <div class="modal-actions">
+          <button id="cancel-delete-btn" class="btn btn-secondary">إلغاء</button>
+          <button id="confirm-delete-btn" class="btn btn-danger">تأكيد الحذف</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Unarchive Confirmation Modal -->
+    <div id="unarchive-modal" class="modal-overlay">
+      <div class="modal-box">
+        <h3>تأكيد إلغاء الأرشفة</h3>
+        <p>هل أنت متأكد من أنك تريد استعادة هذا المشروع إلى قائمة المشاريع النشطة؟</p>
+        <div class="modal-actions">
+          <button id="cancel-unarchive-btn" class="btn btn-secondary">إلغاء</button>
+          <button id="confirm-unarchive-btn" class="btn btn-success">تأكيد الاستعادة</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</Layout>
+
+<style is:global>
+  /* Auth Container Styles */
+  .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
+  .auth-container p { font-size: 1.2rem; }
+
+  /* General Page Styles */
+  .projects-admin-page { padding: 3rem 1.5rem; background-color: #f4f7f6; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  
+  /* Header */
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0; }
+  .page-header h1 { font-size: 2.2rem; color: #333; font-weight: 900; }
+  .header-actions { display: flex; gap: 1rem; }
+
+  /* Projects List Container */
+  .projects-list-container { background-color: transparent; padding: 0; }
+  .projects-list-container h2 { font-size: 1.8rem; margin-bottom: 1.5rem; font-weight: 800; color: #3f51b5; }
+
+  /* Projects Table Styles */
+  .table-wrapper { overflow-x: auto; } 
+  #projects-table { width: 100%; border-collapse: separate; border-spacing: 0 1rem; margin-top: 1rem; }
+  #projects-table thead { /* Headers are hidden on mobile via media query */ }
+  #projects-table tbody tr {
+    background-color: #fff;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    border-radius: 10px;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    cursor: pointer;
+    overflow: hidden; 
+  }
+  #projects-table tbody tr:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+  }
+  #projects-table th, #projects-table td { 
+    padding: 1rem 1.25rem; 
+    font-size: 0.95rem; 
+    color: #555; 
+    vertical-align: middle;
+    text-align: right;
+  }
+  #projects-table th { color: #666; font-size: 0.9rem; font-weight: 700; }
+  #projects-table td {
+    border: none;
+    border-top: 1px solid #eee; 
+    border-bottom: 1px solid #eee;
+  }
+  #projects-table td:first-of-type { border-right: 1px solid #eee; border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
+  #projects-table td:last-of-type { border-left: 1px solid #eee; border-top-left-radius: 10px; border-bottom-left-radius: 10px; text-align: center; }
+  
+  .project-name-cell { 
+    font-weight: 700; 
+    font-size: 1.05rem; 
+    color: #3f51b5; 
+  }
+
+  #no-projects-message { text-align: center; padding: 2rem 0; font-size: 1.1rem; color: #777; }
+
+  /* General Button Styles */
+  .btn { display: inline-block; padding: 0.7rem 1.3rem; color: #fff; text-decoration: none; border-radius: 8px; font-size: 0.95rem; font-weight: 700; transition: all 0.2s ease-in-out; text-align: center; border: 1px solid transparent; cursor: pointer; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-primary { background-color: #3f51b5; border-color: #3f51b5; }
+  .btn-primary:hover { background-color: #303f9f; }
+  .btn-secondary { background-color: #6c757d; border-color: #6c757d; }
+  .btn-secondary:hover { background-color: #5a6268; }
+  .btn-danger { background-color: #d9534f; border-color: #d9534f; }
+  .btn-danger:hover { background-color: #c9302c; }
+  .btn-success { background-color: #28a745; border-color: #28a745; }
+  .btn-success:hover { background-color: #218838; }
+  .btn-action-cell { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;}
+
+  .btn-delete-custom, .btn-unarchive-custom {
+      background-color: transparent;
+      padding: 0.4rem 0.8rem;
+      font-size: 0.85rem;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+  }
+  .btn-delete-custom { color: #d9534f; border: 1px solid #d9534f; }
+  .btn-delete-custom:hover { background-color: #d9534f; color: #fff; }
+  .btn-unarchive-custom { color: #28a745; border: 1px solid #28a745; }
+  .btn-unarchive-custom:hover { background-color: #28a745; color: #fff; }
+
+  /* Modal Styles */
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 1000; visibility: hidden; opacity: 0; transition: opacity 0.3s ease; overflow-y: auto; padding: 2rem 1rem; display: flex; align-items: center; justify-content: center; }
+  .modal-overlay.visible { visibility: visible; opacity: 1; }
+  .modal-box { background: #fff; padding: 2.5rem; border-radius: 12px; width: 100%; max-width: 550px; text-align: right; margin: auto; transform: scale(0.95); transition: transform 0.3s ease; }
+  .modal-overlay.visible .modal-box { transform: scale(1); }
+  .modal-box h3 { font-size: 1.8rem; margin-top: 0; margin-bottom: 2rem; color: #333; text-align: center; font-weight: 800; }
+  .modal-box p { margin-bottom: 2rem; color: #666; text-align: center; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; }
+  .modal-actions .btn { min-width: 120px; }
+  
+  /* Responsive Styles for Mobile */
+  @media (max-width: 768px) {
+    .page-header { flex-direction: column; align-items: stretch; gap: 1rem; }
+    .header-actions { flex-direction: column; }
+    #projects-table thead { display: none; }
+    #projects-table, #projects-table tbody, #projects-table tr, #projects-table td { display: block; width: 100%; }
+    #projects-table tr { margin-bottom: 1rem; border: 1px solid #e0e0e0; border-radius: 10px; padding: 0; }
+    #projects-table td { text-align: right; padding-left: 50%; position: relative; border: none; border-bottom: 1px solid #f0f0f0; padding-top: 1rem; padding-bottom: 1rem; }
+    #projects-table td:first-of-type, #projects-table td:last-of-type { border-radius: 0; }
+    #projects-table td:last-of-type { border-bottom: none; padding-top: 1.5rem; padding-bottom: 1.5rem; text-align: center; background-color: #f9f9f9; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
+    #projects-table td::before { content: attr(data-label); position: absolute; left: 1rem; width: 40%; padding-right: 10px; font-weight: 700; color: #3f51b5; text-align: left; }
+  }
+
+</style>
+
+<script>
+  import { auth, db } from '../../firebase/client';
+  import { onAuthStateChanged, signOut } from "firebase/auth";
+  import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc, query, where, orderBy } from 'firebase/firestore';
+
+  document.addEventListener('DOMContentLoaded', () => {
+      const authLoadingMessage = document.getElementById('auth-loading-message');
+      const loginContainer = document.getElementById('admin-login-container');
+      const pageContent = document.getElementById('page-content');
+
+      onAuthStateChanged(auth, async (user) => {
+          if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+          if (user) {
+              try {
+                  const userDocRef = doc(db, "users", user.uid);
+                  const userDoc = await getDoc(userDocRef);
+
+                  if (userDoc.exists() && userDoc.data().role === 'admin') {
+                      if(pageContent) pageContent.style.display = 'block';
+                      if(loginContainer) loginContainer.style.display = 'none';
+
+                      const logoutButton = document.getElementById('logout-button');
+                      if (logoutButton) {
+                          logoutButton.addEventListener('click', async () => {
+                              await signOut(auth);
+                              window.location.href = '/admin';
+                          });
+                      }
+                      
+                      initializePage();
+
+                  } else {
+                      await signOut(auth);
+                      if(loginContainer) loginContainer.style.display = 'block';
+                      if(pageContent) pageContent.style.display = 'none';
+                  }
+              } catch (error) {
+                  console.error('Auth Check Error:', error);
+                  await signOut(auth);
+                  if(loginContainer) loginContainer.style.display = 'block';
+                  if(pageContent) pageContent.style.display = 'none';
+              }
+          } else {
+              if(pageContent) pageContent.style.display = 'none';
+              if(loginContainer) loginContainer.style.display = 'block';
+          }
+      });
+  });
+
+  function initializePage() {
+    // --- DOM ELEMENTS ---
+    const projectsList = document.getElementById('projects-list');
+    const noProjectsMessage = document.getElementById('no-projects-message');
+    const tableWrapper = document.querySelector('.table-wrapper');
+    // Modals
+    const deleteModal = document.getElementById('delete-modal');
+    const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+    const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+    const unarchiveModal = document.getElementById('unarchive-modal');
+    const confirmUnarchiveBtn = document.getElementById('confirm-unarchive-btn');
+    const cancelUnarchiveBtn = document.getElementById('cancel-unarchive-btn');
+    
+    let projectIdToDelete = null;
+    let projectIdToUnarchive = null;
+
+    // --- DATA FETCHING & RENDERING ---
+    const projectsQuery = query(
+        collection(db, 'projects'),
+        where('archived', '==', true),
+        orderBy('createdAt', 'desc')
+    );
+    onSnapshot(projectsQuery, (snapshot) => {
+      const docs = snapshot.docs;
+      tableWrapper.style.display = docs.length === 0 ? 'none' : '';
+      noProjectsMessage.textContent = docs.length === 0 ? 'لا توجد مشاريع مؤرشفة حالياً.' : '';
+      if (projectsList) {
+        projectsList.innerHTML = docs.map(doc => {
+          const project = doc.data();
+          const supervisors = project.supervisors ? project.supervisors.map(s => s.name).join(', ') : '-';
+          return `
+            <tr data-id="${doc.id}">
+              <td data-label="اسم المشروع" class="project-name-cell">${project.projectName || '-'}</td>
+              <td data-label="العنوان">${project.projectAddress || '-'}</td>
+              <td data-label="المشرفون">${supervisors}</td>
+              <td data-label="الإجراءات" class="btn-action-cell">
+                <button class="btn btn-unarchive-custom">إلغاء الأرشفة</button>
+                <button class="btn btn-delete-custom">حذف</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    });
+
+    // --- MODAL VISIBILITY ---
+    function showModal(modal) { modal.classList.add('visible'); document.body.style.overflow = 'hidden'; }
+    function hideModal(modal) { modal.classList.remove('visible'); document.body.style.overflow = ''; }
+
+    // --- GENERAL EVENT LISTENER ---
+    projectsList.addEventListener('click', (e) => {
+      const row = e.target.closest('tr');
+      if (!row) return;
+
+      if (e.target.classList.contains('btn-delete-custom')) {
+        e.stopPropagation();
+        projectIdToDelete = row.dataset.id;
+        showModal(deleteModal);
+      } else if (e.target.classList.contains('btn-unarchive-custom')) {
+        e.stopPropagation();
+        projectIdToUnarchive = row.dataset.id;
+        showModal(unarchiveModal);
+      } else {
+        const projectId = row.dataset.id;
+        if (projectId) {
+            window.location.href = `/admin/projects/${projectId}`;
+        }
+      }
+    });
+
+    // --- DELETE PROJECT LOGIC ---
+    function hideDeleteModal() { hideModal(deleteModal); projectIdToDelete = null; }
+    cancelDeleteBtn.addEventListener('click', hideDeleteModal);
+    deleteModal.addEventListener('click', (e) => { if (e.target === deleteModal) hideDeleteModal(); });
+    confirmDeleteBtn.addEventListener('click', async () => {
+      if (projectIdToDelete) {
+        try { await deleteDoc(doc(db, 'projects', projectIdToDelete)); } catch (error) { console.error("Error deleting document: ", error); }
+        hideDeleteModal();
+      }
+    });
+    
+    // --- UNARCHIVE PROJECT LOGIC ---
+    function hideUnarchiveModal() { hideModal(unarchiveModal); projectIdToUnarchive = null; }
+    cancelUnarchiveBtn.addEventListener('click', hideUnarchiveModal);
+    unarchiveModal.addEventListener('click', (e) => { if (e.target === unarchiveModal) hideUnarchiveModal(); });
+    confirmUnarchiveBtn.addEventListener('click', async () => {
+      if (projectIdToUnarchive) {
+        try {
+          const projectRef = doc(db, 'projects', projectIdToUnarchive);
+          await updateDoc(projectRef, { archived: false });
+        } catch (error) { console.error("Error unarchiving document: ", error); }
+        hideUnarchiveModal();
+      }
+    });
+  }
+</script>

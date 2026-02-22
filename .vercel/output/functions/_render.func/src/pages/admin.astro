@@ -1,0 +1,110 @@
+---
+import Layout from '../layouts/Layout.astro';
+import AdminLogin from '../components/AdminLogin.astro';
+--- 
+
+<Layout title="لوحة تحكم">
+  <main class="admin-page">
+    
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
+    </div>
+
+    <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+    </div>
+    
+    <div id="admin-dashboard-container" style="display: none;">
+       <button id="logout-button" class="btn btn-logout">تسجيل الخروج</button>
+       <div class="container">
+        <div class="dashboard-header">
+          <h1>مرحباً بك في لوحة التحكم</h1>
+          <p>من هنا يمكنك إدارة محتوى الموقع بسهولة وأمان.</p>
+        </div>
+        <div class="grid-container">
+            <a href="/admin/projects" class="card-link"><div class="card"><h3>إدارة المشاريع</h3><p>إضافة مشاريع جديدة وتعيين المشرفين والمهندسين المسؤولين عنها.</p></div></a>
+            <a href="/admin/users" class="card-link"><div class="card"><h3>إدارة المستخدمين</h3><p>إضافة وتعديل وحذف المستخدمين وتعيين صلاحياتهم.</p></div></a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</Layout>
+
+<script>
+  import { auth, db } from '../firebase/client';
+  import { onAuthStateChanged, signOut } from "firebase/auth";
+  import { doc, getDoc } from "firebase/firestore";
+
+  const authLoadingMessage = document.getElementById('auth-loading-message')!;
+  const loginContainer = document.getElementById('admin-login-container')!;
+  const dashboardContainer = document.getElementById('admin-dashboard-container')!;
+  const logoutButton = document.getElementById('logout-button')!;
+
+  onAuthStateChanged(auth, async (user) => {
+    authLoadingMessage.style.display = 'none';
+
+    if (user) {
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists()) {
+            const userData = userDoc.data();
+            // ROLE-BASED REDIRECTION
+            if (userData.role === 'admin') {
+                // User is an admin, show the admin dashboard.
+                dashboardContainer.style.display = 'block';
+                loginContainer.style.display = 'none';
+            } else if (userData.role === 'supervisor') {
+                // User is a supervisor, redirect to their dashboard.
+                window.location.href = '/dashboard';
+            } else {
+                // User has no valid role, log them out.
+                throw new Error('Invalid user role.');
+            }
+        } else {
+            // User is authenticated but has no record in 'users' collection.
+            throw new Error('User data not found in database.');
+        }
+      } catch (error) {
+        console.error('Auth CheckError:', error.message);
+        await signOut(auth);
+        // Keep login form visible after error and logout
+        dashboardContainer.style.display = 'none';
+        loginContainer.style.display = 'block';
+      }
+    } else {
+      // User is LOGGED OUT
+      dashboardContainer.style.display = 'none';
+      loginContainer.style.display = 'block';
+    }
+  });
+
+  logoutButton.addEventListener('click', async () => {
+      try {
+          await signOut(auth);
+      } catch (error) {
+          console.error("Logout Error:", error);
+          alert("فشل تسجيل الخروج. يرجى المحاولة مرة أخرى.");
+      }
+  });
+</script>
+
+<style>
+  .admin-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f0f2f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+  .auth-container { width: 100%; max-width: 450px; }
+  #auth-loading-message p { text-align: center; font-size: 1.2rem; color: #333; }
+  .container { width: 100%; max-width: 900px; margin: 0 auto; }
+  .dashboard-header { text-align: center; margin-bottom: 3rem; }
+  .dashboard-header h1 { font-size: 2.5rem; color: #1f2937; }
+  .dashboard-header p { font-size: 1.1rem; color: #6b7280; }
+  .btn-logout { position: fixed; top: 1.5rem; left: 1.5rem; background-color: #ef4444; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; z-index: 1000; }
+  .btn-logout:hover { background-color: #dc2626; }
+  .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; padding: 2rem 0; }
+  .card-link { text-decoration: none; color: inherit; display: block; height: 100%; }
+  .card { background-color: #ffffff; border-radius: 12px; padding: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: transform 0.2s ease, box-shadow 0.2s ease; height: 100%; display: flex; flex-direction: column; }
+  .card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+  .card h3 { font-size: 1.5rem; font-weight: 800; color: #1f2937; margin-bottom: 0.75rem; }
+  .card p { font-size: 1rem; color: #6b7280; line-height: 1.6; flex-grow: 1; }
+</style>

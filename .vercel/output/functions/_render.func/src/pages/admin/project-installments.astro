@@ -1,0 +1,410 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
+--- 
+
+<Layout title="عقود المشروع">
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
+    </div>
+
+    <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+    </div>
+
+    <main id="page-content" style="display: none;">
+        <div class="dashboard-container">
+            <div class="dashboard-header">
+                <h1 id="project-name">عقود المشروع: </h1>
+                <div class="header-actions">
+                    <a id="add-contract-btn" href="#" class="btn btn-primary">+ إضافة عقد جديد</a>
+                    <a id="notifications-btn" href="#" class="btn btn-info">تنبيهات الأقساط <span class="notification-badge" style="display: none;"></span></a>
+                    <a href="/admin/projects" class="btn btn-secondary">العودة للمشاريع</a>
+                </div>
+            </div>
+
+            <!-- Summary Dashboard -->
+            <div class="summary-dashboard">
+                <div class="stat-card">
+                    <h4>إجمالي عدد العقود</h4>
+                    <p id="summary-total-contracts">0</p>
+                </div>
+                <div class="stat-card">
+                    <h4>إجمالي مبلغ الأقساط</h4>
+                    <p id="summary-total-amount">0 ج.م.</p>
+                </div>
+                <div class="stat-card">
+                    <h4>إجمالي المدفوع</h4>
+                    <p id="summary-total-paid">0 ج.م.</p>
+                </div>
+            </div>
+
+            <div id="contracts-list" class="contracts-list-container">
+                <!-- Contract list items will be dynamically inserted here -->
+            </div>
+            
+            <div id="loader">جاري تحميل البيانات...</div>
+            <p id="no-contracts-message" style="display: none;">لا توجد عقود لهذا المشروع بعد.</p>
+            <div id="error-display" style="display: none;">
+                <h1>حدث خطأ</h1>
+                <p id="error-message"></p>
+                <a href="/admin/projects" class="btn btn-primary">العودة إلى لوحة التحكم</a>
+            </div>
+        </div>
+    </main>
+</Layout>
+
+<style is:global>
+    /* Global styles from installments.astro */
+    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
+    .auth-container p { font-size: 1.2rem; }
+    .header-actions { display: flex; align-items: center; gap: 1rem; }
+
+    main#page-content {
+        padding: 3rem 1rem;
+        background-color: #f7f9fc;
+        min-height: 90vh;
+        direction: rtl;
+        font-family: 'Cairo', sans-serif;
+    }
+
+    .dashboard-container {
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .summary-dashboard {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .stat-card {
+        background-color: #fff;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        text-align: center;
+    }
+
+    .stat-card h4 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1rem;
+        color: #7f8c8d;
+        font-weight: 600;
+    }
+
+    .stat-card p {
+        margin: 0;
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+
+    #summary-total-paid {
+        color: #27ae60;
+    }
+
+    h1 {
+        font-size: 2rem;
+        color: #2c3e50;
+        margin: 0;
+    }
+
+    .btn {
+        padding: 0.7rem 1.4rem;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        border: none;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        position: relative;
+    }
+    
+    .btn.btn-primary { background-color: #27ae60; color: white; }
+    .btn.btn-secondary { background-color: #6c757d; color: white; }
+    .btn.btn-info { background-color: #3498db; color: white; }
+    .btn.btn-primary:hover { background-color: #219d52; }
+    .btn.btn-secondary:hover { background-color: #5a6268; }
+    .btn.btn-info:hover { background-color: #2980b9; }
+
+    .notification-badge {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background-color: #c0392b;
+        color: white;
+        border-radius: 50%;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.8rem;
+        font-weight: bold;
+        min-width: 20px;
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .contracts-list-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .contract-item {
+        background: #fff;
+        border-radius: 10px;
+        padding: 1.5rem 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        text-align: right;
+    }
+
+    .contract-item:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    }
+
+    .item-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .item-customer-name {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #34495e;
+    }
+
+    .item-sub-details {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        font-size: 0.95rem;
+        color: #7f8c8d;
+        align-items: center;
+    }
+
+    .item-arrow {
+        font-size: 1.8rem;
+        color: #bdc3c7;
+        transition: color 0.2s ease;
+    }
+
+    .contract-item:hover .item-arrow {
+        color: #3498db;
+    }
+    
+    #loader, #no-contracts-message, #error-display {
+        text-align: center;
+        padding: 4rem;
+        color: #7f8c8d;
+        font-size: 1.2rem;
+    }
+
+</style>
+
+<script>
+    import { auth, db } from '../../firebase/client';
+    import { onAuthStateChanged, signOut } from "firebase/auth";
+    import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const authLoadingMessage = document.getElementById('auth-loading-message');
+        const loginContainer = document.getElementById('admin-login-container');
+        const pageContent = document.getElementById('page-content');
+
+        onAuthStateChanged(auth, async (user) => {
+          if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+          if (user) {
+              try {
+                  const userDocRef = doc(db, "users", user.uid);
+                  const userDoc = await getDoc(userDocRef);
+
+                  if (userDoc.exists() && userDoc.data().role === 'admin') {
+                      if(pageContent) pageContent.style.display = 'block';
+                      if(loginContainer) loginContainer.style.display = 'none';
+                      initializeApp();
+                  } else {
+                      await signOut(auth);
+                      if(loginContainer) loginContainer.style.display = 'block';
+                      if(pageContent) pageContent.style.display = 'none';
+                  }
+              } catch (error) {
+                  console.error('Auth Check Error:', error);
+                  await signOut(auth);
+                  if(loginContainer) loginContainer.style.display = 'block';
+                  if(pageContent) pageContent.style.display = 'none';
+              }
+          } else {
+              if(pageContent) pageContent.style.display = 'none';
+              if(loginContainer) loginContainer.style.display = 'block';
+          }
+        });
+    });
+
+    async function initializeApp() {
+        const loader = document.getElementById('loader');
+        const errorDisplay = document.getElementById('error-display');
+        const errorMessage = document.getElementById('error-message');
+        const noContractsMessage = document.getElementById('no-contracts-message');
+        const addContractBtn = document.getElementById('add-contract-btn');
+        const notificationsBtn = document.getElementById('notifications-btn');
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('projectId');
+
+        if (!projectId) {
+            loader.style.display = 'none';
+            errorMessage.textContent = 'لم يتم تحديد مشروع. الرجاء العودة والمحاولة مرة أخرى.';
+            errorDisplay.style.display = 'block';
+            return;
+        }
+
+        addContractBtn.href = `/admin/add-contract?projectId=${projectId}`;
+        notificationsBtn.href = `/admin/notifications?projectId=${projectId}`;
+        const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+
+        try {
+            const projectRef = doc(db, 'projects', projectId);
+            const projectSnap = await getDoc(projectRef);
+
+            if (!projectSnap.exists()) {
+                loader.style.display = 'none';
+                errorMessage.textContent = 'المشروع المحدد غير موجود.';
+                errorDisplay.style.display = 'block';
+                return;
+            }
+
+            const project = projectSnap.data();
+            document.getElementById('project-name').textContent += project.projectName || 'غير مسمى';
+            
+            const installmentsQuery = query(collection(db, 'installments'), where('projectId', '==', projectId));
+            const querySnapshot = await getDocs(installmentsQuery);
+
+            await fetchAndDisplayNotifications(projectId);
+            
+            const contracts = new Map();
+            let totalPaidAmount = 0;
+            let totalInstallmentsAmount = 0;
+
+            if (!querySnapshot.empty) {
+                querySnapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (data.status === 'paid') {
+                        totalPaidAmount += data.installmentAmount || 0;
+                    }
+
+                    if (!contracts.has(data.customerName)) {
+                        contracts.set(data.customerName, {
+                            customerName: data.customerName,
+                            customerPhone: data.customerPhone,
+                            unitType: data.unitType,
+                            unitLocation: data.unitLocation,
+                            totalAmount: data.totalAmount,
+                        });
+                        totalInstallmentsAmount += data.totalAmount || 0;
+                    }
+                });
+                renderContracts(contracts, projectId, formatCurrency);
+            } else {
+                noContractsMessage.style.display = 'block';
+            }
+
+            // Update Stat Cards
+            document.getElementById('summary-total-contracts').textContent = contracts.size;
+            document.getElementById('summary-total-amount').textContent = formatCurrency(totalInstallmentsAmount);
+            document.getElementById('summary-total-paid').textContent = formatCurrency(totalPaidAmount);
+
+            loader.style.display = 'none';
+
+        } catch (error) {
+            console.error("Error fetching data: ", error);
+            loader.style.display = 'none';
+            errorMessage.textContent = 'حدث خطأ أثناء تحميل البيانات. يرجى مراجعة الـ console لمعرفة التفاصيل.';
+            errorDisplay.style.display = 'block';
+        }
+    }
+    
+    async function fetchAndDisplayNotifications(projectId) {
+        const badge = document.querySelector('.notification-badge');
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const upcomingDate = new Date();
+            upcomingDate.setDate(today.getDate() + 7);
+
+            const q = query(
+                collection(db, 'installments'),
+                where('projectId', '==', projectId),
+                where('status', '==', 'pending')
+            );
+
+            const querySnapshot = await getDocs(q);
+            const allPending = querySnapshot.docs.map(d => d.data());
+
+            const notificationCount = allPending.filter(inst => {
+                const dueDate = inst.dueDate.toDate();
+                return dueDate < today || (dueDate >= today && dueDate <= upcomingDate);
+            }).length;
+
+            if (notificationCount > 0) {
+                badge.textContent = notificationCount;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        } catch (error) {
+            console.error("Error fetching notifications count: ", error);
+            badge.style.display = 'none';
+        }
+    }
+
+    function renderContracts(contracts, projectId, formatCurrency) {
+        const listContainer = document.getElementById('contracts-list');
+        listContainer.innerHTML = '';
+
+        const unitTypeTranslations = { apartment: 'شقة', shop: 'محل', basement: 'بدروم', other: 'أخرى' };
+
+        contracts.forEach(contract => {
+            const link = document.createElement('a');
+            link.className = 'contract-item';
+            link.href = `/admin/contract-details?projectId=${projectId}&customerName=${encodeURIComponent(contract.customerName)}`;
+
+            const unitTypeFormatted = unitTypeTranslations[contract.unitType] || contract.unitType || 'غير محدد';
+
+            link.innerHTML = `
+                <div class="item-details">
+                    <div class="item-customer-name">${contract.customerName || 'غير مسمى'}</div>
+                    <div class="item-sub-details">
+                        <span><strong>رقم الهاتف:</strong> ${contract.customerPhone || '-'}</span>
+                        <span><strong>نوع الوحدة:</strong> ${unitTypeFormatted}</span>
+                        <span><strong>موقع الوحدة:</strong> ${contract.unitLocation || '-'}</span>
+                        <span><strong>المبلغ الإجمالي:</strong> ${formatCurrency(contract.totalAmount)}</span>
+                    </div>
+                </div>
+                <div class="item-arrow">&lsaquo;</div>
+            `;
+            listContainer.appendChild(link);
+        });
+    }
+</script>

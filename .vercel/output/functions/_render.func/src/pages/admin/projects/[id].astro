@@ -1,0 +1,299 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import AdminLogin from '../../../components/AdminLogin.astro';
+import { db } from "../../../firebase/admin";
+
+export const prerender = false;
+
+const { id } = Astro.params;
+let project = null;
+let unreadExpenseReports = 0;
+let unreadDailyReports = 0;
+
+try {
+    const projectDoc = await db.collection('projects').doc(id).get();
+
+    if (projectDoc.exists) {
+        const projectData = projectDoc.data();
+
+        let supervisorNames = [];
+        if (Array.isArray(projectData.supervisorIds) && projectData.supervisorIds.length > 0) {
+            const supervisorDocs = await Promise.all(projectData.supervisorIds.map(sid => db.collection('users').doc(sid).get()));
+            supervisorNames = supervisorDocs.map(doc => doc.exists ? doc.data().name : 'مشرف محذوف');
+        }
+
+        const expenseReportsSnapshot = await db.collection('daily_expenses')
+            .where('projectId', '==', id)
+            .where('isRead', '==', false)
+            .get();
+        unreadExpenseReports = expenseReportsSnapshot.size;
+
+        const dailyReportsSnapshot = await db.collection('daily_reports')
+            .where('projectId', '==', id)
+            .where('isRead', '==', false)
+            .get();
+        unreadDailyReports = dailyReportsSnapshot.size;
+
+        project = { 
+            id: projectDoc.id, 
+            projectName: projectData.projectName || 'اسم غير متوفر',
+            projectAddress: projectData.projectAddress || 'عنوان غير محدد',
+            supervisors: supervisorNames,
+        };
+
+    } else {
+        return Astro.redirect('/404');
+    }
+} catch (error) {
+    console.error("Error fetching project data in [id].astro:", error);
+    project = null;
+}
+---
+
+<Layout title={`تفاصيل مشروع: ${project ? project.projectName : 'خطأ'}`}>
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
+    </div>
+
+    <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+    </div>
+
+    <main id="page-content" class="project-details-page" style="display: none;">
+        <div class="container">
+            {project ? (
+                <>
+                    <header class="page-header">
+                        <div>
+                            <h1>تفاصيل المشروع</h1>
+                            <p class="page-subtitle">اختر نوع التقارير التي تود عرضها لهذا المشروع.</p>
+                        </div>
+                        <div>
+                          <a href="/admin/projects" class="back-link">&larr; العودة إلى المشاريع</a>
+                          <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
+                        </div>
+                    </header>
+
+                    <section class="project-info-card">
+                         <div class="info-item">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-file-text" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><line x1="9" y1="9" x2="10" y2="9" /><line x1="9" y1="13" x2="15" y2="13" /><line x1="9" y1="17" x2="15" y2="17" /></svg>
+                            <div><strong>اسم المشروع:</strong><span>{project.projectName}</span></div>
+                        </div>
+                        <div class="info-item">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-map-pin" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="11" r="3" /><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z" /></svg>
+                            <div><strong>الموقع:</strong><span>{project.projectAddress}</span></div>
+                        </div>
+                        <div class="info-item">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-users" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="9" cy="7" r="4" /><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /><path d="M21 21v-2a4 4 0 0 0 -3 -3.85" /></svg>
+                            <div><strong>المشرفون:</strong><span>{project.supervisors ? project.supervisors.join(', ') : 'لم يتم التعيين'}</span></div>
+                        </div>
+                    </section>
+
+                    <section class="report-links-section">
+                        <a href={`/admin/projects/${id}/expense-reports`} class="report-link-card">
+                            {unreadExpenseReports > 0 && 
+                                <div class="notification-badge">
+                                    <span class="dot"></span>
+                                    <span class="text">جديد</span>
+                                </div>
+                            }
+                             <div class="card-icon expense-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-receipt-2" width="36" height="36" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 21v-16a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v16l-3 -2l-2 2l-2 -2l-2 2l-2 -2l-3 2" /><path d="M14 8h-2.5a1.5 1.5 0 0 0 0 3h1.5a1.5 1.5 0 0 1 0 3h-2.5" /><path d="M12 17v.01" /></svg>
+                            </div>
+                            <div class="card-content">
+                                <h3>عرض تقارير المصروفات</h3>
+                                <p>سجل كامل لجميع المصروفات اليومية والفواتير المرفقة.</p>
+                            </div>
+                        </a>
+                        <a href={`/admin/projects/${id}/daily-reports`} class="report-link-card">
+                             {unreadDailyReports > 0 && 
+                                <div class="notification-badge">
+                                    <span class="dot"></span>
+                                    <span class="text">جديد</span>
+                                </div>
+                             }
+                             <div class="card-icon daily-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-clipboard-text" width="36" height="36" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" /><rect x="9" y="3" width="6" height="4" rx="2" /><path d="M9 12h6" /><path d="M9 16h6" /></svg>
+                            </div>
+                            <div class="card-content">
+                                <h3>عرض التقارير اليومية</h3>
+                                <p>سجل يوضح سير العمل اليومي والملاحظات والمرفقات.</p>
+                            </div>
+                        </a>
+                         <a href={`/admin/projects/${id}/items`} class="report-link-card">
+                            <div class="card-icon items-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-list-details" width="36" height="36" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                   <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                   <path d="M13 5h8" />
+                                   <path d="M13 9h5" />
+                                   <path d="M13 15h8" />
+                                   <path d="M13 19h5" />
+                                   <rect x="3" y="4" width="6" height="6" rx="1" />
+                                   <rect x="3" y="14" width="6" height="6" rx="1" />
+                                </svg>
+                            </div>
+                            <div class="card-content">
+                                <h3>البنود</h3>
+                                <p>عرض وإدارة بنود المشروع.</p>
+                            </div>
+                        </a>
+                        <a href={`/admin/projects/${id}/suppliers`} class="report-link-card">
+                            <div class="card-icon suppliers-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-truck-delivery" width="36" height="36" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                   <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                   <circle cx="7" cy="17" r="2" />
+                                   <circle cx="17" cy="17" r="2" />
+                                   <path d="M5 17h-2v-4.42a2.27 2.27 0 0 1 .64 -1.58l3.16 -3.8a1.87 1.87 0 0 1 3.2 0l3 3.8" />
+                                   <path d="M9 17h6" />
+                                   <path d="M13 6h4l3 5v6h-2" />
+                                </svg>
+                            </div>
+                            <div class="card-content">
+                                <h3>الموردين</h3>
+                                <p>عرض وإدارة موردي المشروع.</p>
+                            </div>
+                        </a>
+                    </section>
+                </>
+            ) : (
+                <div class="error-card">
+                    <h2>خطأ في تحميل البيانات</h2>
+                    <p>حدث خطأ حرج أثناء محاولة تحميل تفاصيل المشروع. برجاء المحاولة مرة أخرى لاحقاً.</p>
+                    <a href="/admin/projects" class="back-link">العودة إلى قائمة المشاريع</a>
+                </div>
+            )}
+        </div>
+    </main>
+</Layout>
+
+<script>
+    import { auth, db } from '../../../firebase/client';
+    import { onAuthStateChanged, signOut } from "firebase/auth";
+    import { doc, getDoc } from "firebase/firestore";
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const authLoadingMessage = document.getElementById('auth-loading-message');
+        const loginContainer = document.getElementById('admin-login-container');
+        const pageContent = document.getElementById('page-content');
+
+        onAuthStateChanged(auth, async (user) => {
+            if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+            if (user) {
+                try {
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+
+                    if (userDoc.exists() && userDoc.data().role === 'admin') {
+                        if(pageContent) pageContent.style.display = 'block';
+                        if(loginContainer) loginContainer.style.display = 'none';
+
+                        const logoutButton = document.getElementById('logout-button');
+                        if (logoutButton) {
+                            logoutButton.addEventListener('click', async () => {
+                                await signOut(auth);
+                                window.location.href = '/admin';
+                            });
+                        }
+
+                    } else {
+                        await signOut(auth);
+                        window.location.href = '/admin';
+                    }
+                } catch (error) {
+                    console.error('Auth Check Error:', error);
+                    await signOut(auth);
+                    if(loginContainer) loginContainer.style.display = 'block';
+                    if(pageContent) pageContent.style.display = 'none';
+                }
+            } else {
+                if(pageContent) pageContent.style.display = 'none';
+                if(loginContainer) loginContainer.style.display = 'block';
+            }
+        });
+    });
+</script>
+
+<style>
+.auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
+.auth-container p { font-size: 1.2rem; }
+.btn-logout { background-color: #ef4444; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
+.btn-logout:hover { background-color: #dc2626; }
+.page-header div:last-child { display: flex; align-items: center; gap: 1rem; }
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.7);
+        }
+        50% {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 10px rgba(255, 82, 82, 0);
+        }
+    }
+
+    :root { 
+        --primary-color: #007bff; 
+        --border-color: #e9ecef; 
+        --card-shadow: 0 4px 15px rgba(0,0,0,0.06);
+        --expense-color: #dc3545;
+        --daily-color: #17a2b8;
+        --items-color: #28a745;
+        --suppliers-color: #ffc107;
+        --notification-color: #ff5252;
+    }
+    .project-details-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; min-height: 100vh; padding: 2.5rem; }
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    .page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
+    h1 { font-size: 2.25rem; font-weight: 800; }
+    .page-subtitle { color: #6c757d; }
+    .back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; padding: 0.6rem 1rem; }
+
+    .project-info-card { background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; padding: 1.75rem; margin-bottom: 2.5rem; }
+    .info-item { display: flex; align-items: center; gap: 1rem; }
+    .info-item svg { color: var(--primary-color); width: 28px; height: 28px; }
+    .info-item div { display: flex; flex-direction: column; }
+    .info-item strong { font-weight: 700; font-size: 0.9rem; color: #6c757d; }
+    .info-item span { font-weight: 600; font-size: 1.1rem; }
+
+    .report-links-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
+    .report-link-card { position: relative; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); text-decoration: none; color: inherit; display: flex; align-items: center; padding: 2rem; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid var(--border-color); }
+    .report-link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+    .card-icon { margin-left: 1.5rem; padding: 1rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; }
+    .expense-icon { background-color: var(--expense-color); }
+    .daily-icon { background-color: var(--daily-color); }
+    .items-icon { background-color: var(--items-color); }
+    .suppliers-icon { background-color: var(--suppliers-color); }
+    .card-content h3 { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.5rem 0; }
+    .card-content p { margin: 0; color: #6c757d; line-height: 1.7; }
+    
+    .notification-badge {
+        position: absolute;
+        top: -10px; 
+        right: -10px;
+        background-color: var(--notification-color);
+        color: white;
+        border-radius: 16px;
+        padding: 4px 10px 4px 8px;
+        display: flex;
+        align-items: center;
+        font-size: 0.9rem;
+        font-weight: 700;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .notification-badge .dot {
+        width: 10px;
+        height: 10px;
+        background-color: white;
+        border-radius: 50%;
+        margin-left: 6px;
+        animation: pulse 1.5s infinite;
+    }
+
+    .error-card { text-align: center; padding: 4rem; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); }
+    .error-card h2 { color: var(--danger-color); font-size: 2rem; margin-bottom: 1rem; }
+
+    @media (max-width: 768px) {
+        .button-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+    }
+</style>

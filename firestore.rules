@@ -36,6 +36,12 @@ service cloud.firestore {
       allow read, update, delete: if isUserRole('admin');
     }
 
+    // Remains Reports: Supervisors can create, Admins can manage
+    match /remains_reports/{reportId} {
+      allow create: if isUserRole('supervisor');
+      allow read, update, delete: if isUserRole('admin');
+    }
+
     // Users: Admins can manage users
     match /users/{userId} {
        allow read, write: if isUserRole('admin');

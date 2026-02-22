@@ -1,0 +1,369 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
+---
+
+<Layout title="تنبيهات الأقساط">
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
+    </div>
+
+    <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+    </div>
+
+    <main id="page-content" style="display: none;">
+        <div class="notifications-container">
+            <div class="notifications-header">
+                <h1 id="project-name-header">تنبيهات الأقساط للمشروع</h1>
+                <a id="back-link" href="#" class="btn btn-secondary">العودة للعقود</a>
+            </div>
+
+            <div id="loader">جاري تحميل التنبيهات...</div>
+            <div id="error-display" class="message-card" style="display: none;"></div>
+
+            <div id="notifications-content" style="display: none;">
+                <!-- Overdue Installments -->
+                <div class="notification-section">
+                    <h2>أقساط متأخرة</h2>
+                    <div id="overdue-installments-list" class="installments-list">
+                        <!-- Overdue items will be inserted here -->
+                    </div>
+                    <p id="no-overdue-message" class="empty-message" style="display: none;">لا توجد أقساط متأخرة حاليًا.</p>
+                </div>
+
+                <!-- Upcoming Installments -->
+                <div class="notification-section">
+                    <h2>أقساط تستحق خلال 7 أيام</h2>
+                    <div id="upcoming-installments-list" class="installments-list">
+                        <!-- Upcoming items will be inserted here -->
+                    </div>
+                    <p id="no-upcoming-message" class="empty-message" style="display: none;">لا توجد أقساط تستحق قريبًا.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+</Layout>
+
+<style is:global>
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #7f8c8d;
+        --danger-color: #c0392b;
+        --warning-color: #f39c12;
+        --light-bg: #f7f9fc;
+        --white-bg: #ffffff;
+        --border-color: #e0e0e0;
+        --shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    body {
+        font-family: 'Cairo', sans-serif;
+        direction: rtl;
+    }
+
+    .auth-container { 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        min-height: 100vh; 
+        width: 100%; 
+    }
+
+    main#page-content {
+        padding: 2rem 1rem;
+        background-color: var(--light-bg);
+        min-height: 100vh;
+    }
+
+    .notifications-container {
+        width: 100%;
+        max-width: 950px;
+        margin: 0 auto;
+    }
+
+    .notifications-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .notifications-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        color: var(--primary-color);
+    }
+
+    .btn {
+        padding: 0.7rem 1.4rem;
+        border-radius: 8px;
+        text-decoration: none;
+        border: none;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-secondary { background-color: var(--secondary-color); color: white; }
+    .btn-secondary:hover { background-color: #6a7374; }
+
+    #loader, .message-card, .empty-message {
+        text-align: center;
+        padding: 2rem;
+        margin-top: 1rem;
+        background: var(--white-bg);
+        border-radius: 10px;
+        box-shadow: var(--shadow);
+        color: var(--secondary-color);
+        font-size: 1.1rem;
+    }
+    
+    .message-card {
+        color: var(--danger-color);
+        border-left: 5px solid var(--danger-color);
+    }
+
+    .notification-section {
+        background: var(--white-bg);
+        padding: 1.5rem 2rem;
+        border-radius: 10px;
+        box-shadow: var(--shadow);
+        margin-bottom: 2rem;
+    }
+
+    .notification-section h2 {
+        font-size: 1.5rem;
+        color: var(--primary-color);
+        margin: 0 0 1.5rem 0;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .installments-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1rem;
+    }
+
+    .installment-card {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        background-color: #fdfdfe;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1.2rem;
+        transition: box-shadow 0.3s ease, transform 0.3s ease;
+    }
+    
+    .installment-card.overdue {
+        border-right: 5px solid var(--danger-color);
+    }
+
+    .installment-card.upcoming {
+        border-right: 5px solid var(--warning-color);
+    }
+
+    .installment-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+    }
+    
+    .card-header {
+        font-weight: 700;
+        font-size: 1.2rem;
+        color: var(--primary-color);
+        margin-bottom: 0.75rem;
+    }
+
+    .card-details p {
+        margin: 0.4rem 0;
+        font-size: 0.95rem;
+        color: #555;
+    }
+
+    .card-details p strong {
+        font-weight: 600;
+        min-width: 100px;
+        display: inline-block;
+    }
+    
+    .amount {
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .overdue .amount { color: var(--danger-color); }
+    .upcoming .amount { color: var(--warning-color); }
+
+</style>
+
+<script>
+    import { auth, db } from '../../firebase/client';
+    import { onAuthStateChanged, signOut } from "firebase/auth";
+    import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const authLoadingMessage = document.getElementById('auth-loading-message');
+        const loginContainer = document.getElementById('admin-login-container');
+        const pageContent = document.getElementById('page-content');
+
+        onAuthStateChanged(auth, async (user) => {
+          if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+          if (user) {
+              try {
+                  const userDocRef = doc(db, "users", user.uid);
+                  const userDoc = await getDoc(userDocRef);
+
+                  if (userDoc.exists() && userDoc.data().role === 'admin') {
+                      if(pageContent) pageContent.style.display = 'block';
+                      if(loginContainer) loginContainer.style.display = 'none';
+                      initializeApp();
+                  } else {
+                      await signOut(auth);
+                      if(loginContainer) loginContainer.style.display = 'block';
+                      if(pageContent) pageContent.style.display = 'none';
+                  }
+              } catch (error) {
+                  console.error('Auth Check Error:', error);
+                  await signOut(auth);
+                  if(loginContainer) loginContainer.style.display = 'block';
+                  if(pageContent) pageContent.style.display = 'none';
+              }
+          } else {
+              if(pageContent) pageContent.style.display = 'none';
+              if(loginContainer) loginContainer.style.display = 'block';
+          }
+        });
+    });
+
+    async function initializeApp() {
+        const loader = document.getElementById('loader');
+        const content = document.getElementById('notifications-content');
+        const errorDisplay = document.getElementById('error-display');
+        const backLink = document.getElementById('back-link');
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('projectId');
+
+        if (!projectId) {
+            loader.style.display = 'none';
+            errorDisplay.textContent = 'لم يتم تحديد مشروع. الرجاء العودة والمحاولة مرة أخرى.';
+            errorDisplay.style.display = 'block';
+            return;
+        }
+
+        backLink.href = `/admin/project-installments?projectId=${projectId}`;
+
+        try {
+            const projectSnap = await getDoc(doc(db, 'projects', projectId));
+            if(projectSnap.exists()){
+                document.getElementById('project-name-header').textContent += `: ${projectSnap.data().projectName}`;
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const upcomingDate = new Date();
+            upcomingDate.setDate(today.getDate() + 7);
+
+            const q = query(
+                collection(db, 'installments'),
+                where('projectId', '==', projectId),
+                where('status', '==', 'pending')
+            );
+
+            const querySnapshot = await getDocs(q);
+
+            const allPendingInstallments = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+            const overdueInstallments = allPendingInstallments.filter(inst => 
+                inst.dueDate.toDate() < today
+            );
+
+            const upcomingInstallments = allPendingInstallments.filter(inst => {
+                const dueDate = inst.dueDate.toDate();
+                return dueDate >= today && dueDate <= upcomingDate;
+            });
+            
+            renderInstallments('overdue', overdueInstallments, projectId);
+            renderInstallments('upcoming', upcomingInstallments, projectId);
+            
+            loader.style.display = 'none';
+            content.style.display = 'block';
+
+        } catch (error) {
+            console.error("Error fetching notifications: ", error);
+            loader.style.display = 'none';
+            errorDisplay.textContent = 'حدث خطأ أثناء تحميل التنبيهات.';
+            errorDisplay.style.display = 'block';
+        }
+    }
+
+    function renderInstallments(type, installments, projectId) {
+        const listId = `${type}-installments-list`;
+        const messageId = `no-${type}-message`;
+        
+        const listContainer = document.getElementById(listId);
+        const noItemsMessage = document.getElementById(messageId);
+
+        if (installments.length === 0) {
+            noItemsMessage.style.display = 'block';
+            listContainer.style.display = 'none';
+            return;
+        }
+        
+        listContainer.innerHTML = '';
+        noItemsMessage.style.display = 'none';
+        listContainer.style.display = 'grid';
+
+        const sortedInstallments = installments.sort((a,b) => a.dueDate.toDate() - b.dueDate.toDate());
+
+        sortedInstallments.forEach(inst => {
+            const card = document.createElement('a');
+            card.className = `installment-card ${type}`;
+            card.href = `/admin/contract-details?projectId=${projectId}&customerName=${encodeURIComponent(inst.customerName)}`;
+
+            const daysDiff = calculateDaysDifference(inst.dueDate.toDate());
+            let diffText = '';
+            if (type === 'overdue') {
+                diffText = `متأخر ${-daysDiff} يوم`;
+            } else {
+                diffText = daysDiff === 0 ? 'اليوم' : `خلال ${daysDiff} يوم`;
+            }
+
+            card.innerHTML = `
+                <div class="card-header">${inst.customerName} ${inst.customerPhone ? `(${inst.customerPhone})` : ''}</div>
+                <div class="card-details">
+                    <p><strong>بيان القسط:</strong> ${inst.installmentName || '-'}</p>
+                    <p><strong>المبلغ:</strong> <span class="amount">${formatCurrency(inst.installmentAmount)}</span></p>
+                    <p><strong>تاريخ الاستحقاق:</strong> ${formatDate(inst.dueDate)}</p>
+                    <p><strong>الحالة:</strong> <span class="status-${type}">${diffText}</span></p>
+                </div>
+            `;
+            listContainer.appendChild(card);
+        });
+    }
+
+    const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+    const formatDate = (timestamp) => {
+        if (!timestamp) return '-';
+        return timestamp.toDate().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+    const calculateDaysDifference = (date) => {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const targetDate = new Date(date);
+        targetDate.setHours(0,0,0,0);
+        const diffTime = targetDate - today;
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+</script>

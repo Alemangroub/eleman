@@ -1,0 +1,693 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
+import ConfirmModal from '../../components/ConfirmModal.astro';
+import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
+---
+
+<Layout title="تفاصيل العقد">
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
+    </div>
+
+    <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+    </div>
+
+    <main id="page-content" style="display: none;">
+        <div class="details-container">
+            <div class="details-header">
+                <h1 id="customer-name-header">تفاصيل العقد</h1>
+                <div class="header-buttons">
+                    <button id="print-btn" class="btn btn-info">طباعة</button>
+                    <button id="export-pdf-btn" class="btn btn-info">تصدير PDF</button>
+                    <button id="export-excel-btn" class="btn btn-info">تصدير Excel</button>
+                    <a id="edit-contract-btn" href="#" class="btn btn-warning">تعديل العقد</a>
+                    <button id="delete-contract-btn" class="btn btn-danger">حذف العقد</button>
+                    <a id="back-link" href="#" class="btn btn-secondary">&larr; العودة لقائمة العقود</a>
+                </div>
+            </div>
+
+            <div id="loader">جاري تحميل البيانات...</div>
+            <div id="error-display" class="message-card" style="display: none;">
+                <h1>حدث خطأ</h1>
+                <p id="error-message"></p>
+            </div>
+
+            <div id="contract-details-content" style="display: none;">
+                <!-- Financial Summary -->
+                <div class="summary-dashboard">
+                    <div class="stat-card">
+                        <h4>المبلغ الإجمالي للعقد</h4>
+                        <p id="total-amount">0 ج.م.</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4 class="paid">إجمالي المدفوع</h4>
+                        <p id="total-paid" class="paid">0 ج.م.</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4 class="remaining">المبلغ المتبقي</h4>
+                        <p id="total-remaining" class="remaining">0 ج.م.</p>
+                    </div>
+                </div>
+
+                <!-- Customer and Unit Info -->
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h3>بيانات العميل</h3>
+                        <p><strong>الاسم:</strong> <span id="info-customer-name">-</span></p>
+                        <p><strong>رقم الهاتف:</strong> <span id="info-customer-phone">-</span></p>
+                    </div>
+                    <div class="info-card">
+                        <h3>بيانات الوحدة</h3>
+                        <p><strong>نوع الوحدة:</strong> <span id="info-unit-type">-</span></p>
+                        <p><strong>موقع/رقم الوحدة:</strong> <span id="info-unit-location">-</span></p>
+                    </div>
+                </div>
+
+                <!-- Installments Section -->
+                <div class="installments-section">
+                    <h3>جدول الأقساط</h3>
+                    <div class="table-responsive-wrapper">
+                        <table id="installments-table" class="is-responsive">
+                            <thead>
+                                <tr>
+                                    <th>م.</th>
+                                    <th>مبلغ القسط</th>
+                                    <th>تاريخ الاستحقاق</th>
+                                    <th>الحالة</th>
+                                    <th>تاريخ الدفع</th>
+                                    <th>بيان القسط</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Rows will be inserted here dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <p id="no-installments-message" class="message-card" style="display: none;">لا توجد أقساط مسجلة لهذا العقد.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <ConfirmModal />
+    <PartialPaymentModal />
+
+</Layout>
+
+<style is:global>
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #7f8c8d;
+        --success-color: #27ae60;
+        --warning-color: #f39c12;
+        --danger-color: #c0392b;
+        --info-color: #3498db;
+        --light-bg: #f7f9fc;
+        --white-bg: #ffffff;
+        --border-color: #e0e0e0;
+        --shadow: 0 4px 12px rgba(0,0,0,0.06);
+        --green-bg: #e8f8ef;
+        --yellow-bg: #fef9e7;
+    }
+    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
+    main#page-content { padding: 2rem 1rem; background-color: var(--light-bg); min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
+    .details-container { width: 100%; max-width: 1200px; margin: 0 auto; }
+    .details-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); }
+    h1 { margin: 0; font-size: 2.2rem; color: var(--primary-color); }
+    .header-buttons { display: flex; gap: 1rem; }
+    .btn { padding: 0.7rem 1.4rem; border-radius: 8px; text-decoration: none; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+    .btn-sm { font-size: 0.8rem; padding: 0.4rem 0.8rem; }
+    .actions-cell { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-start; align-items: center; min-width: 200px; }
+    .btn-secondary { background-color: var(--secondary-color); color: white; }
+    .btn-secondary:hover { background-color: #6a7374; }
+    .btn-danger { background-color: var(--danger-color); color: white; }
+    .btn-danger:hover { background-color: #a93226; }
+    .btn-warning { background-color: var(--warning-color); color: white; }
+    .btn-warning:hover { background-color: #d68910; }
+    .btn-info { background-color: var(--info-color); color: white; }
+    .btn-info:hover { background-color: #2980b9; }
+    .btn-edit, .btn-save { font-size: 0.9rem; padding: 0.5rem 1rem; }
+    .btn-edit { background-color: var(--info-color); color: white; }
+    .btn-edit:hover { background-color: #2980b9; }
+    .btn-save { background-color: var(--success-color); color: white; }
+    .btn-save:hover { background-color: #219d52; }
+    .btn-partial { background-color: var(--warning-color); color: white; }
+    .btn-partial:hover { background-color: #d68910; }
+
+    #loader, .message-card { text-align: center; padding: 3rem; margin-top: 2rem; background: var(--white-bg); border-radius: 10px; box-shadow: var(--shadow); color: var(--secondary-color); font-size: 1.2rem; }
+    #error-display { color: var(--danger-color); border-left: 5px solid var(--danger-color); }
+
+    .summary-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+    .stat-card { background: var(--white-bg); padding: 1.5rem; border-radius: 10px; box-shadow: var(--shadow); }
+    .stat-card h4 { margin: 0 0 0.5rem 0; font-size: 1rem; color: var(--secondary-color); font-weight: 600; }
+    .stat-card p { margin: 0; font-size: 2rem; font-weight: 700; color: var(--primary-color); }
+    .stat-card .paid { color: var(--success-color); }
+    .stat-card .remaining { color: var(--danger-color); }
+
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
+    .info-card { background: var(--white-bg); padding: 1.5rem; border-radius: 10px; box-shadow: var(--shadow); }
+    .info-card h3 { margin: 0 0 1rem 0; font-size: 1.2rem; color: var(--primary-color); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+    .info-card p { margin: 0.5rem 0; font-size: 1rem; line-height: 1.6; }
+    .info-card p span { color: var(--secondary-color); font-weight: 500; }
+
+    .installments-section { background: var(--white-bg); padding: 2rem; border-radius: 10px; box-shadow: var(--shadow); }
+    .installments-section h3 { margin: 0 0 1.5rem 0; font-size: 1.5rem; color: var(--primary-color); }
+    
+    .table-responsive-wrapper { overflow-x: auto; }
+    #installments-table { width: 100%; border-collapse: collapse; }
+    #installments-table th, #installments-table td { padding: 1rem; text-align: right; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+    #installments-table th { font-size: 0.9rem; color: var(--secondary-color); text-transform: uppercase; background-color: var(--light-bg); }
+    #installments-table td { font-size: 1rem; color: var(--primary-color); }
+    #installments-table select, #installments-table .edit-input { padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); font-family: 'Cairo', sans-serif; box-sizing: border-box; }
+    #installments-table .edit-input { width: 100%; }
+    #installments-table tr.status-paid { background-color: var(--green-bg); }
+    #installments-table tr.status-pending { background-color: var(--yellow-bg); }
+
+    @media (max-width: 768px) {
+        #installments-table.is-responsive thead { display: none; }
+        #installments-table.is-responsive tr { display: block; margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow); }
+        #installments-table.is-responsive td { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        #installments-table.is-responsive td:last-child { border-bottom: none; }
+        #installments-table.is-responsive td::before { content: attr(data-label); font-weight: bold; padding-left: 1rem; text-align: right; color: var(--primary-color); }
+        .actions-cell { justify-content: flex-end; }
+        .header-buttons { flex-wrap: wrap; justify-content: center; }
+    }
+
+</style>
+
+<script>
+    import { auth, db } from '../../firebase/client';
+    import { onAuthStateChanged, signOut } from "firebase/auth";
+    import { doc, getDoc, collection, query, where, getDocs, writeBatch, Timestamp, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
+
+    let currentProjectId = null;
+    let currentCustomerName = null;
+    let allInstallments = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const table = document.getElementById('installments-table');
+        
+        if (table) {
+            table.addEventListener('click', (e) => {
+                const target = e.target.closest('button');
+                if (!target) return;
+
+                if (target.classList.contains('btn-edit') || target.classList.contains('btn-save')) {
+                    handleEditToggle(target);
+                } else if (target.classList.contains('btn-partial')) {
+                    handlePartialPayment(target);
+                } else if (target.classList.contains('btn-delete-installment')) {
+                    handleDeleteInstallment(target);
+                }
+            });
+
+            table.addEventListener('change', (e) => {
+                if (e.target && e.target.classList.contains('status-select')) {
+                    handleStatusChange(e.target);
+                }
+            });
+        }
+
+        const deleteBtn = document.getElementById('delete-contract-btn');
+        if(deleteBtn) {
+            deleteBtn.addEventListener('click', handleDeleteContract);
+        }
+
+        document.getElementById('print-btn').addEventListener('click', () => window.print());
+        document.getElementById('export-pdf-btn').addEventListener('click', exportPDF);
+        document.getElementById('export-excel-btn').addEventListener('click', exportExcel);
+
+        const authLoadingMessage = document.getElementById('auth-loading-message');
+        const loginContainer = document.getElementById('admin-login-container');
+        const pageContent = document.getElementById('page-content');
+
+        onAuthStateChanged(auth, async (user) => {
+          if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+          if (user) {
+              try {
+                  const userDocRef = doc(db, "users", user.uid);
+                  const userDoc = await getDoc(userDocRef);
+
+                  if (userDoc.exists() && userDoc.data().role === 'admin') {
+                      if(pageContent) pageContent.style.display = 'block';
+                      if(loginContainer) loginContainer.style.display = 'none';
+                      initializeApp();
+                  } else {
+                      await signOut(auth);
+                      if(loginContainer) loginContainer.style.display = 'block';
+                      if(pageContent) pageContent.style.display = 'none';
+                  }
+              } catch (error) {
+                  console.error('Auth Check Error:', error);
+                  await signOut(auth);
+                  if(loginContainer) loginContainer.style.display = 'block';
+                  if(pageContent) pageContent.style.display = 'none';
+              }
+          } else {
+              if(pageContent) pageContent.style.display = 'none';
+              if(loginContainer) loginContainer.style.display = 'block';
+          }
+        });
+    });
+
+    async function initializeApp() {
+        const loader = document.getElementById('loader');
+        const content = document.getElementById('contract-details-content');
+        const errorDisplay = document.getElementById('error-display');
+        const errorMessage = document.getElementById('error-message');
+
+        const urlParams = new URLSearchParams(window.location.search);
+        currentProjectId = urlParams.get('projectId');
+        currentCustomerName = urlParams.get('customerName');
+
+        document.getElementById('back-link').href = `/admin/project-installments?projectId=${currentProjectId}`;
+        document.getElementById('edit-contract-btn').href = `/admin/edit-contract?projectId=${currentProjectId}&customerName=${encodeURIComponent(currentCustomerName)}`;
+
+        if (!currentProjectId || !currentCustomerName) {
+            loader.style.display = 'none';
+            errorMessage.textContent = 'بيانات المشروع أو العميل غير متوفرة.';
+            errorDisplay.style.display = 'block';
+            return;
+        }
+
+        loader.style.display = 'block';
+        content.style.display = 'none';
+
+        try {
+            const q = query(collection(db, 'installments'), where('projectId', '==', currentProjectId), where('customerName', '==', currentCustomerName));
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                loader.style.display = 'none';
+                errorMessage.textContent = 'لم يتم العثور على أقساط لهذا العقد. قد يكون تم حذفه بالكامل.';
+                errorDisplay.style.display = 'block';
+                document.getElementById('delete-contract-btn').style.display = 'none';
+                document.getElementById('edit-contract-btn').style.display = 'none';
+                return;
+            }
+
+            allInstallments = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            allInstallments.sort((a, b) => a.dueDate.toDate() - b.dueDate.toDate());
+            
+            renderContractInfo(allInstallments[0]);
+            renderInstallmentsTable(allInstallments);
+            calculateSummary(allInstallments, allInstallments[0].totalAmount);
+            
+            loader.style.display = 'none';
+            content.style.display = 'block';
+
+        } catch (error) {
+            console.error("Error fetching details: ", error);
+            loader.style.display = 'none';
+            errorMessage.textContent = 'حدث خطأ أثناء تحميل التفاصيل.';
+            errorDisplay.style.display = 'block';
+        }
+    }
+
+    async function exportPDF() {
+        const { jsPDF } = await import('jspdf');
+        const { default: html2canvas } = await import('html2canvas');
+        // jspdf-autotable is not used in the original function, so we don't import it.
+
+        const contractDetails = document.getElementById('contract-details-content');
+        const customerName = document.getElementById('info-customer-name').textContent || 'contract';
+
+        const button = document.getElementById('export-pdf-btn');
+        button.disabled = true;
+        button.textContent = 'جارٍ التصدير...';
+
+        try {
+            const canvas = await html2canvas(contractDetails, {
+                scale: 2, 
+                useCORS: true,
+                onclone: (document) => {
+                    const actionButtons = document.querySelectorAll('.actions-cell');
+                    actionButtons.forEach(btn => btn.style.display = 'none');
+                    const actionHeader = document.querySelector('#installments-table th:last-child');
+                    if(actionHeader) actionHeader.style.display = 'none';
+                }
+            });
+            
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'p',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const ratio = canvasWidth / canvasHeight;
+            const height = pdfWidth / ratio;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, height);
+            pdf.save(`${customerName}-contract.pdf`);
+        } catch (err) {
+            console.error("PDF Export Error:", err);
+            alert('حدث خطأ أثناء تصدير ملف PDF.');
+        } finally {
+            button.disabled = false;
+            button.textContent = 'تصدير PDF';
+        }
+    }
+
+    async function exportExcel() {
+        const XLSX = await import('xlsx');
+        
+        const table = document.getElementById('installments-table');
+        const customerName = document.getElementById('info-customer-name').textContent;
+        const button = document.getElementById('export-excel-btn');
+        button.disabled = true;
+        button.textContent = 'جارٍ التصدير...';
+
+        try {
+            const wb = XLSX.utils.table_to_book(table, {sheet:"Installments"});
+            XLSX.writeFile(wb, `installments-${customerName}.xlsx`);
+        } catch (err) {
+            console.error("Excel Export Error:", err);
+            alert('حدث خطأ أثناء تصدير ملف Excel.');
+        } finally {
+            button.disabled = false;
+            button.textContent = 'تصدير Excel';
+        }
+    }
+
+    async function handleDeleteInstallment(button) {
+        const installmentId = button.dataset.id;
+        if (!installmentId) return;
+
+        if (allInstallments.length <= 1) {
+            alert("لا يمكن حذف القسط الأخير. لحذف العقد، استخدم زر \"حذف العقد\" الأحمر في أعلى الصفحة.");
+            return;
+        }
+
+        const confirmed = await window.showConfirmationModal("هل أنت متأكد من حذف هذا القسط؟ لا يمكن التراجع عن هذا الإجراء.");
+
+        if (confirmed) {
+            try {
+                button.disabled = true;
+                const installmentToDelete = allInstallments.find(inst => inst.id === installmentId);
+                if (!installmentToDelete) throw new Error("Installment not found");
+
+                const deletedAmount = installmentToDelete.installmentAmount;
+                const newTotalAmount = installmentToDelete.totalAmount - deletedAmount;
+
+                const batch = writeBatch(db);
+
+                const installmentRef = doc(db, 'installments', installmentId);
+                batch.delete(installmentRef);
+
+                allInstallments.forEach(inst => {
+                    if (inst.id !== installmentId) {
+                        const otherInstallmentRef = doc(db, 'installments', inst.id);
+                        batch.update(otherInstallmentRef, { totalAmount: newTotalAmount });
+                    }
+                });
+
+                await batch.commit();
+                initializeApp();
+
+            } catch (error) {
+                console.error("Error deleting installment: ", error);
+                alert("حدث خطأ أثناء حذف القسط.");
+                button.disabled = false;
+            }
+        }
+    }
+
+    async function handlePartialPayment(button) {
+    const installmentId = button.dataset.id;
+    const installment = allInstallments.find(inst => inst.id === installmentId);
+
+    if (!installment) return;
+
+    const paidAmount = await window.showPartialPaymentModal(installmentId, installment.installmentAmount);
+
+    if (paidAmount && paidAmount > 0 && paidAmount < installment.installmentAmount) {
+        const remainingAmount = installment.installmentAmount - paidAmount;
+
+        const confirmationMessage = `سيتم تقسيم القسط إلى: \n- قسط مدفوع بقيمة: ${formatCurrency(paidAmount)} \n- قسط جديد مستحق بقيمة: ${formatCurrency(remainingAmount)}. هل أنت متأكد؟`;
+
+        const confirmed = await window.showConfirmationModal(confirmationMessage);
+
+        if (confirmed) {
+            try {
+                const batch = writeBatch(db);
+
+                const originalInstallmentRef = doc(db, 'installments', installmentId);
+                batch.update(originalInstallmentRef, {
+                    installmentAmount: paidAmount,
+                    status: 'paid',
+                    paymentDate: Timestamp.now()
+                });
+
+                const { id, ...installmentData } = installment;
+
+                const newInstallmentRef = doc(collection(db, 'installments'));
+                batch.set(newInstallmentRef, {
+                    ...installmentData,
+                    installmentAmount: remainingAmount,
+                    installmentName: `بقية - ${installment.installmentName || 'القسط'}`,
+                    status: 'pending',
+                    paymentDate: null,
+                });
+
+                await batch.commit();
+                initializeApp();
+
+            } catch (error) {
+                console.error("Error during partial payment: ", error);
+                alert("حدث خطأ أثناء عملية السداد الجزئي.");
+            }
+        }
+    }
+}
+
+
+    async function handleStatusChange(selectElement) {
+        const id = selectElement.dataset.id;
+        const newStatus = selectElement.value;
+        const oldStatus = selectElement.dataset.currentStatus;
+
+        if (newStatus === oldStatus) return;
+        
+        const newStatusText = newStatus === 'paid' ? 'مدفوع' : 'مستحق';
+        const confirmationMessage = `هل أنت متأكد من تغيير حالة القسط إلى \"${newStatusText}\"?`;
+
+        const confirmed = await window.showConfirmationModal(confirmationMessage);
+
+        if (confirmed) {
+            const installmentRef = doc(db, 'installments', id);
+            const updateData = { status: newStatus, paymentDate: newStatus === 'paid' ? Timestamp.now() : null };
+            try {
+                await updateDoc(installmentRef, updateData);
+                initializeApp();
+            } catch (error) {
+                console.error("Error updating status: ", error);
+                selectElement.value = oldStatus;
+            }
+        } else {
+            selectElement.value = oldStatus;
+        }
+    }
+
+    function handleEditToggle(button) {
+        const row = button.closest('tr');
+        const isEditing = row.classList.contains('is-editing');
+
+        if (isEditing) {
+            saveInstallmentChanges(row, button);
+        } else {
+            enterEditMode(row, button);
+        }
+    }
+
+    function enterEditMode(row, button) {
+        row.classList.add('is-editing');
+        button.textContent = 'حفظ';
+        button.classList.remove('btn-edit');
+        button.classList.add('btn-save');
+
+        const amountCell = row.querySelector('td[data-field="amount"]');
+        const dateCell = row.querySelector('td[data-field="dueDate"]');
+
+        const currentAmount = amountCell.dataset.originalValue;
+        const currentDate = dateCell.dataset.originalValue;
+
+        amountCell.innerHTML = `<input type="number" class="edit-input" value="${currentAmount}">`;
+        dateCell.innerHTML = `<input type="date" class="edit-input" value="${currentDate}">`;
+    }
+
+    async function saveInstallmentChanges(row, button) {
+        const installmentId = button.dataset.id;
+        const amountInput = row.querySelector('td[data-field="amount"] input');
+        const dateInput = row.querySelector('td[data-field="dueDate"] input');
+
+        const newAmount = parseFloat(amountInput.value);
+        const newDate = dateInput.value;
+
+        if (isNaN(newAmount) || newAmount <= 0 || !newDate) {
+            alert('الرجاء إدخال مبلغ وتاريخ صحيحين.');
+            return;
+        }
+
+        const confirmed = await window.showConfirmationModal('هل أنت متأكد من حفظ هذه التغييرات؟');
+
+        if (confirmed) {
+            button.disabled = true;
+            button.textContent = 'جارٍ الحفظ...';
+            
+            try {
+                const oldInstallment = allInstallments.find(inst => inst.id === installmentId);
+                if (!oldInstallment) throw new Error("لم يتم العثور على القسط المراد تعديله.");
+
+                const amountDifference = newAmount - oldInstallment.installmentAmount;
+                const newTotalAmount = oldInstallment.totalAmount + amountDifference;
+
+                const batch = writeBatch(db);
+
+                allInstallments.forEach(inst => {
+                    const installmentRef = doc(db, 'installments', inst.id);
+                    if (inst.id === installmentId) {
+                        batch.update(installmentRef, {
+                            installmentAmount: newAmount,
+                            dueDate: Timestamp.fromDate(new Date(newDate)),
+                            totalAmount: newTotalAmount
+                        });
+                    } else {
+                        batch.update(installmentRef, { totalAmount: newTotalAmount });
+                    }
+                });
+
+                await batch.commit();
+                initializeApp();
+
+            } catch (error) {
+                console.error("Error saving changes: ", error);
+                alert(`فشل حفظ التغييرات: ${error.message}`);
+                button.disabled = false;
+                button.textContent = 'حفظ';
+            }
+        }
+    }
+
+    async function handleDeleteContract() {
+    const confirmationMessage = `سيتم حذف العقد بالكامل بما في ذلك جميع الأقساط المرتبطة به. هل أنت متأكد من هذا الإجراء؟ لا يمكن التراجع عنه.`;
+    
+    const confirmed = await window.showConfirmationModal(confirmationMessage);
+
+    if (confirmed) {
+        const deleteBtn = document.getElementById('delete-contract-btn');
+        deleteBtn.disabled = true;
+        deleteBtn.textContent = 'جارٍ الحذف...';
+
+        try {
+            const batch = writeBatch(db);
+            allInstallments.forEach(inst => {
+                const installmentRef = doc(db, 'installments', inst.id);
+                batch.delete(installmentRef);
+            });
+
+            await batch.commit();
+            
+            alert('تم حذف العقد بنجاح.');
+            window.location.href = `/admin/project-installments?projectId=${currentProjectId}`;
+
+        } catch (error) {
+            console.error("Error deleting contract: ", error);
+            alert('حدث خطأ أثناء حذف العقد.');
+            deleteBtn.disabled = false;
+            deleteBtn.textContent = 'حذف العقد';
+        }
+    }
+}
+
+    const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+    const formatDate = (timestamp, format = 'long') => {
+        if (!timestamp) return '-';
+        const date = timestamp.toDate();
+        if (format === 'yyyy-mm-dd') {
+            return date.toISOString().split('T')[0];
+        }
+        return date.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
+    const unitTypeTranslations = { apartment: 'شقة', shop: 'محل', basement: 'بدروم', other: 'أخرى' };
+
+    function renderContractInfo(data) {
+        document.getElementById('customer-name-header').textContent = `تفاصيل عقد: ${data.customerName}`;
+        document.getElementById('info-customer-name').textContent = data.customerName || '-';
+        document.getElementById('info-customer-phone').textContent = data.customerPhone || '-';
+        document.getElementById('info-unit-type').textContent = unitTypeTranslations[data.unitType] || data.unitType || '-';
+        document.getElementById('info-unit-location').textContent = data.unitLocation || '-';
+    }
+
+    function calculateSummary(installments, totalAmount) {
+        const totalPaid = installments
+            .filter(inst => inst.status === 'paid' && inst.installmentAmount)
+            .reduce((sum, inst) => sum + inst.installmentAmount, 0);
+        const totalRemaining = totalAmount - totalPaid;
+        document.getElementById('total-amount').textContent = formatCurrency(totalAmount);
+        document.getElementById('total-paid').textContent = formatCurrency(totalPaid);
+        document.getElementById('total-remaining').textContent = formatCurrency(totalRemaining);
+    }
+
+    function renderInstallmentsTable(installments) {
+        const tableBody = document.querySelector('#installments-table tbody');
+        tableBody.innerHTML = '';
+        if (!installments || installments.length === 0) {
+             document.getElementById('no-installments-message').style.display = 'block';
+            return;
+        }
+
+        const headers = {
+            number: "م.",
+            amount: "مبلغ القسط",
+            dueDate: "تاريخ الاستحقاق",
+            status: "الحالة",
+            paymentDate: "تاريخ الدفع",
+            name: "بيان القسط",
+            actions: "إجراءات"
+        };
+
+        installments.forEach((inst, index) => {
+            const row = document.createElement('tr');
+            const isPaid = inst.status === 'paid';
+
+            row.className = isPaid ? 'status-paid' : 'status-pending';
+            
+            const statusSelect = `
+                <select class="status-select" data-id="${inst.id}" data-current-status="${inst.status}">
+                    <option value="pending" ${!isPaid ? 'selected' : ''}>مستحق</option>
+                    <option value="paid" ${isPaid ? 'selected' : ''}>مدفوع</option>
+                </select>
+            `;
+
+            const amountForInput = inst.installmentAmount || 0;
+            const dateForInput = formatDate(inst.dueDate, 'yyyy-mm-dd');
+
+            let actionsCellContent = '';
+            if (!isPaid) {
+                actionsCellContent += `<button class="btn btn-partial btn-sm" data-id="${inst.id}">سداد جزئي</button>`;
+            }
+            actionsCellContent += `<button class="btn btn-edit btn-sm" data-id="${inst.id}">تعديل</button>`;
+            actionsCellContent += `<button class="btn btn-delete-installment btn-sm btn-danger" data-id="${inst.id}">حذف</button>`;
+
+            row.innerHTML = `
+                <td data-label="${headers.number}">${index + 1}</td>
+                <td data-label="${headers.amount}" data-field="amount" data-original-value="${amountForInput}">${formatCurrency(inst.installmentAmount)}</td>
+                <td data-label="${headers.dueDate}" data-field="dueDate" data-original-value="${dateForInput}">${formatDate(inst.dueDate)}</td>
+                <td data-label="${headers.status}">${statusSelect}</td>
+                <td data-label="${headers.paymentDate}">${formatDate(inst.paymentDate)}</td>
+                <td data-label="${headers.name}">${inst.installmentName}</td>
+                <td data-label="${headers.actions}" class="actions-cell">${actionsCellContent}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+
+</script>

@@ -1,0 +1,404 @@
+
+---
+import Layout from '../../../../layouts/Layout.astro';
+import AdminLogin from '../../../../components/AdminLogin.astro';
+import { db } from "../../../../firebase/admin";
+
+const { id } = Astro.params;
+let project = null;
+let expenseReports = [];
+let feedback = { message: '', type: '' };
+
+// Mark reports as read when the page is loaded
+if (id) {
+    const unreadReportsRef = db.collection('daily_expenses').where('projectId', '==', id).where('isRead', '==', false);
+    const unreadReportsSnapshot = await unreadReportsRef.get();
+    if (!unreadReportsSnapshot.empty) {
+        const batch = db.batch();
+        unreadReportsSnapshot.docs.forEach(doc => {
+            batch.update(doc.ref, { isRead: true });
+        });
+        await batch.commit();
+    }
+}
+
+if (Astro.request.method === 'POST') {
+    // ... (rest of the POST handling code remains unchanged) ...
+     try {
+        const formData = await Astro.request.formData();
+        const reportIdToUpdate = formData.get('reportId')?.toString();
+        if (!reportIdToUpdate) throw new Error('Report ID is missing.');
+
+        const notes = formData.get('notes')?.toString();
+        let totalAmount = 0;
+
+        const expenses = {};
+        for (const [key, value] of formData.entries()) {
+            if (key.startsWith('expenses[') && key.endsWith(']')) {
+                const expenseKey = key.substring(9, key.length - 1);
+                const amount = parseFloat(value?.toString() || '0');
+                expenses[expenseKey] = amount;
+                totalAmount += amount;
+            }
+        }
+
+        await db.collection('daily_expenses').doc(reportIdToUpdate).update({
+            notes,
+            expenses,
+            totalAmount
+        });
+
+        return Astro.redirect(`/admin/projects/${id}/expense-reports?feedback=updated`);
+    } catch (error) {
+        console.error("Error updating report:", error);
+        return Astro.redirect(`/admin/projects/${id}/expense-reports?feedback=update_error`);
+    }
+}
+
+const reportIdToDelete = Astro.url.searchParams.get('delete');
+if (reportIdToDelete) {
+    // ... (rest of the DELETE handling code remains unchanged) ...
+    try {
+        await db.collection('daily_expenses').doc(reportIdToDelete).delete();
+        return Astro.redirect(`/admin/projects/${id}/expense-reports?feedback=deleted`);
+    } catch (error) {
+        return Astro.redirect(`/admin/projects/${id}/expense-reports?feedback=error`);
+    }
+}
+
+const feedbackParam = Astro.url.searchParams.get('feedback');
+// ... (feedback message logic remains unchanged) ...
+if (feedbackParam === 'deleted') feedback = { message: 'تم حذف التقرير بنجاح.', type: 'success' };
+if (feedbackParam === 'updated') feedback = { message: 'تم تحديث التقرير بنجاح.', type: 'success' };
+if (feedbackParam === 'error') feedback = { message: 'حدث خطأ أثناء الحذف.', type: 'error' };
+if (feedbackParam === 'update_error') feedback = { message: 'حدث خطأ أثناء التحديث.', type: 'error' };
+
+
+const expenseNameMapping = {
+    'buffet_hospitality': 'بوفيه وضيافه',
+    'bricks': 'طوب',
+    'sand': 'رمله',
+    'cement': 'اسمنت',
+    'steel': 'حديد',
+    'labor': 'عمال',
+    'other': 'أخرى'
+};
+const expenseKeys = ['buffet_hospitality', 'bricks', 'sand', 'cement', 'steel', 'labor', 'other'];
+
+const formatTimestamp = (timestamp) => {
+    if (!timestamp || !timestamp.toDate) return 'تاريخ غير متوفر';
+    return timestamp.toDate().toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+};
+
+try {
+    const projectDoc = await db.collection('projects').doc(id).get();
+    if (!projectDoc.exists) return Astro.redirect('/404');
+    
+    project = { id: projectDoc.id, ...projectDoc.data() };
+    const expenseReportsSnapshot = await db.collection('daily_expenses').where('projectId', '==', id).get();
+    
+    expenseReports = expenseReportsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        const expensesData = data.expenses || {};
+        const expenseItems = Object.entries(expensesData).map(([key, value]) => ({ 
+            name: expenseNameMapping[key] || key, 
+            amount: value
+        }));
+        return { id: doc.id, ...data, expenses: expensesData, expenseItems, createdAtFormatted: formatTimestamp(data.createdAt) };
+    }).sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+
+} catch (error) {
+    console.error("Error fetching data:", error);
+    project = { projectName: "خطأ في تحميل البيانات" };
+}
+---
+
+<Layout title={`تقارير المصروفات: ${project?.projectName}`}>
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
+    </div>
+
+    <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+    </div>
+
+    <main id="page-content" class="reports-display-page" style="display: none;">
+        <div class="container">
+             <header class="page-header">
+                <div>
+                    <h1>تقارير مصروفات مشروع: {project.projectName}</h1>
+                    <p class="page-subtitle">عرض وتعديل وحذف تقارير المصروفات مباشرة.</p>
+                </div>
+                 <div>
+                    <a href={`/admin/projects/${id}`} class="back-link">&larr; العودة للتفاصيل</a>
+                    <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
+                 </div>
+            </header>
+
+            {feedback.message && <div class={`feedback-banner ${feedback.type}`}>{feedback.message}</div>}
+
+            <section class="reports-section">
+                {expenseReports.length === 0 ? (
+                    <div class="no-items-card"><p>لا توجد تقارير مصروفات لهذا المشروع بعد.</p></div>
+                ) : (
+                    <div class="list-container">
+                        {expenseReports.map(report => (
+                            <article class="card expense-report-card" data-report-id={report.id}>
+                                <div class="card-header"><span>بواسطة: {report.supervisorName}</span><time>{report.createdAtFormatted}</time></div>
+
+                                <!-- View Mode -->
+                                <div class="card-content view-mode">
+                                    <div class="card-body">
+                                        <div class="expense-details">
+                                            <h4>تفاصيل المصروفات:</h4>
+                                            <ul class="expense-list">
+                                                {report.expenseItems.filter(item => item.amount > 0).map(item => (
+                                                    <li><span class="expense-name">{item.name}</span><span class="expense-amount">{item.amount.toLocaleString('ar-EG')} ج.م</span></li>
+                                                ))}
+                                            </ul>
+                                            <div class="total-amount">
+                                                <strong>الإجمالي:</strong>
+                                                <span>{report.totalAmount.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</span>
+                                            </div>
+                                        </div>
+                                        {report.notes && <div class="notes-section"><h4>ملاحظات:</h4><p>{report.notes}</p></div>}
+                                        {report.imageUrls && report.imageUrls.length > 0 && (
+                                            <div class="attachments">
+                                                <h3 class="attachments-title">المرفقات:</h3>
+                                                <div class="image-gallery">
+                                                    {report.imageUrls.map(url => (
+                                                        <a href={url} target="_blank" rel="noopener noreferrer" class="image-thumbnail">
+                                                            <img src={url} alt="صورة مرفقة" loading="lazy" />
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div class="card-footer">
+                                        <button type="button" class="action-btn edit-btn-toggle">تعديل</button>
+                                        <button type="button" class="action-btn delete-btn" data-delete-url={`/admin/projects/${id}/expense-reports?delete=${report.id}`}>حذف</button>
+                                    </div>
+                                </div>
+
+                                <!-- Edit Mode (Hidden by default) -->
+                                <form method="POST" class="card-content edit-mode" style="display: none;">
+                                    <div class="card-body edit-form-body">
+                                        <input type="hidden" name="reportId" value={report.id} />
+                                        <h4>تعديل المصروفات:</h4>
+                                        <div class="edit-grid">
+                                            {expenseKeys.map(key => (
+                                                <div class="input-group">
+                                                    <label for={`expense_${key}_${report.id}`}>{expenseNameMapping[key]}</label>
+                                                    <input type="number" id={`expense_${key}_${report.id}`} name={`expenses[${key}]`} value={report.expenses[key] || 0} class="expense-input" step="0.01" min="0" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div class="total-recalc">
+                                            <strong>الإجمالي:</strong>
+                                            <span class="total-display">{report.totalAmount.toLocaleString('ar-EG')} ج.م</span>
+                                        </div>
+                                        <h4>تعديل الملاحظات:</h4>
+                                        <textarea name="notes" class="notes-input">{report.notes || ''}</textarea>
+                                    </div>
+                                    <div class="card-footer">
+                                        <button type="button" class="action-btn cancel-btn-toggle">إلغاء</button>
+                                        <button type="submit" class="action-btn save-btn">حفظ التعديلات</button>
+                                    </div>
+                                </form>
+                            </article>
+                        ))}
+                    </div>
+                )}
+            </section>
+        </div>
+
+        <div id="delete-modal" class="modal-overlay">
+            <div class="modal-content">
+                <p>هل أنت متأكد أنك تريد حذف هذا التقرير؟</p>
+                <div class="modal-actions">
+                    <button id="cancel-delete-btn" class="action-btn cancel-btn-toggle">إلغاء</button>
+                    <a id="confirm-delete-btn" href="#" class="action-btn delete-btn">نعم، حذف</a>
+                </div>
+            </div>
+        </div>
+    </main>
+</Layout>
+
+<script>
+    import { auth, db } from '../../../../firebase/client';
+    import { onAuthStateChanged, signOut } from "firebase/auth";
+    import { doc, getDoc } from "firebase/firestore";
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const authLoadingMessage = document.getElementById('auth-loading-message');
+        const loginContainer = document.getElementById('admin-login-container');
+        const pageContent = document.getElementById('page-content');
+
+        onAuthStateChanged(auth, async (user) => {
+            if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+            if (user) {
+                try {
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+
+                    if (userDoc.exists() && userDoc.data().role === 'admin') {
+                        if(pageContent) pageContent.style.display = 'block';
+                        if(loginContainer) loginContainer.style.display = 'none';
+
+                        const logoutButton = document.getElementById('logout-button');
+                        if (logoutButton) {
+                            logoutButton.addEventListener('click', async () => {
+                                await signOut(auth);
+                                window.location.href = '/admin';
+                            });
+                        }
+
+                    } else {
+                        await signOut(auth);
+                        window.location.href = '/admin';
+                    }
+                } catch (error) {
+                    console.error('Auth Check Error:', error);
+                    await signOut(auth);
+                    if(loginContainer) loginContainer.style.display = 'block';
+                    if(pageContent) pageContent.style.display = 'none';
+                }
+            } else {
+                if(pageContent) pageContent.style.display = 'none';
+                if(loginContainer) loginContainer.style.display = 'block';
+            }
+        });
+
+        const container = document.querySelector('.container');
+        if (!container) return;
+
+        container.addEventListener('click', (e) => {
+            const target = e.target;
+            const card = target.closest('.expense-report-card');
+            if (!card) return;
+
+            const viewMode = card.querySelector('.view-mode');
+            const editMode = card.querySelector('.edit-mode');
+
+            if (target.matches('.edit-btn-toggle')) {
+                if(viewMode) viewMode.style.display = 'none';
+                if(editMode) editMode.style.display = 'block';
+            }
+
+            if (target.matches('.cancel-btn-toggle')) {
+                if(editMode) editMode.style.display = 'none';
+                if(viewMode) viewMode.style.display = 'block';
+            }
+
+            if (target.matches('.delete-btn')) {
+                const deleteUrl = target.dataset.deleteUrl;
+                if(deleteUrl) showDeleteModal(deleteUrl);
+            }
+        });
+
+        container.addEventListener('input', (e) => {
+            const target = e.target;
+            if (target.matches('.expense-input')) {
+                const form = target.closest('.edit-mode');
+                if (!form) return;
+
+                let total = 0;
+                form.querySelectorAll('.expense-input').forEach(input => {
+                    const value = input.value;
+                    total += parseFloat(value) || 0;
+                });
+                const totalDisplay = form.querySelector('.total-display');
+                if(totalDisplay) totalDisplay.textContent = `${total.toLocaleString('ar-EG')} ج.م`;
+            }
+        });
+
+        const deleteModal = document.getElementById('delete-modal');
+        const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+
+        function showDeleteModal(deleteUrl) {
+            if(confirmDeleteBtn) confirmDeleteBtn.href = deleteUrl;
+            if(deleteModal) deleteModal.style.display = 'flex';
+        }
+        function hideDeleteModal() { 
+            if(deleteModal) deleteModal.style.display = 'none'; 
+        }
+
+        if(cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', hideDeleteModal);
+        if(deleteModal) deleteModal.addEventListener('click', e => { 
+            if (e.target === deleteModal) hideDeleteModal(); 
+        });
+    });
+
+</script>
+
+<style>
+/* ... (styles are unchanged) ... */
+.auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
+.auth-container p { font-size: 1.2rem; }
+.btn-logout { background-color: #ef4444; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
+.btn-logout:hover { background-color: #dc2626; }
+.page-header div:last-child { display: flex; align-items: center; gap: 1rem; }
+:root { 
+    --primary-color: #007bff; 
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --border-color: #e9ecef; 
+    --card-shadow: 0 4px 15px rgba(0,0,0,0.06);
+}
+.reports-display-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; padding: 2.5rem; }
+.container { max-width: 1100px; margin: 0 auto; }
+.page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
+h1 { font-size: 2.25rem; font-weight: 800; }
+.page-subtitle { color: #6c757d; }
+.back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; background-color: #e7f3ff; padding: 0.6rem 1rem; border-radius: 8px; }
+
+.feedback-banner { padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 600; }
+.feedback-banner.success { background-color: #d4edda; color: #155724; }
+.feedback-banner.error { background-color: #f8d7da; color: #721c24; }
+
+.no-items-card { background: #fff; border: 1px dashed #ced4da; border-radius: 12px; padding: 3rem; text-align: center; color: #6c757d; }
+.list-container { display: flex; flex-direction: column; gap: 1.75rem; }
+
+.card { background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); overflow: hidden; }
+.card-header { display: flex; justify-content: space-between; padding: 1rem 1.5rem; background: #fdfdff; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; color: #6c757d; }
+
+.card-body { padding: 1.5rem; }
+.expense-list { list-style: none; padding: 0; margin: 0 0 1rem 0; }
+.expense-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1rem; border-radius: 8px; }
+.expense-list li:nth-child(odd) { background-color: #f8f9fa; }
+.expense-name { font-weight: 600; }
+.expense-amount { font-weight: 700; color: var(--danger-color); }
+.total-amount { display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: bold; padding-top: 1rem; border-top: 2px solid var(--primary-color); color: var(--primary-color); }
+
+.notes-section, .attachments { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
+h3, h4 { font-weight: 700; margin-bottom: 1rem; }
+.attachments-title { font-size: 1rem; }
+.notes-section p { line-height: 1.8; margin: 0; color: #495057; }
+
+.image-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 0.75rem; }
+.image-thumbnail img { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; }
+
+.card-footer { display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1rem 1.5rem; background-color: #f8f9fa; border-top: 1px solid var(--border-color); }
+.action-btn { padding: 0.5rem 1.25rem; border: none; border-radius: 8px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.edit-btn-toggle { background-color: #e9ecef; color: #343a40; }
+.delete-btn { background-color: var(--danger-color); color: #fff; }
+.save-btn { background-color: var(--success-color); color: #fff; }
+.cancel-btn-toggle { background-color: #6c757d; color: #fff;}
+
+/* Edit Form Styles */
+.edit-form-body { padding-top: 0; }
+.edit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.input-group { display: flex; flex-direction: column; }
+.input-group label { margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem; }
+.input-group input, .notes-input { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; }
+.notes-input { min-height: 100px; resize: vertical; }
+.total-recalc { font-size: 1.2rem; font-weight: bold; margin: 1.5rem 0; color: var(--primary-color); display: flex; justify-content: space-between; }
+
+/* Modal Styles */
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 1000; }
+.modal-content { background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); text-align: center; max-width: 400px; width: 90%; }
+.modal-actions { display: flex; justify-content: center; gap: 1rem; margin-top: 2rem; }
+</style>

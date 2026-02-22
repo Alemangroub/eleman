@@ -1,0 +1,304 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
+--- 
+
+<Layout title="إدارة المستخدمين">
+  <div id="auth-loading-message" class="auth-container">
+      <p>جارٍ التحقق من صلاحيات الدخول...</p>
+  </div>
+
+  <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+  </div>
+
+  <main id="page-content" class="user-admin-page" style="display: none;">
+    <div class="container">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1>إدارة المستخدمين</h1>
+        <div class="header-actions">
+          <a href="/admin/projects" class="btn btn-secondary">العودة للوحة التحكم</a>
+          <button id="logout-button" class="btn btn-danger">تسجيل الخروج</button>
+        </div>
+      </div>
+
+      <!-- Add User Form -->
+      <div class="form-container card">
+        <h2>إضافة مستخدم جديد</h2>
+        <form id="add-user-form">
+          <div class="form-group">
+            <label for="user-name">اسم المستخدم الكامل</label>
+            <input type="text" id="user-name" placeholder="مثال: محمد أحمد" required />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="user-email">البريد الإلكتروني</label>
+              <input type="email" id="user-email" placeholder="example@domain.com" required />
+            </div>
+            <div class="form-group">
+              <label for="user-password">كلمة السر</label>
+              <input type="password" id="user-password" placeholder="•••••••• (6 حروف على الأقل)" required minlength="6" />
+            </div>
+          </div>
+           <div class="form-group">
+            <label for="user-role">صلاحية المستخدم</label>
+            <select id="user-role" required>
+                <option value="" disabled selected>اختر صلاحية...</option>
+                <option value="admin">مسؤول (Admin)</option>
+                <option value="supervisor">مشرف (Supervisor)</option>
+            </select>
+          </div>
+          <button type="submit" id="add-user-btn" class="btn btn-primary">إضافة المستخدم</button>
+          <p id="add-user-feedback" class="feedback-message"></p>
+        </form>
+      </div>
+
+      <!-- Users List -->
+      <div class="users-list-container">
+        <h2>قائمة المستخدمين</h2>
+        <div id="users-list" class="users-grid"></div>
+        <p id="no-users-message" class="info-message">جاري تحميل المستخدمين...</p>
+      </div>
+
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="delete-confirm-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <h4>تأكيد الحذف</h4>
+        <p id="modal-text">هل أنت متأكد من حذف هذا المستخدم من القائمة؟</p>
+        <div class="modal-actions">
+          <button id="modal-cancel-btn" class="btn btn-secondary">إلغاء</button>
+          <button id="modal-confirm-btn" class="btn btn-danger">تأكيد الحذف</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</Layout>
+
+<style is:global>
+  /* Auth and Logout Styles */
+  .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
+  .auth-container p { font-size: 1.2rem; }
+  main#page-content { display: block; }
+
+  .user-admin-page { padding: 3rem 1.5rem; background-color: #f4f7f6; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
+  .user-admin-page .container { max-width: 1200px; margin: 0 auto; }
+  .user-admin-page .card { background-color: #fff; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .user-admin-page .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0; }
+  .user-admin-page .page-header h1 { font-size: 2.2rem; color: #333; font-weight: 900; }
+  .header-actions { display: flex; gap: 1rem; }
+  .user-admin-page .form-container h2 { font-size: 1.8rem; margin-top: 0; margin-bottom: 1.5rem; font-weight: 800; color: #3f51b5; }
+  .user-admin-page .form-group { margin-bottom: 1.5rem; }
+  .user-admin-page .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #555; }
+  .user-admin-page .form-group input,
+  .user-admin-page .form-group select { width: 100%; padding: 0.75rem 1rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; transition: border-color 0.3s, box-shadow 0.3s; font-family: 'Cairo', sans-serif; }
+  .user-admin-page .form-group input:focus,
+  .user-admin-page .form-group select:focus { outline: none; border-color: #3f51b5; box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.2); }
+  .user-admin-page .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .user-admin-page .feedback-message { margin-top: 1rem; font-weight: 600; text-align: center; min-height: 20px; }
+  .user-admin-page .feedback-message.success { color: #28a745; }
+  .user-admin-page .feedback-message.error { color: #dc3545; }
+  .user-admin-page .info-message { text-align: center; padding: 3rem 0; font-size: 1.2rem; color: #777; background-color: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .user-admin-page .users-list-container h2 { font-size: 1.8rem; margin-bottom: 1.5rem; font-weight: 800; color: #3f51b5; }
+  .user-admin-page .users-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+  .user-admin-page .user-card { background-color: #fff; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.09); padding: 1.5rem; display: flex; flex-direction: column; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+  .user-admin-page .user-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.12); }
+  .user-admin-page .user-card-header { display: flex; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #eee; }
+  .user-admin-page .user-avatar { width: 50px; height: 50px; border-radius: 50%; background-color: #e0e7ff; color: #3f51b5; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; margin-left: 1rem; }
+  .user-admin-page .user-info { flex: 1; }
+  .user-admin-page .user-info .user-name { font-size: 1.2rem; font-weight: 800; color: #333; margin: 0; }
+  .user-admin-page .user-info .user-email { font-size: 0.9rem; color: #666; margin: 0; word-break: break-all; }
+  .user-admin-page .user-card-body { font-size: 0.9rem; color: #555; padding-top: 0.5rem; padding-bottom: 0.5rem; flex-grow: 1; }
+  .user-admin-page .role-badge { display: inline-block; padding: 0.25em 0.6em; font-size: 0.8rem; font-weight: 700; line-height: 1; text-align: center; white-space: nowrap; vertical-align: baseline; border-radius: .25rem; }
+  .user-admin-page .role-badge.admin { color: #fff; background-color: #3f51b5; }
+  .user-admin-page .role-badge.supervisor { color: #fff; background-color: #6c757d; }
+  .user-admin-page .user-card-footer { display: flex; justify-content: flex-end; align-items: center; padding-top: 1rem; }
+  .user-admin-page .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .user-admin-page .modal-content { background: #fff; padding: 2.5rem; border-radius: 12px; width: 90%; max-width: 450px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+  .user-admin-page .modal-content h4 { margin-top: 0; font-size: 1.5rem; color: #333; font-weight: 800; }
+  .user-admin-page .modal-content p { margin-bottom: 1rem; color: #555; font-size: 1.1rem; }
+  .user-admin-page .modal-actions { display: flex; justify-content: center; gap: 1rem; margin-top: 2rem; }
+  .user-admin-page .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.7rem 1.3rem; color: #fff; text-decoration: none; border-radius: 8px; font-size: 0.95rem; font-weight: 700; transition: all 0.2s ease-in-out; text-align: center; border: 1px solid transparent; cursor: pointer; }
+  .user-admin-page .btn:disabled { background-color: #ccc; cursor: not-allowed; transform: none; opacity: 0.7; }
+  .user-admin-page .btn:hover:not(:disabled) { transform: translateY(-2px); }
+  .user-admin-page .btn-primary { background-color: #3f51b5; border-color: #3f51b5; width: 100%; font-size: 1.1rem; padding: 0.8rem; }
+  .user-admin-page .btn-primary:hover:not(:disabled) { background-color: #303f9f; }
+  .user-admin-page .btn-secondary { background-color: #6c757d; border-color: #6c757d; color: #fff; }
+  .user-admin-page .btn-secondary:hover:not(:disabled) { background-color: #5a6268; }
+  .user-admin-page .btn-danger { background-color: #d9534f; border-color: #d9534f; color: #fff; }
+  .user-admin-page .btn-danger:hover:not(:disabled) { background-color: #c9302c; }
+  @media (max-width: 600px) { .user-admin-page .form-row { grid-template-columns: 1fr; } .user-admin-page .users-grid { grid-template-columns: 1fr; } }
+</style>
+
+<script>
+  import { auth, db, firebaseConfig } from '../../firebase/client';
+  import { onAuthStateChanged, signOut, createUserWithEmailAndPassword, getAuth } from "firebase/auth";
+  import { initializeApp, deleteApp } from 'firebase/app';
+  import { collection, setDoc, onSnapshot, doc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore';
+
+  document.addEventListener('DOMContentLoaded', () => {
+      const authLoadingMessage = document.getElementById('auth-loading-message');
+      const loginContainer = document.getElementById('admin-login-container');
+      const pageContent = document.getElementById('page-content');
+      let adminUser = null;
+
+      onAuthStateChanged(auth, async (user) => {
+          if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+          if (user) {
+              adminUser = user;
+              try {
+                  const userDocRef = doc(db, "users", user.uid);
+                  const userDoc = await getDoc(userDocRef);
+
+                  if (userDoc.exists() && userDoc.data().role === 'admin') {
+                      if(pageContent) pageContent.style.display = 'block';
+                      if(loginContainer) loginContainer.style.display = 'none';
+
+                      const logoutButton = document.getElementById('logout-button');
+                      if (logoutButton) {
+                          logoutButton.addEventListener('click', async () => {
+                              await signOut(auth);
+                              window.location.href = '/admin';
+                          });
+                      }
+                      
+                      initializePage(user);
+
+                  } else {
+                      await signOut(auth);
+                      if(loginContainer) loginContainer.style.display = 'block';
+                      if(pageContent) pageContent.style.display = 'none';
+                  }
+              } catch (error) {
+                  console.error('Auth Check Error:', error);
+                  await signOut(auth);
+                  if(loginContainer) loginContainer.style.display = 'block';
+                  if(pageContent) pageContent.style.display = 'none';
+              }
+          } else {
+              if(pageContent) pageContent.style.display = 'none';
+              if(loginContainer) loginContainer.style.display = 'block';
+          }
+      });
+  });
+
+  function initializePage(adminUser) {
+    const addUserForm = document.getElementById('add-user-form');
+    const addUserBtn = document.getElementById('add-user-btn');
+    const feedbackMessage = document.getElementById('add-user-feedback');
+    const usersList = document.getElementById('users-list');
+    const noUsersMessage = document.getElementById('no-users-message');
+    const modal = document.getElementById('delete-confirm-modal');
+    const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+    const modalCancelBtn = document.getElementById('modal-cancel-btn');
+    let userIdToDelete = null;
+
+    addUserForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      addUserBtn.disabled = true;
+      feedbackMessage.textContent = 'جاري إنشاء الحساب وتخزين البيانات...';
+      feedbackMessage.className = 'feedback-message';
+
+      const name = document.getElementById('user-name').value;
+      const email = document.getElementById('user-email').value;
+      const password = document.getElementById('user-password').value;
+      const role = document.getElementById('user-role').value;
+      
+      const appName = `secondary-app-${Date.now()}`;
+      const secondaryApp = initializeApp(firebaseConfig, appName);
+      const secondaryAuth = getAuth(secondaryApp);
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+        const newUserUid = userCredential.user.uid;
+        await setDoc(doc(db, "users", newUserUid), { uid: newUserUid, name, email, role, createdAt: new Date() });
+        feedbackMessage.textContent = 'تم إنشاء حساب المستخدم بنجاح!';
+        feedbackMessage.classList.add('success');
+        addUserForm.reset();
+      } catch (error) {
+        console.error("Error creating user:", error);
+        let errorMessage = 'فشل إنشاء المستخدم.';
+        if (error.code === 'auth/email-already-in-use') errorMessage = 'هذا البريد الإلكتروني مستخدم بالفعل.';
+        else if (error.code === 'auth/weak-password') errorMessage = 'كلمة السر ضعيفة جدًا.';
+        feedbackMessage.textContent = errorMessage;
+        feedbackMessage.classList.add('error');
+      } finally {
+        addUserBtn.disabled = false;
+        await deleteApp(secondaryApp);
+        setTimeout(() => { feedbackMessage.textContent = ''; }, 5000);
+      }
+    });
+
+    const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+    onSnapshot(usersQuery, (snapshot) => {
+      const userDocs = snapshot.docs.filter(doc => adminUser && doc.id !== adminUser.uid);
+      if (userDocs.length === 0) {
+        noUsersMessage.textContent = 'لا يوجد مستخدمون حاليًا.';
+        noUsersMessage.style.display = 'block';
+        usersList.innerHTML = '';
+      } else {
+        noUsersMessage.style.display = 'none';
+        usersList.innerHTML = userDocs.map(doc => {
+          const user = doc.data();
+          const userInitial = user.name ? user.name.charAt(0).toUpperCase() : '?';
+          const creationDate = user.createdAt?.toDate ? user.createdAt.toDate().toLocaleDateString('ar-EG') : 'غير معروف';
+          const role = user.role || 'N/A';
+          const roleText = role === 'admin' ? 'مسؤول' : role === 'supervisor' ? 'مشرف' : 'غير محدد';
+
+          return `
+            <div class="user-card" data-id="${user.uid}">
+              <div class="user-card-header">
+                <div class="user-avatar">${userInitial}</div>
+                <div class="user-info"><h3 class="user-name">${user.name}</h3><p class="user-email">${user.email}</p></div>
+              </div>
+              <div class="user-card-body">
+                <p>تاريخ الإنشاء: <strong>${creationDate}</strong></p>
+                <p>الصلاحية: <span class="role-badge ${role}">${roleText}</span></p>
+              </div>
+              <div class="user-card-footer">
+                <button class="btn btn-danger delete-btn">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
+                  <span>حذف</span>
+                </button>
+              </div>
+            </div>`;
+        }).join('');
+      }
+    });
+
+    usersList.addEventListener('click', (e) => {
+      const target = e.target.closest('.delete-btn');
+      if (target) {
+        const item = target.closest('.user-card');
+        userIdToDelete = item.dataset.id;
+        modal.style.display = 'flex';
+      }
+    });
+    modalCancelBtn.addEventListener('click', () => {
+      modal.style.display = 'none';
+      userIdToDelete = null;
+    });
+    modalConfirmBtn.addEventListener('click', async () => {
+      if (!userIdToDelete) return;
+      modalConfirmBtn.disabled = true;
+      modalConfirmBtn.textContent = 'جاري الحذف...';
+      try {
+        await deleteDoc(doc(db, 'users', userIdToDelete));
+        alert('تم حذف المستخدم من القائمة بنجاح.');
+      } catch (error) {
+        console.error("Error deleting user document: ", error);
+        alert(`حدث خطأ أثناء حذف المستخدم: ${error.message}`);
+      } finally {
+        modal.style.display = 'none';
+        modalConfirmBtn.disabled = false;
+        modalConfirmBtn.textContent = 'تأكيد الحذف';
+        userIdToDelete = null;
+      }
+    });
+  }
+</script>

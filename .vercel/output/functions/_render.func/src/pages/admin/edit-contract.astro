@@ -1,0 +1,233 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
+---
+
+<Layout title="تعديل العقد">
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
+    </div>
+
+    <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+    </div>
+
+    <main id="page-content" style="display: none;">
+        <div class="form-container">
+            <h1 id="form-header">تعديل بيانات العقد</h1>
+            <p id="form-subheader"></p>
+
+            <div id="loader">جاري تحميل بيانات العقد...</div>
+            <div id="error-display" class="message-card" style="display: none;"></div>
+
+            <form id="edit-contract-form" style="display: none;">
+                 <div class="form-grid">
+                    <div class="form-group">
+                        <label for="customer-name">اسم العميل</label>
+                        <input type="text" id="customer-name" name="customerName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="customer-phone">رقم هاتف العميل</label>
+                        <input type="tel" id="customer-phone" name="customerPhone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="total-amount">المبلغ الإجمالي للعقد (ج.م)</label>
+                        <input type="number" id="total-amount" name="totalAmount" required step="0.01">
+                    </div>
+                     <div class="form-group">
+                        <label for="unit-type">نوع الوحدة</label>
+                        <select id="unit-type" name="unitType" required>
+                            <option value="apartment">شقة</option>
+                            <option value="shop">محل</option>
+                            <option value="basement">بدروم</option>
+                            <option value="other">أخرى</option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="unit-location">موقع/رقم الوحدة</label>
+                        <input type="text" id="unit-location" name="unitLocation" required>
+                    </div>
+                </div>
+
+                <div class="form-buttons">
+                    <button type="submit" id="submit-btn" class="btn btn-primary">حفظ التعديلات</button>
+                    <a id="cancel-btn" href="#" class="btn btn-secondary">إلغاء</a>
+                </div>
+            </form>
+        </div>
+    </main>
+</Layout>
+
+<style is:global>
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #7f8c8d;
+        --success-color: #27ae60;
+        --danger-color: #c0392b;
+        --light-bg: #f7f9fc;
+        --white-bg: #ffffff;
+        --border-color: #e0e0e0;
+        --shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
+    main#page-content { padding: 2rem 1rem; background-color: var(--light-bg); min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
+    
+    .form-container { 
+        max-width: 800px; 
+        margin: 2rem auto; 
+        padding: 2.5rem; 
+        background: var(--white-bg); 
+        border-radius: 12px; 
+        box-shadow: var(--shadow); 
+    }
+    h1 { color: var(--primary-color); margin-bottom: 0.5rem; }
+    #form-subheader { color: var(--secondary-color); margin-bottom: 2rem; font-size: 1.1rem; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .form-group { display: flex; flex-direction: column; }
+    .full-width { grid-column: 1 / -1; }
+
+    label { font-weight: 600; margin-bottom: 0.5rem; color: #34495e; }
+    input[type="text"], input[type="tel"], input[type="number"], select {
+        width: 100%;
+        padding: 0.8rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    input:focus, select:focus { 
+        outline: none; 
+        border-color: var(--primary-color); 
+        box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1);
+    }
+
+    .form-buttons { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
+    .btn { padding: 0.8rem 1.6rem; border-radius: 8px; text-decoration: none; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+    .btn-primary { background-color: var(--primary-color); color: white; }
+    .btn-primary:hover { background-color: #1a252f; }
+    .btn-secondary { background-color: var(--secondary-color); color: white; }
+    .btn-secondary:hover { background-color: #6a7374; }
+
+    #loader, .message-card { text-align: center; padding: 3rem; margin-top: 2rem; background: var(--white-bg); border-radius: 10px; box-shadow: var(--shadow); color: var(--secondary-color); font-size: 1.2rem; }
+</style>
+
+<script>
+    import { auth, db } from '../../firebase/client';
+    import { onAuthStateChanged } from "firebase/auth";
+    import { doc, getDoc, collection, query, where, getDocs, writeBatch, updateDoc } from 'firebase/firestore';
+
+    let currentProjectId = null;
+    let originalCustomerName = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const authLoadingMessage = document.getElementById('auth-loading-message');
+        const loginContainer = document.getElementById('admin-login-container');
+        const pageContent = document.getElementById('page-content');
+
+        onAuthStateChanged(auth, async (user) => {
+            authLoadingMessage.style.display = 'none';
+            if (user) {
+                pageContent.style.display = 'block';
+                loginContainer.style.display = 'none';
+                initializeForm();
+            } else {
+                loginContainer.style.display = 'block';
+                pageContent.style.display = 'none';
+            }
+        });
+    });
+
+    async function initializeForm() {
+        const loader = document.getElementById('loader');
+        const form = document.getElementById('edit-contract-form');
+        const errorDisplay = document.getElementById('error-display');
+
+        const urlParams = new URLSearchParams(window.location.search);
+        currentProjectId = urlParams.get('projectId');
+        originalCustomerName = decodeURIComponent(urlParams.get('customerName'));
+
+        document.getElementById('cancel-btn').href = `/admin/contract-details?projectId=${currentProjectId}&customerName=${encodeURIComponent(originalCustomerName)}`;
+
+        if (!currentProjectId || !originalCustomerName) {
+            loader.style.display = 'none';
+            errorDisplay.textContent = 'بيانات العقد غير مكتملة في الرابط.';
+            errorDisplay.style.display = 'block';
+            return;
+        }
+
+        document.getElementById('form-subheader').textContent = `يتم تعديل العقد الخاص بـ: ${originalCustomerName}`;
+
+        try {
+            const q = query(collection(db, 'installments'), where('projectId', '==', currentProjectId), where('customerName', '==', originalCustomerName));
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                throw new Error('لم يتم العثور على العقد.');
+            }
+
+            // Assume all installments for a contract have the same core data
+            const contractData = querySnapshot.docs[0].data();
+
+            // Populate the form
+            (document.getElementById('customer-name')).value = contractData.customerName || '';
+            (document.getElementById('customer-phone')).value = contractData.customerPhone || '';
+            (document.getElementById('total-amount')).value = contractData.totalAmount || 0;
+            (document.getElementById('unit-type')).value = contractData.unitType || 'apartment';
+            (document.getElementById('unit-location')).value = contractData.unitLocation || '';
+
+            loader.style.display = 'none';
+            form.style.display = 'block';
+
+        } catch (error) {
+            console.error("Error loading contract data: ", error);
+            loader.style.display = 'none';
+            errorDisplay.textContent = `حدث خطأ: ${error.message}`;
+            errorDisplay.style.display = 'block';
+        }
+
+        form.addEventListener('submit', handleFormSubmit);
+    }
+
+    async function handleFormSubmit(e) {
+        e.preventDefault();
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'جاري الحفظ...';
+
+        const formData = new FormData(e.target);
+        const updatedData = {
+            customerName: formData.get('customerName'),
+            customerPhone: formData.get('customerPhone'),
+            totalAmount: parseFloat(formData.get('totalAmount')),
+            unitType: formData.get('unitType'),
+            unitLocation: formData.get('unitLocation'),
+        };
+
+        try {
+            const q = query(collection(db, 'installments'), where('projectId', '==', currentProjectId), where('customerName', '==', originalCustomerName));
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                throw new Error("لم يتم العثور على أقساط لتحديثها.");
+            }
+
+            const batch = writeBatch(db);
+            querySnapshot.docs.forEach(docRef => {
+                batch.update(doc(db, 'installments', docRef.id), updatedData);
+            });
+
+            await batch.commit();
+
+            alert('تم تحديث بيانات العقد بنجاح!');
+            // Redirect back to the details page with the new name if it was changed
+            window.location.href = `/admin/contract-details?projectId=${currentProjectId}&customerName=${encodeURIComponent(updatedData.customerName)}`;
+
+        } catch (error) {
+            console.error("Error updating contract: ", error);
+            alert(`فشل تحديث العقد: ${error.message}`);
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'حفظ التعديلات';
+        }
+    }
+</script>
