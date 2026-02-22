@@ -26,7 +26,6 @@ This application is a web-based project management dashboard named "Elemannet". 
 
 -   **Add New Project (`/admin/add-project`):**
     -   A user-friendly form to create a new project.
-    -   Upon successful submission, the admin is redirected back to the main project dashboard.
 
 -   **Project Details Page (`/admin/projects/[id]`):**
     -   Provides a central hub for a single project, displaying its main information.
@@ -34,55 +33,48 @@ This application is a web-based project management dashboard named "Elemannet". 
 
 -   **Project Items (البنود) Management (`/admin/projects/[id]/items`):**
     -   A comprehensive page for managing project items (expenses, materials, etc.).
-    -   **Client-Side Form Submission:** Item creation is handled entirely on the client-side using JavaScript to prevent server-side CSRF (Cross-Site Request Forgery) errors. The form data is sent directly to Firebase Firestore from the browser.
-    -   **Seamless Page Update:** Upon successful submission, the page automatically reloads (`window.location.reload()`) to instantly display the new item in the list without an intermediary success message, providing a smooth user experience.
-    -   **Full CRUD (Create, Read, Update, Delete):** Allows admins to add, view, edit (inline), and delete items with confirmation modals for safety.
-    -   **Data Filtering & Summaries:** Features dynamic filtering by main and sub-category, with real-time updates to filtered totals and the grand total.
+    -   **Fully Responsive Design:** The layout is optimized for all screen sizes. On mobile devices, the data table transforms into a user-friendly card-based view, and header/control elements stack vertically for easy access.
+    -   **Client-Side Form Submission:** Item creation is handled on the client-side to prevent server-side errors and ensure a fast user experience.
+    -   **Seamless Page Update:** The page automatically reloads after adding an item to display the latest data instantly.
+    -   **Full CRUD (Create, Read, Update, Delete):** Allows admins to add, view, edit (inline), and delete items.
+    -   **Data Filtering & Summaries:** Features dynamic filtering by category with real-time updates to totals.
     -   **Data Export:** Provides options to print, export to PDF, or export to Excel for individual items.
 
 -   **Project Suppliers (الواردات) Management (`/admin/projects/[id]/suppliers`):**
     -   A page to track project supplies and purchases.
-    -   **Client-Side Data Handling:** All operations (add, edit, delete, view) are handled on the client-side using JavaScript and direct interaction with the Firebase Firestore database, ensuring a fast and responsive user experience.
+    -   **Client-Side Data Handling:** All operations are handled on the client-side for a fast and responsive experience.
 
 #### 2.2.2. Customer Contract & Standalone Installment Management
 
 -   **Installments Dashboard (`/admin/installments`):**
-    -   Provides a summary of total contracts, total installment amounts, and total paid amounts.
-    -   Lists all customer contracts with key details, linking to a detailed view for each.
+    -   Provides a summary of total contracts and amounts, and lists all customer contracts.
 
 -   **Contract Details Page (`/admin/contract-details`):**
-    -   Displays a complete summary of a single contract, including all associated installments with their status.
-    -   Allows admins to toggle the status of each installment (with confirmation) and provides options to edit, delete, or print the contract.
+    -   Displays a complete summary of a single contract and its installment schedule.
+    -   Allows admins to manage installment statuses and provides options to edit, delete, or print the contract.
 
 -   **Installment Notifications (`/admin/notifications`):**
-    -   A dedicated page that automatically categorizes and displays unpaid installments that are either overdue or due within the next 7 days.
+    -   Automatically displays overdue and upcoming installments.
 
 #### 2.2.3. Security & Authentication
 
--   **Role-Based Access Control:** A robust authentication system is implemented across all `/admin/...` sections, restricting access to `admin` users only.
--   **Secure Admin Login (`/admin`):** The generic `/admin` route serves as the primary login portal for administrators.
--   **Logout Functionality:** A "Logout" button is available on all admin pages for secure session termination.
+-   **Role-Based Access Control:** All `/admin/...` sections are protected and accessible only by authenticated administrators.
+-   **Secure Admin Login (`/admin`):** A dedicated login portal for administrators.
+-   **Logout Functionality:** Secure session termination on all admin pages.
 
-## 3. Previous Task: Fix "Items" Page Form Submission Error
-
-### Problem Description
-
-The initial implementation of the "Items" page used a standard Astro server-side form (`<form method="POST">`). During deployment, this caused a "Forbidden" error when submitting the form, indicating a Cross-Site Request Forgery (CSRF) protection issue.
-
-### Plan & Steps for the Fix
-
-The solution was to refactor the page to handle form submissions on the client-side, mirroring the successful implementation of the "Suppliers" page.
-
-1.  **[Analyze Working Page]** Compared the failing `items.astro` page with the working `suppliers.astro` page.
-2.  **[Refactor Form]** Removed the `method="POST"` attribute from the `<form>` tag in `items.astro`.
-3.  **[Remove Server-Side Logic]** Deleted the server-side `POST` handling logic from the frontmatter.
-4.  **[Implement Client-Side Logic]** Added a JavaScript event listener to the `<script>` section. This script intercepts the form submission, gathers the data, and sends it directly to Firestore using the client-side SDK.
-
-## 4. Current Task: Refine User Experience on "Items" Page
+## 3. Previous Task: Fix "Items" Page Form Submission & Refine UX
 
 ### Plan & Steps for the requested change:
 
-1.  **[Identify Issue]** After successfully adding a new item, a success message was displayed via a URL query parameter (`?success=true`). The user requested to remove this message for a smoother experience.
-2.  **[Remove Success Message Logic]** Deleted the code responsible for displaying the success message from the HTML template and the frontmatter of `src/pages/admin/projects/[id]/items.astro`.
-3.  **[Change Page Update Method]** Modified the client-side form submission script. Instead of redirecting to a URL with a query parameter, the script now calls `window.location.reload()` upon successful submission. This action refreshes the page, displaying the newly added item in the list immediately and seamlessly.
-4.  **[Update Blueprint]** Updated this `blueprint.md` file to document this user experience refinement.
+1.  **[Fix Submission Error]** Refactored the "Items" page to handle form submissions on the client-side, resolving a "Forbidden" error and bypassing server-side CSRF issues.
+2.  **[Refine UX]** Removed the pop-up success message after item creation. The page now reloads automatically to provide a smoother, more seamless experience.
+
+## 4. Current Task: Implement Responsive Design for "Items" Page
+
+### Plan & Steps for the requested change:
+
+1.  **[Analyze Layout]** Reviewed the existing layout of the `items.astro` page to identify areas needing improvement on smaller screens, such as the header, filter controls, and the main data table.
+2.  **[Implement Responsive CSS]** Added a `@media (max-width: 992px)` block to the page's stylesheet to apply specific styles for mobile and tablet devices.
+3.  **[Transform Table to Cards]** The primary change was converting the wide data table into a vertical, card-based layout. Each row (`<tr>`) becomes a distinct card, and each cell (`<td>`) is displayed with a clear label (`::before` pseudo-element) for easy reading on narrow screens.
+4.  **[Adjust Header and Controls]** Modified the page header, filter containers, and total-summary boxes to stack vertically, ensuring all controls are accessible and readable on mobile.
+5.  **[Update Blueprint]** Updated this `blueprint.md` file to document the implementation of the fully responsive design for the "Items" page.
