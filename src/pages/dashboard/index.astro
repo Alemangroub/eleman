@@ -45,6 +45,54 @@ import Layout from '../../layouts/Layout.astro';
 
     if (!dashboardContent || !projectsList) return;
 
+    async function handleFormSubmit(e) {
+        e.preventDefault();
+        const form = e.target;
+        const projectId = form.dataset.projectId;
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.textContent = 'جارٍ الحفظ...';
+
+        try {
+            if (form.matches('.report-form')) {
+                await saveDailyReport(form, projectId);
+            } else if (form.matches('.expense-form')) {
+                await saveExpenseReport(form, projectId);
+            } else if (form.matches('.leftovers-form')) {
+                await saveLeftoversReport(form, projectId);
+            }
+            alert('تم حفظ التقرير بنجاح!');
+            form.reset();
+            // Find the correct form card and hide it
+            const projectGroup = document.querySelector(`[data-project-group-id="${projectId}"]`);
+            if (projectGroup) {
+                const formCard = form.closest('.form-card');
+                if (formCard) formCard.style.display = 'none';
+            }
+
+        } catch (error) {
+            console.error("Submission Error:", error);
+            let errorMessage = 'حدث خطأ أثناء حفظ التقرير. يرجى المحاولة مرة أخرى.';
+            if (error instanceof Error) {
+                if (error.message === 'At least one expense item is required') {
+                    errorMessage = 'يجب إضافة بند مصروف واحد على الأقل قبل الحفظ.';
+                } else if (error.message === 'At least one leftover item is required') {
+                    errorMessage = 'يجب إضافة بند باقٍ واحد على الأقل قبل الحفظ.';
+                } else if (error.message === 'Report text is required') {
+                    errorMessage = 'نص التقرير مطلوب للحفظ.';
+                }
+            }
+            alert(errorMessage);
+        } finally {
+            submitButton.disabled = false;
+            if (form.matches('.report-form')) submitButton.textContent = 'حفظ التقرير';
+            else if (form.matches('.expense-form')) submitButton.textContent = 'حفظ المصروفات';
+            else if (form.matches('.leftovers-form')) submitButton.textContent = 'حفظ البواقي';
+        }
+    }
+
+    projectsList.addEventListener('submit', handleFormSubmit);
+
     projectsList.addEventListener('click', (e) => {
         const target = e.target;
         const projectGroup = target.closest('.project-group');
@@ -73,6 +121,9 @@ import Layout from '../../layouts/Layout.astro';
             projectGroup.querySelector('.expense-card').style.display = 'none';
             stagedExpenses[projectId] = [];
             renderStagedItems(projectId, projectGroup.querySelector('.expense-form'), 'staged-expenses-list', stagedExpenses);
+        }
+         if (target.matches('.btn-cancel-report')) {
+            projectGroup.querySelector('.report-card').style.display = 'none';
         }
 
         if (target.matches('.btn-cancel-leftovers')) {
@@ -128,6 +179,74 @@ import Layout from '../../layouts/Layout.astro';
           } else { window.location.href = '/admin'; }
       } else { window.location.href = '/admin'; }
     });
+
+    async function uploadFiles(files, projectId, folder) {
+        const uploadPromises = Array.from(files).map(file => {
+            const storageRef = ref(storage, `${folder}/${projectId}/${Date.now()}_${file.name}`);
+            const uploadTask = uploadBytesResumable(storageRef, file);
+            return new Promise((resolve, reject) => {
+                uploadTask.on('state_changed', 
+                    (snapshot) => { /* Progress */ }, 
+                    (error) => reject(error), 
+                    () => getDownloadURL(uploadTask.snapshot.ref).then(resolve)
+                );
+            });
+        });
+        return Promise.all(uploadPromises);
+    }
+
+    async function saveDailyReport(form, projectId) {
+        const reportText = form.querySelector('.report-text').value;
+        if (!reportText.trim()) throw new Error('Report text is required');
+        const imageFiles = form.querySelector('.report-images').files;
+
+        const imageUrls = await uploadFiles(imageFiles, projectId, 'daily_reports');
+
+        await addDoc(collection(db, 'daily_reports'), {
+            projectId: projectId,
+            supervisorId: currentSupervisor.uid,
+            reportText: reportText,
+            imageUrls: imageUrls,
+            isRead: false,
+            createdAt: serverTimestamp()
+        });
+    }
+
+    async function saveExpenseReport(form, projectId) {
+        const items = stagedExpenses[projectId] || [];
+        if (items.length === 0) throw new Error('At least one expense item is required');
+        const notes = form.querySelector('.expense-notes').value;
+        const imageFiles = form.querySelector('.expense-images').files;
+
+        const imageUrls = await uploadFiles(imageFiles, projectId, 'daily_expenses');
+
+        await addDoc(collection(db, 'daily_expenses'), {
+            projectId: projectId,
+            supervisorId: currentSupervisor.uid,
+            items: items.map(item => ({ name: item.name, amount: parseFloat(item.amount) })), // Storing clean data
+            notes: notes,
+            imageUrls: imageUrls,
+            isRead: false,
+            createdAt: serverTimestamp()
+        });
+        stagedExpenses[projectId] = []; // Clear staged items after saving
+    }
+
+    async function saveLeftoversReport(form, projectId) {
+        const items = stagedLeftovers[projectId] || [];
+        if (items.length === 0) throw new Error('At least one leftover item is required');
+        const notes = form.querySelector('.leftovers-notes').value;
+
+        await addDoc(collection(db, 'remains_reports'), {
+            projectId: projectId,
+            supervisorId: currentSupervisor.uid,
+            items: items, // Storing items as they are
+            notes: notes,
+            isRead: false,
+            createdAt: serverTimestamp()
+        });
+        stagedLeftovers[projectId] = []; // Clear staged items after saving
+    }
 
     async function fetchAndDisplayProjects(supervisorUid) {
       try {
@@ -223,7 +342,7 @@ import Layout from '../../layouts/Layout.astro';
                       <div class="form-group"><label>نص التقرير</label><textarea class="report-text" rows="6" required placeholder="اكتب هنا تفاصيل سير العمل، المشاكل، التقدم المحرز..."></textarea></div>
                       <div class="form-group"><label>إرفاق صور (اختياري)</label><input type="file" class="report-images" multiple accept="image/*"></div>
                       <div class="upload-progress" style="display: none;"></div>
-                      <div class="form-actions"><button type="submit" class="btn btn-submit">حفظ التقرير</button><button type="button" class="btn btn-cancel-report">إلغاء</button></div>
+                      <div class="form-actions"><button type="submit" class="btn btn-submit">حفظ التقرير</button><button type="button" class="btn-cancel-report">إلغاء</button></div>
                   </form>
               </div>
           </div>

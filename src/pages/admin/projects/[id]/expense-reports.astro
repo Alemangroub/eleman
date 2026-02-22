@@ -74,17 +74,6 @@ if (feedbackParam === 'error') feedback = { message: 'حدث خطأ أثناء �
 if (feedbackParam === 'update_error') feedback = { message: 'حدث خطأ أثناء التحديث.', type: 'error' };
 
 
-const expenseNameMapping = {
-    'buffet_hospitality': 'بوفيه وضيافه',
-    'bricks': 'طوب',
-    'sand': 'رمله',
-    'cement': 'اسمنت',
-    'steel': 'حديد',
-    'labor': 'عمال',
-    'other': 'أخرى'
-};
-const expenseKeys = ['buffet_hospitality', 'bricks', 'sand', 'cement', 'steel', 'labor', 'other'];
-
 const formatTimestamp = (timestamp) => {
     if (!timestamp || !timestamp.toDate) return 'تاريخ غير متوفر';
     return timestamp.toDate().toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -99,12 +88,16 @@ try {
     
     expenseReports = expenseReportsSnapshot.docs.map(doc => {
         const data = doc.data();
-        const expensesData = data.expenses || {};
-        const expenseItems = Object.entries(expensesData).map(([key, value]) => ({ 
-            name: expenseNameMapping[key] || key, 
-            amount: value
-        }));
-        return { id: doc.id, ...data, expenses: expensesData, expenseItems, createdAtFormatted: formatTimestamp(data.createdAt) };
+        const items = data.items || [];
+        const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+        return { 
+            id: doc.id, 
+            ...data, 
+            expenseItems: items, // Use the items array directly
+            totalAmount: totalAmount, // Use the calculated total
+            createdAtFormatted: formatTimestamp(data.createdAt) 
+        };
     }).sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
 
 } catch (error) {
@@ -144,7 +137,7 @@ try {
                     <div class="list-container">
                         {expenseReports.map(report => (
                             <article class="card expense-report-card" data-report-id={report.id}>
-                                <div class="card-header"><span>بواسطة: {report.supervisorName}</span><time>{report.createdAtFormatted}</time></div>
+                                <div class="card-header"><span>بواسطة: {report.supervisorName || 'مشرف غير محدد'}</span><time>{report.createdAtFormatted}</time></div>
 
                                 <!-- View Mode -->
                                 <div class="card-content view-mode">
@@ -152,13 +145,13 @@ try {
                                         <div class="expense-details">
                                             <h4>تفاصيل المصروفات:</h4>
                                             <ul class="expense-list">
-                                                {report.expenseItems.filter(item => item.amount > 0).map(item => (
-                                                    <li><span class="expense-name">{item.name}</span><span class="expense-amount">{item.amount.toLocaleString('ar-EG')} ج.م</span></li>
+                                                {report.expenseItems && report.expenseItems.filter(item => item.amount > 0).map(item => (
+                                                    <li><span class="expense-name">{item.name}</span><span class="expense-amount">{(item.amount || 0).toLocaleString('ar-EG')} ج.م</span></li>
                                                 ))}
                                             </ul>
                                             <div class="total-amount">
                                                 <strong>الإجمالي:</strong>
-                                                <span>{report.totalAmount.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</span>
+                                                <span>{(report.totalAmount || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</span>
                                             </div>
                                         </div>
                                         {report.notes && <div class="notes-section"><h4>ملاحظات:</h4><p>{report.notes}</p></div>}
@@ -176,36 +169,11 @@ try {
                                         )}
                                     </div>
                                     <div class="card-footer">
-                                        <button type="button" class="action-btn edit-btn-toggle">تعديل</button>
+                                       
                                         <button type="button" class="action-btn delete-btn" data-delete-url={`/admin/projects/${id}/expense-reports?delete=${report.id}`}>حذف</button>
                                     </div>
                                 </div>
 
-                                <!-- Edit Mode (Hidden by default) -->
-                                <form method="POST" class="card-content edit-mode" style="display: none;">
-                                    <div class="card-body edit-form-body">
-                                        <input type="hidden" name="reportId" value={report.id} />
-                                        <h4>تعديل المصروفات:</h4>
-                                        <div class="edit-grid">
-                                            {expenseKeys.map(key => (
-                                                <div class="input-group">
-                                                    <label for={`expense_${key}_${report.id}`}>{expenseNameMapping[key]}</label>
-                                                    <input type="number" id={`expense_${key}_${report.id}`} name={`expenses[${key}]`} value={report.expenses[key] || 0} class="expense-input" step="0.01" min="0" />
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div class="total-recalc">
-                                            <strong>الإجمالي:</strong>
-                                            <span class="total-display">{report.totalAmount.toLocaleString('ar-EG')} ج.م</span>
-                                        </div>
-                                        <h4>تعديل الملاحظات:</h4>
-                                        <textarea name="notes" class="notes-input">{report.notes || ''}</textarea>
-                                    </div>
-                                    <div class="card-footer">
-                                        <button type="button" class="action-btn cancel-btn-toggle">إلغاء</button>
-                                        <button type="submit" class="action-btn save-btn">حفظ التعديلات</button>
-                                    </div>
-                                </form>
                             </article>
                         ))}
                     </div>
@@ -276,41 +244,9 @@ try {
 
         container.addEventListener('click', (e) => {
             const target = e.target;
-            const card = target.closest('.expense-report-card');
-            if (!card) return;
-
-            const viewMode = card.querySelector('.view-mode');
-            const editMode = card.querySelector('.edit-mode');
-
-            if (target.matches('.edit-btn-toggle')) {
-                if(viewMode) viewMode.style.display = 'none';
-                if(editMode) editMode.style.display = 'block';
-            }
-
-            if (target.matches('.cancel-btn-toggle')) {
-                if(editMode) editMode.style.display = 'none';
-                if(viewMode) viewMode.style.display = 'block';
-            }
-
             if (target.matches('.delete-btn')) {
                 const deleteUrl = target.dataset.deleteUrl;
                 if(deleteUrl) showDeleteModal(deleteUrl);
-            }
-        });
-
-        container.addEventListener('input', (e) => {
-            const target = e.target;
-            if (target.matches('.expense-input')) {
-                const form = target.closest('.edit-mode');
-                if (!form) return;
-
-                let total = 0;
-                form.querySelectorAll('.expense-input').forEach(input => {
-                    const value = input.value;
-                    total += parseFloat(value) || 0;
-                });
-                const totalDisplay = form.querySelector('.total-display');
-                if(totalDisplay) totalDisplay.textContent = `${total.toLocaleString('ar-EG')} ج.م`;
             }
         });
 
