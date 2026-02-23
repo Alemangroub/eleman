@@ -9,7 +9,6 @@ let project = null;
 let dailyReports = [];
 let feedback = { message: '', type: '' };
 
-// Mark reports as read when the page is loaded
 if (id) {
     const unreadReportsRef = db.collection('daily_reports').where('projectId', '==', id).where('isRead', '==', false);
     const unreadReportsSnapshot = await unreadReportsRef.get();
@@ -22,7 +21,6 @@ if (id) {
     }
 }
 
-// ... (Backend POST, GET, and data fetching logic remains unchanged) ...
 if (Astro.request.method === 'POST') {
     try {
         const formData = await Astro.request.formData();
@@ -33,7 +31,7 @@ if (Astro.request.method === 'POST') {
         const notes = formData.get('notes')?.toString();
 
         await db.collection('daily_reports').doc(reportIdToUpdate).update({
-            report: reportText,
+            reportText: reportText, // Correct field name
             notes: notes,
         });
 
@@ -44,7 +42,6 @@ if (Astro.request.method === 'POST') {
     }
 }
 
-// --- Handle GET for Deletion & Feedback ---
 const reportIdToDelete = Astro.url.searchParams.get('delete');
 if (reportIdToDelete) {
     try {
@@ -118,10 +115,9 @@ try {
                             <article class="card daily-report-card" data-report-id={report.id}>
                                 <div class="card-header"><span>بواسطة: {report.supervisorName}</span><time>{report.createdAtFormatted}</time></div>
 
-                                <!-- View Mode -->
                                 <div class="card-content view-mode">
                                     <div class="card-body">
-                                        <div class="report-text-section"><h4>تفاصيل التقرير:</h4><p>{report.report}</p></div>
+                                        <div class="report-text-section"><h4>تفاصيل التقرير:</h4><p>{report.reportText}</p></div>
                                         {report.notes && <div class="notes-section"><h4>ملاحظات:</h4><p>{report.notes}</p></div>}
                                         {report.imageUrls && report.imageUrls.length > 0 && (
                                             <div class="attachments">
@@ -142,12 +138,11 @@ try {
                                     </div>
                                 </div>
 
-                                <!-- Edit Mode (Hidden by default) -->
                                 <form method="POST" class="card-content edit-mode" style="display: none;">
                                     <div class="card-body edit-form-body">
                                         <input type="hidden" name="reportId" value={report.id} />
                                         <h4>تعديل التقرير:</h4>
-                                        <textarea name="reportText" class="report-input">{report.report || ''}</textarea>
+                                        <textarea name="reportText" class="report-input">{report.reportText || ''}</textarea>
                                         <h4>تعديل الملاحظات:</h4>
                                         <textarea name="notes" class="notes-input">{report.notes || ''}</textarea>
                                     </div>
@@ -206,7 +201,6 @@ try {
                         }
 
                     } else {
-                        // If user is not admin, sign out and redirect
                         await signOut(auth);
                         window.location.href = '/admin';
                     }
@@ -316,11 +310,9 @@ h3, h4 { font-weight: 700; margin-bottom: 1rem; }
 .save-btn { background-color: var(--success-color); color: #fff; }
 .cancel-btn-toggle { background-color: #6c757d; color: #fff;}
 
-/* Edit Form Styles */
 .edit-form-body { padding-top: 0; }
 .report-input, .notes-input { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; min-height: 120px; resize: vertical; margin-bottom: 1rem; }
 
-/* Modal Styles */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 1000; }
 .modal-content { background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); text-align: center; max-width: 400px; width: 90%; }
 .modal-actions { display: flex; justify-content: center; gap: 1rem; margin-top: 2rem; }
