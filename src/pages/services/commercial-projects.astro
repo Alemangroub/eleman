@@ -1,0 +1,179 @@
+
+---
+import Layout from '../../layouts/Layout.astro';
+import TopBar from '../../components/TopBar.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+
+const service = {
+  title: "المشاريع التجارية",
+  image: "/commercial-projects.webp",
+  description: "نبتكر وجهات تجارية وإدارية حيوية في مواقع استراتيجية، مصممة لتعزيز نمو الأعمال وتوفير بيئة عمل ملهمة.",
+  detailedDescription: `تعتبر المشاريع التجارية والإدارية عصب الاقتصاد الحديث، وفي شركة الإيمان، ندرك أهمية خلق مساحات عمل لا تقتصر على كونها مكانًا للعمل، بل بيئة محفزة على الإبداع والنمو.\n\n**أسس مشاريعنا التجارية:**\n- **مواقع حيوية:** نختار مواقع مشاريعنا بعناية فائقة في مناطق ذات كثافة سكانية وحركة تجارية عالية، مما يضمن وصولاً سهلاً لعملائك وشركائك ويعزز من قيمة أصولك العقارية.\n- **تصاميم مرنة وذكية:** نقدم تصاميم معمارية عصرية تتيح مرونة في تقسيم المساحات لتناسب مختلف الأنشطة التجارية والإدارية، سواء كانت مكاتب، عيادات، محلات تجارية، أو مقار للشركات.\n- **بنية تحتية متطورة:** نزود مشاريعنا بأحدث الخدمات من أنظمة تكييف مركزي، شبكات انترنت عالية السرعة، مواقف سيارات واسعة، وأنظمة أمن وحراسة متكاملة على مدار الساعة.\n- **وجهة متكاملة:** نحرص على أن تكون مشاريعنا وجهات متكاملة تضم خدمات متنوعة مثل المطاعم، المقاهي، والبنوك، لتلبية كافة احتياجات رواد وزوار المشروع.`
+};
+---
+
+<Layout title={service.title}>
+  <TopBar />
+  <Header showMenu={true} />
+
+  <main class="service-detail-page">
+    <article class="service-content-container">
+      <header class="service-header">
+        <div class="header-image-container">
+          <img src={service.image} alt={service.title} class="header-image" />
+          <div class="header-overlay"></div>
+        </div>
+        <div class="header-text">
+          <h1 class="service-main-title">{service.title}</h1>
+          <p class="service-intro-description">{service.description}</p>
+        </div>
+      </header>
+
+      <section class="service-detailed-info">
+        <div class="detailed-description-wrapper">
+            <h2 class="details-section-title">تفاصيل الخدمة</h2>
+            <p class="detailed-text">{service.detailedDescription}</p>
+        </div>
+      </section>
+      
+      <div class="back-to-home-link-wrapper">
+        <a href="/" class="back-to-home-link">العودة إلى الرئيسية</a>
+      </div>
+    </article>
+  </main>
+
+  <Footer />
+</Layout>
+
+<style is:inline>
+  .service-detail-page {
+    background-color: #f9f9f9;
+    direction: rtl;
+    font-family: 'Cairo', sans-serif;
+  }
+
+  .service-content-container {
+    max-width: 900px;
+    margin: 0 auto;
+    background-color: #ffffff;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.07);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 2rem;
+    margin-bottom: 4rem;
+  }
+
+  .service-header {
+    position: relative;
+    color: white;
+    text-align: right;
+  }
+
+  .header-image-container {
+    height: 400px;
+    overflow: hidden;
+  }
+
+  .header-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .header-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 20%, transparent 60%);
+  }
+
+  .header-text {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    padding: 40px;
+    z-index: 1;
+    width: 100%;
+  }
+
+  .service-main-title {
+    font-size: 2.8rem;
+    font-weight: 800;
+    margin: 0 0 10px 0;
+    line-height: 1.3;
+  }
+
+  .service-intro-description {
+    font-family: 'Almarai', sans-serif;
+    font-size: 1.2rem;
+    max-width: 70%;
+    opacity: 0.9;
+  }
+
+  .service-detailed-info {
+    padding: 50px 40px;
+  }
+
+  .details-section-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 3px solid #007bff;
+      display: inline-block;
+  }
+
+  .detailed-text {
+    font-family: 'Almarai', sans-serif;
+    font-size: 1.15rem;
+    line-height: 2;
+    color: #333;
+    white-space: pre-line;
+  }
+
+  .back-to-home-link-wrapper {
+    text-align: center;
+    padding: 30px 40px;
+    background-color: #f9f9f9;
+    border-top: 1px solid #e7e7e7;
+  }
+
+  .back-to-home-link {
+    display: inline-block;
+    background-color: #007bff;
+    color: white;
+    padding: 12px 30px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+  }
+
+  .back-to-home-link:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+  }
+
+  @media (max-width: 768px) {
+    .header-text {
+        padding: 25px;
+    }
+    .service-main-title {
+        font-size: 2.2rem;
+    }
+    .service-intro-description {
+        font-size: 1rem;
+        max-width: 90%;
+    }
+    .service-detailed-info {
+        padding: 40px 25px;
+    }
+    .details-section-title {
+        font-size: 1.8rem;
+    }
+  }
+</style>

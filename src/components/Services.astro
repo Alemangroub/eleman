@@ -1,5 +1,27 @@
+
 ---
-import services from '../data/services.json';
+const services = [
+  {
+    "slug": "residential-development",
+    "title": "التطوير السكني",
+    "image": "/residential-development-2.jpg"
+  },
+  {
+    "slug": "commercial-projects",
+    "title": "المشاريع التجارية",
+    "image": "/commercial-projects.webp"
+  },
+  {
+    "slug": "project-management",
+    "title": "إدارة المشاريع",
+    "image": "/project-management.jpg"
+  },
+  {
+    "slug": "real-estate-investment",
+    "title": "الاستثمار العقاري",
+    "image": "/real-estate-investment.webp"
+  }
+];
 ---
 
 <section id="services" class="services">
@@ -154,7 +176,6 @@ import services from '../data/services.json';
         line-height: 1.4;
     }
 
-    /* Responsive Styles for Tablet and Mobile */
     @media (max-width: 768px) {
         .services {
             padding: 60px 0;
@@ -179,7 +200,6 @@ import services from '../data/services.json';
         }
     }
 
-    /* Responsive Styles for Small Mobile */
     @media (max-width: 480px) {
         .services {
             padding: 40px 0;
