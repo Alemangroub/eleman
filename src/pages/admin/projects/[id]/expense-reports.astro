@@ -10,7 +10,7 @@ let project = null;
 let expenseReports = [];
 let feedback = { message: '', type: '' };
 
-// Mark reports as read when the page is loaded
+// Mark notifications as read
 if (id) {
     const unreadReportsRef = db.collection('daily_expenses').where('projectId', '==', id).where('isRead', '==', false);
     const unreadReportsSnapshot = await unreadReportsRef.get();
@@ -23,30 +23,38 @@ if (id) {
     }
 }
 
+// Handle form submission for updating reports
 if (Astro.request.method === 'POST') {
-    // ... (rest of the POST handling code remains unchanged) ...
      try {
         const formData = await Astro.request.formData();
         const reportIdToUpdate = formData.get('reportId')?.toString();
         if (!reportIdToUpdate) throw new Error('Report ID is missing.');
 
-        const notes = formData.get('notes')?.toString();
+        const notes = formData.get('notes')?.toString() || '';
+        
+        const newItems = [];
         let totalAmount = 0;
 
-        const expenses = {};
-        for (const [key, value] of formData.entries()) {
-            if (key.startsWith('expenses[') && key.endsWith(']')) {
-                const expenseKey = key.substring(9, key.length - 1);
-                const amount = parseFloat(value?.toString() || '0');
-                expenses[expenseKey] = amount;
-                totalAmount += amount;
+        // Loop through form data to find all items
+        for (const key of formData.keys()) {
+            if (key.startsWith('items[') && key.endsWith('][name]')) {
+                const index = key.match(/\d+/)[0];
+                const name = formData.get(`items[${index}][name]`)?.toString();
+                const amount = parseFloat(formData.get(`items[${index}][amount]`)?.toString() || '0');
+
+                if (name && amount > 0) {
+                    newItems.push({ name, amount });
+                    totalAmount += amount;
+                }
             }
         }
 
+        // Update the document in Firestore
         await db.collection('daily_expenses').doc(reportIdToUpdate).update({
-            notes,
-            expenses,
-            totalAmount
+            notes: notes,
+            items: newItems, // Overwrite with the corrected items array
+            totalAmount: totalAmount,
+            expenses: admin.firestore.FieldValue.delete() // Clean up the old `expenses` object
         });
 
         return Astro.redirect(`/admin/projects/${id}/expense-reports?feedback=updated`);
@@ -56,9 +64,9 @@ if (Astro.request.method === 'POST') {
     }
 }
 
+// Handle report deletion
 const reportIdToDelete = Astro.url.searchParams.get('delete');
 if (reportIdToDelete) {
-    // ... (rest of the DELETE handling code remains unchanged) ...
     try {
         await db.collection('daily_expenses').doc(reportIdToDelete).delete();
         return Astro.redirect(`/admin/projects/${id}/expense-reports?feedback=deleted`);
@@ -67,19 +75,20 @@ if (reportIdToDelete) {
     }
 }
 
+// Feedback messages
 const feedbackParam = Astro.url.searchParams.get('feedback');
-// ... (feedback message logic remains unchanged) ...
 if (feedbackParam === 'deleted') feedback = { message: 'تم حذف التقرير بنجاح.', type: 'success' };
 if (feedbackParam === 'updated') feedback = { message: 'تم تحديث التقرير بنجاح.', type: 'success' };
 if (feedbackParam === 'error') feedback = { message: 'حدث خطأ أثناء الحذف.', type: 'error' };
 if (feedbackParam === 'update_error') feedback = { message: 'حدث خطأ أثناء التحديث.', type: 'error' };
 
-
+// Format timestamp for display
 const formatTimestamp = (timestamp) => {
     if (!timestamp || !timestamp.toDate) return 'تاريخ غير متوفر';
     return timestamp.toDate().toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 };
 
+// Fetch project and expense reports data
 try {
     const projectDoc = await db.collection('projects').doc(id).get();
     if (!projectDoc.exists) return Astro.redirect('/404');
@@ -89,14 +98,28 @@ try {
     
     expenseReports = expenseReportsSnapshot.docs.map(doc => {
         const data = doc.data();
-        const items = data.items || [];
-        const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0);
+        let expenseItems = [];
+
+        // Unify data structure: handle both old `expenses` object and new `items` array
+        if (Array.isArray(data.items) && data.items.length > 0) {
+            expenseItems = data.items;
+        } 
+        else if (data.expenses && typeof data.expenses === 'object') {
+            // Convert old object format to the new array format
+            expenseItems = Object.keys(data.expenses).map(nameOrKey => ({
+                name: nameOrKey, // May still contain the wrong value
+                amount: data.expenses[nameOrKey] || 0
+            }));
+        }
+
+        // Recalculate total to ensure accuracy
+        const calculatedTotal = expenseItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
 
         return { 
             id: doc.id, 
             ...data, 
-            expenseItems: items, // Use the items array directly
-            totalAmount: totalAmount, // Use the calculated total
+            expenseItems: expenseItems, // Standardized array of items
+            totalAmount: calculatedTotal, 
             createdAtFormatted: formatTimestamp(data.createdAt) 
         };
     }).sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
@@ -140,14 +163,17 @@ try {
                             <article class="card expense-report-card" data-report-id={report.id}>
                                 <div class="card-header"><span>بواسطة: {report.supervisorName || 'مشرف غير محدد'}</span><time>{report.createdAtFormatted}</time></div>
 
-                                <!-- View Mode -->
+                                {/* View Mode: Displays the report details */}
                                 <div class="card-content view-mode">
                                     <div class="card-body">
                                         <div class="expense-details">
                                             <h4>تفاصيل المصروفات:</h4>
-                                            <ul class="expense-list">
+                                             <ul class="expense-list">
                                                 {report.expenseItems && report.expenseItems.filter(item => item.amount > 0).map(item => (
-                                                    <li><span class="expense-name">{item.name}</span><span class="expense-amount">{(item.amount || 0).toLocaleString('ar-EG')} ج.م</span></li>
+                                                    <li>
+                                                        <span class="expense-name">{item.name === String(item.amount) ? "بند غير مسمى" : item.name}</span>
+                                                        <span class="expense-amount">{(item.amount || 0).toLocaleString('ar-EG')} ج.م</span>
+                                                    </li>
                                                 ))}
                                             </ul>
                                             <div class="total-amount">
@@ -170,11 +196,47 @@ try {
                                         )}
                                     </div>
                                     <div class="card-footer">
-                                       
+                                        <button type="button" class="action-btn edit-btn-toggle">تعديل</button>
                                         <button type="button" class="action-btn delete-btn" data-delete-url={`/admin/projects/${id}/expense-reports?delete=${report.id}`}>حذف</button>
                                     </div>
                                 </div>
 
+                                {/* Edit Mode: Form for updating the report */}
+                                <div class="card-content edit-mode" style="display: none;">
+                                    <form method="POST" class="edit-form">
+                                        <input type="hidden" name="reportId" value={report.id} />
+                                        <div class="edit-form-body">
+                                            <h4>تعديل بنود المصروفات:</h4>
+                                            <div class="edit-grid" id={`edit-items-${report.id}`}>
+                                                {report.expenseItems.map((item, index) => (
+                                                    <div class="input-group-wrapper">
+                                                        <div class="input-group">
+                                                            <label for={`item-name-${report.id}-${index}`}>اسم البند</label>
+                                                            <input type="text" id={`item-name-${report.id}-${index}`} name={`items[${index}][name]`} value={item.name} />
+                                                        </div>
+                                                        <div class="input-group">
+                                                            <label for={`item-amount-${report.id}-${index}`}>المبلغ</label>
+                                                            <input type="number" step="0.01" id={`item-amount-${report.id}-${index}`} name={`items[${index}][amount]`} value={item.amount} class="item-amount-input" />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div class="input-group">
+                                                <label for={`notes-${report.id}`}>ملاحظات</label>
+                                                <textarea id={`notes-${report.id}`} name="notes" class="notes-input">{report.notes}</textarea>
+                                            </div>
+                                             <div class="total-recalc">
+                                                <strong>الإجمالي الجديد:</strong>
+                                                <span id={`total-recalc-${report.id}`}>{(report.totalAmount || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</span>
+                                            </div>
+                                        </div>
+                                        <div class="card-footer">
+                                            <button type="button" class="action-btn cancel-btn-toggle">إلغاء</button>
+                                            <button type="submit" class="action-btn save-btn">حفظ التعديلات</button>
+                                        </div>
+                                    </form>
+                                </div>
                             </article>
                         ))}
                     </div>
@@ -182,6 +244,7 @@ try {
             </section>
         </div>
 
+        {/* Delete Confirmation Modal */}
         <div id="delete-modal" class="modal-overlay">
             <div class="modal-content">
                 <p>هل أنت متأكد أنك تريد حذف هذا التقرير؟</p>
@@ -199,6 +262,7 @@ try {
     import { onAuthStateChanged, signOut } from "firebase/auth";
     import { doc, getDoc } from "firebase/firestore";
 
+    // Handles authentication and initial setup
     document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
@@ -226,7 +290,7 @@ try {
 
                     } else {
                         await signOut(auth);
-                        window.location.href = '/admin';
+                        window.location.href = '/admin'; // Redirect if not admin
                     }
                 } catch (error) {
                     console.error('Auth Check Error:', error);
@@ -240,17 +304,56 @@ try {
             }
         });
 
-        const container = document.querySelector('.container');
+        const container = document.querySelector('.reports-section');
         if (!container) return;
 
+        // Event delegation for report actions (Edit, Delete, Cancel)
         container.addEventListener('click', (e) => {
             const target = e.target;
+            const reportCard = target.closest('.expense-report-card');
+            if (!reportCard) return;
+
+            const viewMode = reportCard.querySelector('.view-mode');
+            const editMode = reportCard.querySelector('.edit-mode');
+
+            // Toggle to Edit Mode
+            if (target.matches('.edit-btn-toggle')) {
+                viewMode.style.display = 'none';
+                editMode.style.display = 'block';
+            }
+
+            // Cancel Edit and return to View Mode
+            if (target.matches('.cancel-btn-toggle')) {
+                editMode.style.display = 'none';
+                viewMode.style.display = 'block';
+            }
+
+            // Show Delete Confirmation Modal
             if (target.matches('.delete-btn')) {
                 const deleteUrl = target.dataset.deleteUrl;
                 if(deleteUrl) showDeleteModal(deleteUrl);
             }
         });
 
+        // Recalculate total amount in real-time while editing
+        container.addEventListener('input', (e) => {
+            if (e.target.matches('.item-amount-input')) {
+                const reportCard = e.target.closest('.expense-report-card');
+                const totalRecalcEl = reportCard.querySelector(`#total-recalc-${reportCard.dataset.reportId}`);
+                const amountInputs = reportCard.querySelectorAll('.item-amount-input');
+                
+                let newTotal = 0;
+                amountInputs.forEach(input => {
+                    newTotal += parseFloat(input.value) || 0;
+                });
+
+                if (totalRecalcEl) {
+                    totalRecalcEl.textContent = newTotal.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+                }
+            }
+        });
+
+        // Delete Modal Logic
         const deleteModal = document.getElementById('delete-modal');
         const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
         const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
@@ -272,7 +375,7 @@ try {
 </script>
 
 <style>
-/* ... (styles are unchanged) ... */
+/* General Styles */
 .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
 .auth-container p { font-size: 1.2rem; }
 .btn-logout { background-color: #ef4444; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
@@ -292,16 +395,16 @@ h1 { font-size: 2.25rem; font-weight: 800; }
 .page-subtitle { color: #6c757d; }
 .back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; background-color: #e7f3ff; padding: 0.6rem 1rem; border-radius: 8px; }
 
+/* Feedback Banners */
 .feedback-banner { padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 600; }
 .feedback-banner.success { background-color: #d4edda; color: #155724; }
 .feedback-banner.error { background-color: #f8d7da; color: #721c24; }
 
+/* Report Card Styles */
 .no-items-card { background: #fff; border: 1px dashed #ced4da; border-radius: 12px; padding: 3rem; text-align: center; color: #6c757d; }
 .list-container { display: flex; flex-direction: column; gap: 1.75rem; }
-
 .card { background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); overflow: hidden; }
 .card-header { display: flex; justify-content: space-between; padding: 1rem 1.5rem; background: #fdfdff; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; color: #6c757d; }
-
 .card-body { padding: 1.5rem; }
 .expense-list { list-style: none; padding: 0; margin: 0 0 1rem 0; }
 .expense-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1rem; border-radius: 8px; }
@@ -325,14 +428,14 @@ h3, h4 { font-weight: 700; margin-bottom: 1rem; }
 .save-btn { background-color: var(--success-color); color: #fff; }
 .cancel-btn-toggle { background-color: #6c757d; color: #fff;}
 
-/* Edit Form Styles */
-.edit-form-body { padding-top: 0; }
-.edit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+/* Edit Form Specific Styles */
+.edit-form-body { padding: 1.5rem; }
+.input-group-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; align-items: end;}
 .input-group { display: flex; flex-direction: column; }
 .input-group label { margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem; }
 .input-group input, .notes-input { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; }
-.notes-input { min-height: 100px; resize: vertical; }
-.total-recalc { font-size: 1.2rem; font-weight: bold; margin: 1.5rem 0; color: var(--primary-color); display: flex; justify-content: space-between; }
+.notes-input { min-height: 100px; resize: vertical; margin-top: 1.5rem; }
+.total-recalc { font-size: 1.2rem; font-weight: bold; margin-top: 1.5rem; color: var(--primary-color); display: flex; justify-content: space-between; padding-top: 1rem; border-top: 1px solid var(--border-color); }
 
 /* Modal Styles */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 1000; }
