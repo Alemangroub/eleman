@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "astro dev",
-    "start": "node dist/server/entry.mjs",
+    "start": "node server.js",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
@@ -16,6 +16,7 @@
     "@astrojs/tailwind": "^5.1.0",
     "astro": "^5.17.3",
     "axios": "^1.7.2",
+    "express": "^4.19.2",
     "firebase": "^10.12.2",
     "firebase-admin": "^12.1.0",
     "html2canvas": "^1.4.1",

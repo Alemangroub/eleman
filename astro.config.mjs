@@ -8,7 +8,7 @@ export default defineConfig({
   site: 'https://www.elemancompany.net',
   output: 'server', // Set to 'server' for SSR
   adapter: node({
-    mode: 'standalone'
+    mode: 'middleware' // Changed from 'standalone' to 'middleware'
   }),
   integrations: [tailwind(), react()],
 });
