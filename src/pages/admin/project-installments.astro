@@ -40,6 +40,11 @@ import AdminLogin from '../../components/AdminLogin.astro';
                 </div>
             </div>
 
+            <!-- Search Input -->
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="ابحث باسم صاحب العقد..." />
+            </div>
+
             <div id="contracts-list" class="contracts-list-container">
                 <!-- Contract list items will be dynamically inserted here -->
             </div>
@@ -168,6 +173,19 @@ import AdminLogin from '../../components/AdminLogin.astro';
         line-height: 1.2;
     }
 
+    .search-container {
+        margin-bottom: 1.5rem;
+    }
+
+    #search-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        border-radius: 8px;
+        border: 1px solid #ced4da;
+        font-family: 'Cairo', sans-serif;
+    }
+
     .contracts-list-container {
         display: grid;
         grid-template-columns: 1fr; 
@@ -287,6 +305,10 @@ import AdminLogin from '../../components/AdminLogin.astro';
     import { onAuthStateChanged, signOut } from "firebase/auth";
     import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 
+    let allContracts = new Map();
+    let projectId;
+    const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+
     document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
@@ -329,9 +351,21 @@ import AdminLogin from '../../components/AdminLogin.astro';
         const noContractsMessage = document.getElementById('no-contracts-message');
         const addContractBtn = document.getElementById('add-contract-btn');
         const notificationsBtn = document.getElementById('notifications-btn');
+        const searchInput = document.getElementById('search-input');
+
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredContracts = new Map();
+            for (const [key, value] of allContracts.entries()) {
+                if (key.toLowerCase().includes(searchTerm)) {
+                    filteredContracts.set(key, value);
+                }
+            }
+            renderContracts(filteredContracts, projectId, formatCurrency);
+        });
 
         const urlParams = new URLSearchParams(window.location.search);
-        const projectId = urlParams.get('projectId');
+        projectId = urlParams.get('projectId');
 
         if (!projectId) {
             loader.style.display = 'none';
@@ -342,7 +376,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
         addContractBtn.href = `/admin/add-contract?projectId=${projectId}`;
         notificationsBtn.href = `/admin/notifications?projectId=${projectId}`;
-        const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+        
 
         try {
             const projectRef = doc(db, 'projects', projectId);
@@ -363,7 +397,6 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
             await fetchAndDisplayNotifications(projectId);
             
-            const contracts = new Map();
             let totalPaidAmount = 0;
             let totalInstallmentsAmount = 0;
 
@@ -374,8 +407,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
                         totalPaidAmount += data.installmentAmount || 0;
                     }
 
-                    if (!contracts.has(data.customerName)) {
-                        contracts.set(data.customerName, {
+                    if (!allContracts.has(data.customerName)) {
+                        allContracts.set(data.customerName, {
                             customerName: data.customerName,
                             customerPhone: data.customerPhone,
                             unitType: data.unitType,
@@ -385,13 +418,13 @@ import AdminLogin from '../../components/AdminLogin.astro';
                         totalInstallmentsAmount += data.totalAmount || 0;
                     }
                 });
-                renderContracts(contracts, projectId, formatCurrency);
+                renderContracts(allContracts, projectId, formatCurrency);
             } else {
                 noContractsMessage.style.display = 'block';
             }
 
             // Update Stat Cards
-            document.getElementById('summary-total-contracts').textContent = contracts.size;
+            document.getElementById('summary-total-contracts').textContent = allContracts.size;
             document.getElementById('summary-total-amount').textContent = formatCurrency(totalInstallmentsAmount);
             document.getElementById('summary-total-paid').textContent = formatCurrency(totalPaidAmount);
 
@@ -441,7 +474,16 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
     function renderContracts(contracts, projectId, formatCurrency) {
         const listContainer = document.getElementById('contracts-list');
+        const noContractsMessage = document.getElementById('no-contracts-message');
         listContainer.innerHTML = '';
+
+        if (contracts.size === 0) {
+            noContractsMessage.textContent = 'لا توجد عقود مطابقة لنتيجة البحث.';
+            noContractsMessage.style.display = 'block';
+            return;
+        }
+
+        noContractsMessage.style.display = 'none';
 
         const unitTypeTranslations = { apartment: 'شقة', shop: 'محل', basement: 'بدروم', other: 'أخرى' };
 

@@ -26,6 +26,11 @@ import AdminLogin from '../../components/AdminLogin.astro';
         </div>
       </div>
 
+      <!-- Search Input -->
+      <div class="search-container">
+          <input type="text" id="search-input" placeholder="ابحث باسم المشروع..." />
+      </div>
+
       <!-- Projects Table -->
       <div class="projects-list-container">
         <h2>قائمة المشاريع</h2>
@@ -117,6 +122,19 @@ import AdminLogin from '../../components/AdminLogin.astro';
   .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0; }
   .page-header h1 { font-size: 2.2rem; color: #333; font-weight: 900; }
   .header-actions { display: flex; gap: 1rem; }
+
+  /* Search Input */
+  .search-container {
+    margin-bottom: 2rem;
+  }
+  #search-input {
+      width: 100%;
+      padding: 0.8rem 1.2rem;
+      font-size: 1.1rem;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-family: 'Cairo', sans-serif;
+  }
 
   /* Projects List Container */
   .projects-list-container { background-color: transparent; padding: 0; }
@@ -239,6 +257,9 @@ import AdminLogin from '../../components/AdminLogin.astro';
   import { onAuthStateChanged, signOut } from "firebase/auth";
   import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 
+  let allProjects = [];
+  let allSupervisors = [];
+
   document.addEventListener('DOMContentLoaded', () => {
       const authLoadingMessage = document.getElementById('auth-loading-message');
       const loginContainer = document.getElementById('admin-login-container');
@@ -284,8 +305,41 @@ import AdminLogin from '../../components/AdminLogin.astro';
       });
   });
 
+  function renderProjects(projects) {
+      const projectsList = document.getElementById('projects-list');
+      const noProjectsMessage = document.getElementById('no-projects-message');
+      const tableWrapper = document.querySelector('.table-wrapper');
+
+      tableWrapper.style.display = projects.length === 0 ? 'none' : '';
+      noProjectsMessage.textContent = projects.length === 0 ? 'لا توجد مشاريع مطابقة لنتيجة البحث.' : 'لم تتم إضافة أي مشاريع بعد. انقر على زر "إضافة مشروع جديد" للبدء.';
+      
+      if(projects.length === 0 && document.getElementById('search-input').value === '') {
+        noProjectsMessage.textContent = 'لم تتم إضافة أي مشاريع بعد. انقر على زر "إضافة مشروع جديد" للبدء.';
+      }
+
+      if (projectsList) {
+          projectsList.innerHTML = projects.map(doc => {
+              const project = doc.data();
+              const supervisors = project.supervisors ? project.supervisors.map(s => s.name).join(', ') : '-';
+              return `
+                <tr data-id="${doc.id}" data-project='${JSON.stringify(project).replace(/'/g, "&apos;")}'>
+                  <td data-label="اسم المشروع" class="project-name-cell">${project.projectName || '-'}</td>
+                  <td data-label="العنوان">${project.projectAddress || '-'}</td>
+                  <td data-label="المشرفون">${supervisors}</td>
+                  <td data-label="الإجراءات" class="btn-action-cell">
+                    <a href="/admin/project-installments?projectId=${doc.id}" class="btn btn-installments-custom">الأقساط</a>
+                    <button class="btn btn-edit-custom">تعديل</button>
+                    <button class="btn btn-archive-custom">أرشفة</button>
+                  </td>
+                </tr>
+              `;
+          }).join('');
+      }
+  }
+
   function initializePage() {
     // --- DOM ELEMENTS ---
+    const searchInput = document.getElementById('search-input');
     const projectsList = document.getElementById('projects-list');
     const noProjectsMessage = document.getElementById('no-projects-message');
     const tableWrapper = document.querySelector('.table-wrapper');
@@ -305,7 +359,6 @@ import AdminLogin from '../../components/AdminLogin.astro';
     
     let projectIdToEdit = null;
     let projectIdToArchive = null;
-    let allSupervisors = [];
 
     // --- DATA FETCHING & RENDERING ---
     async function fetchSupervisors() {
@@ -319,27 +372,18 @@ import AdminLogin from '../../components/AdminLogin.astro';
         orderBy('createdAt', 'desc')
     );
     onSnapshot(projectsQuery, (snapshot) => {
-      const docs = snapshot.docs.filter(doc => !doc.data().archived);
-      tableWrapper.style.display = docs.length === 0 ? 'none' : '';
-      noProjectsMessage.textContent = docs.length === 0 ? 'لم تتم إضافة أي مشاريع بعد. انقر على زر "إضافة مشروع جديد" للبدء.' : '';
-      if (projectsList) {
-        projectsList.innerHTML = docs.map(doc => {
-          const project = doc.data();
-          const supervisors = project.supervisors ? project.supervisors.map(s => s.name).join(', ') : '-';
-          return `
-            <tr data-id="${doc.id}" data-project='${JSON.stringify(project).replace(/'/g, "&apos;")}'>
-              <td data-label="اسم المشروع" class="project-name-cell">${project.projectName || '-'}</td>
-              <td data-label="العنوان">${project.projectAddress || '-'}</td>
-              <td data-label="المشرفون">${supervisors}</td>
-              <td data-label="الإجراءات" class="btn-action-cell">
-                <a href="/admin/project-installments?projectId=${doc.id}" class="btn btn-installments-custom">الأقساط</a>
-                <button class="btn btn-edit-custom">تعديل</button>
-                <button class="btn btn-archive-custom">أرشفة</button>
-              </td>
-            </tr>
-          `;
-        }).join('');
-      }
+      allProjects = snapshot.docs.filter(doc => !doc.data().archived);
+      renderProjects(allProjects);
+    });
+
+    // --- SEARCH LOGIC ---
+    searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        const filteredProjects = allProjects.filter(doc => {
+            const project = doc.data();
+            return project.projectName && project.projectName.toLowerCase().includes(searchTerm);
+        });
+        renderProjects(filteredProjects);
     });
 
     // --- MODAL VISIBILITY ---

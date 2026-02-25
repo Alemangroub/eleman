@@ -1,14 +1,31 @@
+
 import { defineConfig } from 'astro/config';
 import tailwind from "@astrojs/tailwind";
-import react from "@astrojs/react";
 import node from "@astrojs/node";
+import vercel from "@astrojs/vercel/serverless";
 
-// https://astro.build/config
+// Determine the adapter based on the environment
+const getAdapter = () => {
+  if (process.env.VERCEL) {
+    return vercel({
+      webAnalytics: { enabled: true }
+    });
+  }
+  // Default to node adapter for other environments (local, App Hosting, etc.)
+  return node({
+    mode: "standalone"
+  });
+};
+
 export default defineConfig({
-  site: 'https://www.elemancompany.net',
-  output: 'server', // Set to 'server' for SSR
-  adapter: node({
-    mode: 'middleware' // Changed from 'standalone' to 'middleware'
-  }),
-  integrations: [tailwind(), react()],
+  output: "hybrid",
+  adapter: getAdapter(),
+  integrations: [tailwind()],
+  vite: {
+    // Vite-specific configurations
+    ssr: {
+      // Ensure Firebase Admin SDK is externalized during SSR
+      external: ['firebase-admin']
+    }
+  }
 });

@@ -3,42 +3,52 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
-// This function will be called to get an initialized app instance.
+// IMPORTANT: This file uses Astro's import.meta.env to access environment variables.
+// This is the recommended way for Astro projects to ensure variables are available
+// both during build and in the server-side runtime environment.
+
 function getInitializedApp() {
-    // If already initialized, return the app.
+    // If an app is already initialized, return it to prevent re-initialization.
     if (getApps().length > 0) {
         return getApps()[0];
     }
 
-    // If not initialized, try to initialize.
-    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
-    
-    // During the build process (`astro build`), this variable might not be available.
-    // We return null so the build doesn't crash.
-    if (!serviceAccountString) {
-        console.warn('[server.js] FIREBASE_SERVICE_ACCOUNT env var not found. Admin SDK not initialized. This is expected during build.');
+    // Read credentials from Astro's environment variables
+    const serviceAccount = {
+      projectId: import.meta.env.FIREBASE_PROJECT_ID,
+      clientEmail: import.meta.env.FIREBASE_CLIENT_EMAIL,
+      // The private key from environment variables often has escaped newlines.
+      // We need to replace them with actual newline characters.
+      privateKey: import.meta.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    };
+
+    // Verify that all required credentials are present.
+    if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
+        console.error(
+            '\n❌ [server.js] FIREBASE ADMIN SDK INITIALIZATION FAILED ❌\n' +
+            'One or more required environment variables are missing.\n' +
+            'Please ensure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are set in your deployment environment.\n'
+        );
+        // Return null if setup is incomplete to avoid crashing the server.
         return null;
     }
 
     try {
-        const serviceAccount = JSON.parse(serviceAccountString);
+        // Initialize the Firebase Admin SDK with the credentials.
         console.log('[server.js] Initializing Firebase Admin SDK...');
         const app = initializeApp({
             credential: cert(serviceAccount)
         });
-        console.log('[server.js] Firebase Admin SDK initialized successfully.');
+        console.log('✅ [server.js] Firebase Admin SDK initialized successfully.');
         return app;
-    } catch (e) {
-        console.error('[server.js] ERROR: Failed to parse or initialize Firebase Admin SDK.');
-        console.error(e);
-        // Return null if initialization fails.
+    } catch (error) {
+        console.error('❌ [server.js] Firebase Admin SDK initialization threw an error:', error);
         return null;
     }
 }
 
-// Export functions that provide the auth and db services.
-// They will attempt to get the initialized app each time they are called.
-// This ensures that if initialization failed during build, it can be retried on a server-side request.
+// Export a function to get the authentication service.
+// It throws a clear error if initialization failed.
 export function getAdminAuth() {
     const app = getInitializedApp();
     if (!app) {
@@ -47,6 +57,8 @@ export function getAdminAuth() {
     return getAuth(app);
 }
 
+// Export a function to get the Firestore database service.
+// It also throws a clear error if initialization failed.
 export function getAdminDb() {
     const app = getInitializedApp();
     if (!app) {
