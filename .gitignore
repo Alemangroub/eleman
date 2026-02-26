@@ -1,25 +1,27 @@
+# Firebase
+serviceAccountKey.json
+firebase.json
+*.log
+
+# Environment variables
+.env*
+
 # Dependencies
 /node_modules
 
-# Vercel
-.vercel/
+# Build output
+/dist
 
-# Build files
-/dist/
+# IDE specific
+.idea
+.vscode
 
-# Log files
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+# Deployment configurations
+apphosting.yaml
+vercel.json
+/.vercel/
 
-# Environment variables
-.env
-.env*.local
-*.env
-
-# Astro
-.astro/
-node_modules
-node_modules
-.vercel
+# Project documentation and reports
+bug_report.md
+GEMINI.md
+blueprint.md

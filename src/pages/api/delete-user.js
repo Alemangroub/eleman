@@ -2,60 +2,62 @@
 import { getAdminAuth, getAdminDb } from '../../firebase/server.js';
 
 export async function POST({ request }) {
-  try {
-    const adminAuth = getAdminAuth();
-    const adminDb = getAdminDb();
+  const adminAuth = getAdminAuth();
+  const adminDb = getAdminDb();
 
-    // 1. استخراج التوكن والمصادقة عليه
-    const idToken = request.headers.get('Authorization')?.split('Bearer ')[1];
+  if (!adminAuth || !adminDb) {
+    const errorMessage = 'Firebase Admin SDK initialization failed on the server. Check environment variables.';
+    console.error('[api/delete-user]', errorMessage);
+    return new Response(JSON.stringify({ error: errorMessage }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  try {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) {
+        return new Response(JSON.stringify({ error: 'Unauthorized: No Authorization header provided' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    const idToken = authHeader.split('Bearer ')[1];
     if (!idToken) {
-      return new Response(JSON.stringify({ error: 'Unauthorized: No token provided' }), { status: 401 });
+      return new Response(JSON.stringify({ error: 'Unauthorized: No token provided' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
     }
 
     let decodedToken;
     try {
       decodedToken = await adminAuth.verifyIdToken(idToken);
     } catch (error) {
-      return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token' }), { status: 401 });
+      console.error('[api/delete-user] Token verification failed:', error.message);
+      return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
     }
 
-    // 2. التحقق من صلاحيات المسؤول من Firestore
     const adminDocRef = adminDb.collection('users').doc(decodedToken.uid);
     const adminDoc = await adminDocRef.get();
 
     if (!adminDoc.exists || adminDoc.data().role !== 'admin') {
-        return new Response(JSON.stringify({ error: 'Forbidden: User is not an admin' }), { status: 403 });
+      return new Response(JSON.stringify({ error: 'Forbidden: User is not an admin' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
     }
 
-    // 3. الحصول على UID المستخدم المراد حذفه من الطلب
     const { uid } = await request.json();
     if (!uid) {
-      return new Response(JSON.stringify({ error: 'Bad Request: UID is required' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'Bad Request: UID is required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
     
-    // لا يمكن للمسؤول حذف حسابه بنفسه
     if (decodedToken.uid === uid) {
-      return new Response(JSON.stringify({ error: 'Forbidden: Admins cannot delete their own account' }), { status: 403 });
+      return new Response(JSON.stringify({ error: 'Forbidden: Admins cannot delete their own account' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
     }
 
-    // 4. حذف المستخدم من Firebase Authentication
     await adminAuth.deleteUser(uid);
+    await adminDb.collection('users').doc(uid).delete();
 
-    // 5. حذف مستند المستخدم من Firestore
-    const userDocRef = adminDb.collection('users').doc(uid);
-    await userDocRef.delete();
-
-    // 6. إرجاع رسالة نجاح
-    return new Response(JSON.stringify({ message: 'User deleted successfully' }), { status: 200 });
+    return new Response(JSON.stringify({ message: 'User deleted successfully' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
   } catch (error) {
     console.error('Error deleting user:', error);
     let errorMessage = 'Internal Server Error: Could not delete user.';
     if (error.code === 'auth/user-not-found') {
-        errorMessage = 'User not found in Authentication. The user may have been already deleted.';
-    } else if (error.message.includes('Firebase Admin SDK is not available')) {
-        errorMessage = 'Firebase Admin SDK initialization failed on the server. Check environment variables.';
+      errorMessage = 'User not found in Authentication. They may have already been deleted.';
     }
-    return new Response(JSON.stringify({ error: errorMessage, details: error.message }), { status: 500 });
+
+    return new Response(JSON.stringify({ error: errorMessage, details: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }

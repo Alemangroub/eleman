@@ -136,65 +136,68 @@ import AdminLogin from '../../components/AdminLogin.astro';
 </style>
 
 <script>
-  import { app, auth, firebaseConfig } from '../../firebase/client'; // Import app instead of db
+  import { app, auth, firebaseConfig } from '../../firebase/client';
   import { onAuthStateChanged, signOut, createUserWithEmailAndPassword, getAuth } from "firebase/auth";
   import { initializeApp, deleteApp } from 'firebase/app';
-  import { getFirestore, collection, setDoc, onSnapshot, doc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore'; // Import getFirestore
+  import { getFirestore, collection, setDoc, onSnapshot, doc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore';
 
-  const db = getFirestore(app); // Initialize db right here
+  const db = getFirestore(app);
+  let adminUser = null; // Module-level variable to hold the admin user state
 
   document.addEventListener('DOMContentLoaded', () => {
       const authLoadingMessage = document.getElementById('auth-loading-message');
       const loginContainer = document.getElementById('admin-login-container');
       const pageContent = document.getElementById('page-content');
-      let adminUser = null;
 
       onAuthStateChanged(auth, async (user) => {
-          if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+          if (authLoadingMessage) authLoadingMessage.style.display = 'none';
 
           if (user) {
-              adminUser = user;
               try {
                   const userDocRef = doc(db, "users", user.uid);
                   const userDoc = await getDoc(userDocRef);
-                  const userData = userDoc.data();
-
-                  // Inject role into the user object for the API call
-                  user.role = userData?.role;
-
-                  if (userDoc.exists() && userData.role === 'admin') {
-                      if(pageContent) pageContent.style.display = 'block';
-                      if(loginContainer) loginContainer.style.display = 'none';
+                  
+                  if (userDoc.exists() && userDoc.data().role === 'admin') {
+                      adminUser = user; // Set the admin user state
+                      
+                      if (pageContent) pageContent.style.display = 'block';
+                      if (loginContainer) loginContainer.style.display = 'none';
 
                       const logoutButton = document.getElementById('logout-button');
                       if (logoutButton) {
                           logoutButton.addEventListener('click', async () => {
                               await signOut(auth);
+                              adminUser = null; // Clear state on logout
                               window.location.href = '/admin';
                           });
                       }
                       
-                      initializePage(user);
+                      initializePage(); // Initialize event listeners
 
                   } else {
+                      // User is not an admin or doc doesn't exist
                       await signOut(auth);
-                      if(loginContainer) loginContainer.style.display = 'block';
-                      if(pageContent) pageContent.style.display = 'none';
+                      adminUser = null;
+                      if (loginContainer) loginContainer.style.display = 'block';
+                      if (pageContent) pageContent.style.display = 'none';
                   }
               } catch (error) {
                   console.error('Auth Check Error:', error);
                   await signOut(auth);
-                  if(loginContainer) loginContainer.style.display = 'block';
-                  if(pageContent) pageContent.style.display = 'none';
+                  adminUser = null;
+                  if (loginContainer) loginContainer.style.display = 'block';
+                  if (pageContent) pageContent.style.display = 'none';
               }
           } else {
-              if(pageContent) pageContent.style.display = 'none';
-              if(loginContainer) loginContainer.style.display = 'block';
+              // No user is logged in
+              adminUser = null;
+              if (pageContent) pageContent.style.display = 'none';
+              if (loginContainer) loginContainer.style.display = 'block';
           }
       });
   });
 
-  function initializePage(adminUser) {
+  function initializePage() {
     const addUserForm = document.getElementById('add-user-form');
     const addUserBtn = document.getElementById('add-user-btn');
     const feedbackMessage = document.getElementById('add-user-feedback');
@@ -243,7 +246,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
     const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
     onSnapshot(usersQuery, (snapshot) => {
-      const userDocs = snapshot.docs.filter(doc => adminUser && doc.id !== adminUser.uid);
+      const adminUid = adminUser ? adminUser.uid : null;
+      const userDocs = snapshot.docs.filter(doc => doc.id !== adminUid);
       if (userDocs.length === 0) {
         noUsersMessage.textContent = 'لا يوجد مستخدمون حاليًا.';
         noUsersMessage.style.display = 'block';
@@ -286,22 +290,24 @@ import AdminLogin from '../../components/AdminLogin.astro';
         modal.style.display = 'flex';
       }
     });
+
     modalCancelBtn.addEventListener('click', () => {
       modal.style.display = 'none';
       userIdToDelete = null;
     });
 
     modalConfirmBtn.addEventListener('click', async () => {
-        if (!userIdToDelete || !adminUser) return;
+        if (!userIdToDelete || !adminUser) {
+            alert('خطأ في التحقق من الصلاحية. يرجى تحديث الصفحة والمحاولة مرة أخرى.');
+            return;
+        }
 
         modalConfirmBtn.disabled = true;
         modalConfirmBtn.textContent = 'جاري الحذف...';
 
         try {
-            // 1. Get the ID token for the logged-in admin
             const idToken = await adminUser.getIdToken(true);
 
-            // 2. Call the secure API endpoint
             const response = await fetch('/api/delete-user', {
                 method: 'POST',
                 headers: {
