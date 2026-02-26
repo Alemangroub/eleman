@@ -1,6 +1,6 @@
 
-import { getAdminDb } from '../../firebase/server.js';
-import { Timestamp } from 'firebase-admin/firestore';
+// Import both getAdminDb and Timestamp from our central server setup file.
+import { getAdminDb, Timestamp } from '../../firebase/server.js';
 
 export async function POST({ request }) {
     if (request.headers.get("Content-Type") !== "application/json") {
@@ -32,6 +32,7 @@ export async function POST({ request }) {
         dataToUpdate.quantity = quantity;
         dataToUpdate.unitPrice = unitPrice;
         dataToUpdate.totalPrice = quantity * unitPrice;
+        // Use the Timestamp object we imported from server.js
         dataToUpdate.createdAt = Timestamp.fromDate(new Date(updates.createdAt));
 
         await itemRef.update(dataToUpdate);

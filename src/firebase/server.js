@@ -1,62 +1,34 @@
+import admin from 'firebase-admin';
 
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
-import { readFileSync } from 'fs';
-import path from 'path';
+// This function ensures the admin app is initialized only once.
+const getAdminApp = () => {
+  // If the app is already initialized, return the existing instance.
+  if (admin.apps.length > 0) {
+    return admin.apps[0];
+  }
 
-function getInitializedApp() {
-    // If the app is already initialized, return it.
-    if (getApps().length > 0) {
-        return getApps()[0];
-    }
+  // If not initialized, initialize it now based on the environment.
+  if (process.env.NODE_ENV === 'production') {
+    // On App Hosting (production), GOOGLE_APPLICATION_CREDENTIALS is set automatically.
+    // The Admin SDK automatically detects and uses it.
+    admin.initializeApp();
+  } else {
+    // In local development, Astro automatically loads .env files.
+    // We retrieve the service account key from the environment variables.
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  }
 
-    // Check if running in a Firebase/Google Cloud production or emulator environment
-    // The SDK will automatically find the credentials in these environments.
-    if (process.env.GCP_PROJECT || process.env.FUNCTIONS_EMULATOR) {
-        console.log('[server.js] Running in a Firebase environment. Initializing default app...');
-        try {
-            const app = initializeApp();
-            console.log('✅ [server.js] Firebase Admin SDK initialized successfully in production/emulator.');
-            return app;
-        } catch (error) {
-            console.error('❌ [server.js] Default Firebase Admin SDK initialization failed:', error);
-            return null;
-        }
-    } else {
-        // Fallback for local development environment
-        console.log('[server.js] Running in local development. Attempting to use service account key file.');
-        try {
-            // Use a robust relative path to find the key file at the project root
-            const serviceAccountPath = path.resolve('./serviceAccountKey.json');
-            const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
-            
-            console.log('[server.js] Initializing Firebase Admin SDK from local service account file...');
-            const app = initializeApp({
-                credential: cert(serviceAccount)
-            });
-            console.log('✅ [server.js] Firebase Admin SDK initialized successfully from local file.');
-            return app;
-        } catch (error) {
-            // If the file doesn't exist, it's not a critical error for the whole app,
-            // just for the admin functionality locally.
-            if (error.code === 'ENOENT') {
-                console.warn('⚠️ [server.js] Local `serviceAccountKey.json` not found. Admin features requiring this key will not work in the local development environment.');
-            } else {
-                console.error('❌ [server.js] Could not initialize from local service account file:', error);
-            }
-            return null;
-        }
-    }
-}
+  // Return the newly initialized app.
+  return admin.app();
+};
 
-// Export auth and firestore instances
-export function getAdminAuth() {
-    const app = getInitializedApp();
-    return app ? getAuth(app) : null;
-}
+// Export functions that provide the auth and firestore services on demand.
+export const getAdminAuth = () => getAdminApp().auth();
+export const getAdminDb = () => getAdminApp().firestore();
 
-export function getAdminDb() {
-    const app = getInitializedApp();
-    return app ? getFirestore(app) : null;
-}
+// Export the classic, namespaced Timestamp constructor.
+// It's safe to access this before initializeApp() is called.
+export const Timestamp = admin.firestore.Timestamp;
