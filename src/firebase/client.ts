@@ -16,9 +16,9 @@ const firebaseConfig: FirebaseOptions = {
 // Initialize Firebase
 let app;
 try {
-  app = getApp();
+  app = getApp("client");
 } catch (e) {
-  app = initializeApp(firebaseConfig);
+  app = initializeApp(firebaseConfig, "client");
 }
 
 const auth = getAuth(app);

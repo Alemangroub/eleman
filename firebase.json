@@ -1,17 +1,6 @@
 {
-  "apphosting": {
-    "backends": [
-      {
-        "id": "elemancompany",
-        "region": "us-central1"
-      }
-    ],
-    "serving": {
-      "backendId": "elemancompany",
-      "public": "dist/client"
-    },
-    "build": {
-      "run": "npm run build"
-    }
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   }
 }

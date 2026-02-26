@@ -2,7 +2,8 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
-import serviceAccount from './serviceAccountKey.json';
+import { readFileSync } from 'fs';
+const serviceAccount = JSON.parse(readFileSync('./serviceAccountKey.json', 'utf8'));
 
 function getInitializedApp() {
     if (getApps().length > 0) {

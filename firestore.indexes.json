@@ -1,50 +1,18 @@
 {
-        "indexes": [
-          {
-            "collectionGroup": "daily_reports",
-            "queryScope": "COLLECTION",
-            "fields": [
-              {
-                "fieldPath": "projectId",
-                "order": "ASCENDING"
-              },
-              {
-                "fieldPath": "createdAt",
-                "order": "DESCENDING"
-              }
-            ]
-          },
-          {
-            "collectionGroup": "daily_expenses",
-            "queryScope": "COLLECTION",
-            "fields": [
-              {
-                "fieldPath": "projectId",
-                "order": "ASCENDING"
-              },
-              {
-                "fieldPath": "createdAt",
-                "order": "DESCENDING"
-              }
-            ]
-          },
-          {
-            "collectionGroup": "projects",
-            "queryScope": "COLLECTION",
-            "fields": [
-              {
-                "fieldPath": "archived",
-                "order": "ASCENDING"
-              },
-              {
-                "fieldPath": "createdAt",
-                "order": "DESCENDING"
-              },
-              {
-                "fieldPath": "__name__",
-                "order": "DESCENDING"
-              }
-            ]
-          }
-        ]
-      }
+  "indexes": [
+    {
+      "collectionGroup": "projects",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "archived",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ]
+}

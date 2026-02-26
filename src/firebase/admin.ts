@@ -2,31 +2,34 @@ import pkg from 'firebase-admin';
 
 try {
   if (!pkg.apps.length) {
-    // Read the single environment variable for the service account config.
-    const serviceAccountString = import.meta.env.FIREBASE_ADMIN_SDK_CONFIG;
+    const projectId = import.meta.env.FIREBASE_PROJECT_ID;
+    const clientEmail = import.meta.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = import.meta.env.FIREBASE_PRIVATE_KEY;
 
-    if (!serviceAccountString) {
-      throw new Error('The FIREBASE_ADMIN_SDK_CONFIG environment variable is not set.');
+    if (!projectId || !clientEmail || !privateKey) {
+      throw new Error('Firebase Admin SDK environment variables are not set. Please check FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY in your .env file.');
     }
 
-    // Parse the JSON string from the environment variable.
-    const serviceAccount = JSON.parse(serviceAccountString);
+    const serviceAccount = {
+      projectId: projectId,
+      clientEmail: clientEmail,
+      privateKey: privateKey.replace(/\\n/g, '\n'),
+    };
 
-    // Initialize the app with the parsed credentials.
     pkg.initializeApp({
       credential: pkg.credential.cert(serviceAccount),
-      databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`,
+      databaseURL: `https://${projectId}.firebaseio.com`,
     });
 
-    console.log("Firebase Admin SDK initialized successfully.");
+    console.log("Firebase Admin SDK initialized successfully (multi-variable).");
   } else {
     console.log("Firebase Admin SDK already initialized.");
   }
 } catch (err: any) {
   console.error(
     '\n🚨 Firebase Admin SDK initialization failed! 🚨\n' +
-    'This could be due to a missing or malformed FIREBASE_ADMIN_SDK_CONFIG environment variable in your .env file.\n' +
-    'Please ensure the variable is set correctly and is a valid JSON string.\n' +
+    'Please ensure the FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY environment variables are set correctly in your .env file.\n' +
+    'The private key should have its newlines escaped (e.g., -----BEGIN...\\nMIIC...\\n...-----).\n' +
     'Remember to restart the development server after any changes to the .env file.\n' +
     'Error details:', err.message
   );
