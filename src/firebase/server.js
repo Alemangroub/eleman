@@ -10,15 +10,28 @@ const getAdminApp = () => {
   // If not initialized, initialize it now based on the environment.
   if (process.env.NODE_ENV === 'production') {
     // On App Hosting (production), GOOGLE_APPLICATION_CREDENTIALS is set automatically.
-    // The Admin SDK automatically detects and uses it.
     admin.initializeApp();
   } else {
-    // In local development, Astro automatically loads .env files.
-    // We retrieve the service account key from the environment variables.
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
+    // In local development, check for the service account key.
+    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+
+    if (!serviceAccountKey) {
+      // If the key is missing, throw a clear error.
+      throw new Error(
+        '[SERVER-SIDE ERROR] The FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set. ' +
+        'Please ensure that your .env file exists in the project root and contains the correct service account JSON key. The server cannot start without it.'
+      );
+    }
+
+    try {
+      const serviceAccount = JSON.parse(serviceAccountKey);
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+    } catch (e) {
+      // If the key is not valid JSON, throw a clear error.
+      throw new Error(`[SERVER-SIDE ERROR] Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. Is it a valid JSON? Parse Error: ${e.message}`);
+    }
   }
 
   // Return the newly initialized app.
@@ -30,5 +43,4 @@ export const getAdminAuth = () => getAdminApp().auth();
 export const getAdminDb = () => getAdminApp().firestore();
 
 // Export the classic, namespaced Timestamp constructor.
-// It's safe to access this before initializeApp() is called.
 export const Timestamp = admin.firestore.Timestamp;
