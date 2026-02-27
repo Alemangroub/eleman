@@ -1,11 +1,18 @@
 ---
 import info from '../data/info.json';
+const { isTitleLink = false } = Astro.props;
 ---
 
 <section id="about-us" class="info-section">
     <div class="container">
         <div class="info-content-main">
-            <h2 class="section-title">{info.title}</h2>
+            {isTitleLink ? (
+                <a href="/about" class="title-link">
+                    <h2 class="section-title">{info.title}</h2>
+                </a>
+            ) : (
+                <h2 class="section-title">{info.title}</h2>
+            )}
             <h3 class="section-subtitle">{info.subtitle}</h3>
             {info.manager && <h3 class="section-subtitle">{info.manager}</h3>}
             {info.paragraphs.map(paragraph => (
@@ -57,6 +64,15 @@ import info from '../data/info.json';
 </script>
 
 <style>
+    .title-link {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .title-link:hover .section-title {
+        color: #1a5f7a;
+    }
+
     .info-section {
         padding: 80px 0;
         background-color: #f7fafc;
@@ -82,6 +98,7 @@ import info from '../data/info.json';
         font-weight: 700;
         color: #2d3748;
         margin-bottom: 10px;
+        transition: color 0.3s ease;
     }
 
     .info-content-main .section-subtitle {

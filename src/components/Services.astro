@@ -27,7 +27,9 @@ const services = [
 <section id="services" class="services">
     <div class="container">
         <div class="section-header">
-            <h2 class="section-title">خدماتنا</h2>
+            <a href="/services" class="section-title-link">
+                <h2 class="section-title">خدماتنا</h2>
+            </a>
             <p class="section-subtitle">نقدم حلولاً عقارية متكاملة تلبي تطلعاتكم وتصنع قيمة حقيقية لاستثماراتكم. اضغط على أي خدمة لمعرفة المزيد.</p>
         </div>
         <div class="services-grid">
@@ -85,12 +87,29 @@ const services = [
         margin-bottom: 60px;
     }
 
+    .section-title-link {
+        text-decoration: none;
+        color: inherit;
+        display: inline-block;
+        transition: transform 0.3s ease, color 0.3s ease;
+    }
+
+    .section-title-link:hover {
+        transform: scale(1.03);
+        color: #3498db;
+    }
+
     .section-title {
         font-family: 'Cairo', sans-serif;
         font-size: 2.8rem;
         font-weight: 700;
         color: #2c3e50;
         margin-bottom: 10px;
+        transition: color 0.3s ease;
+    }
+    
+    .section-title-link:hover .section-title {
+        color: #3498db;
     }
 
     .section-subtitle {

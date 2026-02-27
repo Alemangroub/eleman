@@ -1,12 +1,19 @@
 ---
 import achievements from '../data/achievements.json';
+const { isTitleLink = false } = Astro.props;
 ---
 
 <section id="achievements" class="achievements">
     <div class="achievements-overlay"></div>
     <div class="container">
         <div class="section-header">
-            <h2 class="section-title">إنجازاتنا في أرقام</h2>
+            {isTitleLink ? (
+                <a href="/achievements" class="section-title-link">
+                    <h2 class="section-title">إنجازاتنا في أرقام</h2>
+                </a>
+            ) : (
+                <h2 class="section-title">إنجازاتنا في أرقام</h2>
+            )}
             <p class="section-subtitle">نفخر بما حققناه، والأرقام هي خير دليل على التزامنا بالتميز والجودة.</p>
         </div>
         <div class="achievements-grid">
@@ -40,21 +47,34 @@ import achievements from '../data/achievements.json';
         window.requestAnimationFrame(step);
     };
 
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting && !animatedCounters.has(entry.target)) {
-                const valueEl = entry.target.querySelector('.achievement-value');
-                const finalValue = parseInt(valueEl.getAttribute('data-target-value'), 10);
-                animateValue(valueEl, 0, finalValue, 2000);
-                animatedCounters.add(entry.target);
-                entry.target.classList.add('is-visible');
-            }
-        });
-    }, { threshold: 0.5 });
+    // Use a specific class or ID to detect if we are on the homepage
+    const isHomePage = document.body.classList.contains('homepage-body');
 
-    document.querySelectorAll('.achievement-item').forEach(item => {
-        observer.observe(item);
-    });
+    if (isHomePage) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !animatedCounters.has(entry.target)) {
+                    const valueEl = entry.target.querySelector('.achievement-value');
+                    const finalValue = parseInt(valueEl.getAttribute('data-target-value'), 10);
+                    animateValue(valueEl, 0, finalValue, 2000);
+                    animatedCounters.add(entry.target);
+                    entry.target.classList.add('is-visible');
+                }
+            });
+        }, { threshold: 0.5 });
+
+        document.querySelectorAll('.achievement-item').forEach(item => {
+            observer.observe(item);
+        });
+    } else {
+        // On other pages (like achievements page), show final values immediately
+        document.querySelectorAll('.achievement-item').forEach(item => {
+            const valueEl = item.querySelector('.achievement-value');
+            const finalValue = valueEl.getAttribute('data-target-value');
+            valueEl.textContent = `+${finalValue}`;
+            item.classList.add('is-visible'); 
+        });
+    }
 </script>
 
 <style>
@@ -99,12 +119,28 @@ import achievements from '../data/achievements.json';
         margin-bottom: 80px;
     }
 
+    .section-title-link {
+        text-decoration: none;
+        color: inherit;
+        display: inline-block;
+        transition: transform 0.3s ease;
+    }
+
+    .section-title-link:hover {
+        transform: scale(1.03);
+    }
+    
+    .section-title-link:hover .section-title {
+        color: #1a5f7a; /* Changed from yellow to dark blue */
+    }
+
     .section-title {
         font-family: var(--font-main);
         font-size: 3rem;
         font-weight: 800;
         color: var(--color-primary-text);
         margin-bottom: 10px;
+        transition: color 0.3s ease;
     }
 
     .section-subtitle {
