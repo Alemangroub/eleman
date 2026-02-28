@@ -39,7 +39,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         <div class="person-group">
             <div class="form-group">
                 <label for="supervisor1Name">اسم المشرف</label>
-                <select id="supervisor1Name" name="personName" class="supervisor-select" required>
+                <select id="supervisor1Name" name="personName" class="supervisor-select">
                     <option value="" disabled selected>جار التحميل...</option>
                 </select>
             </div>
@@ -124,7 +124,6 @@ import AdminLogin from '../../components/AdminLogin.astro';
       const select = document.createElement('select');
       select.name = 'personName';
       select.className = 'supervisor-select';
-      select.required = true;
       let optionsHtml = '<option value="" disabled selected>اختر مشرفًا</option>';
       supervisorsList.forEach(supervisor => {
           optionsHtml += `<option value="${supervisor.id}">${supervisor.name}</option>`;
