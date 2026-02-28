@@ -5,9 +5,10 @@ export default {
   content: ['./src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}'],
   theme: {
     extend: {},
+    rtl: true,
   },
   plugins: [
-    plugin(function({ addUtilities }) {
+    plugin(function({ addUtilities, theme }) {
       addUtilities({
         '.scrollbar-thin-custom': {
           '&::-webkit-scrollbar': {
@@ -23,6 +24,13 @@ export default {
           },
           '&::-webkit-scrollbar-thumb:hover': {
             background: '#555',
+          },
+        },
+
+        /* Hide scrollbar on mobile */
+        '@media (max-width: 768px)': {
+          '.scrollbar-thin-custom::-webkit-scrollbar': {
+            display: 'none',
           },
         },
       })

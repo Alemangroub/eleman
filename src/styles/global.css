@@ -1,1 +1,32 @@
-@import "tailwindcss";
+/*
+  The CSS in this style tag is based off of Bear Blog's default CSS.
+  https://github.com/HermanMartinus/bearblog/blob/297026a877bc2ab2b3b5b28064a90714c05d2d09/templates/styles/blog/default.css
+  License MIT (https://github.com/HermanMartinus/bearblog/blob/main/LICENSE)
+*/
+:root {
+	--accent: 136, 58, 234;
+	--accent-light: 224, 204, 250;
+	--accent-dark: 49, 10, 101;
+	--accent-gradient: linear-gradient(
+		45deg,
+		rgb(var(--accent)),
+		rgb(var(--accent-light)) 30%,
+		white 60%
+	);
+}
+html {
+	font-family: system-ui, sans-serif;
+	background: #13151a;
+	background-size: 224px;
+}
+code {
+	font-family:
+		Menlo,
+		Monaco,
+		Lucida Console,
+		Liberation Mono,
+		DejaVu Sans Mono,
+		Bitstream Vera Sans Mono,
+		Courier New,
+		monospace;
+}

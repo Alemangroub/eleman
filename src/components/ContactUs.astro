@@ -1,6 +1,8 @@
+
 ---
 import contactData from '../data/contact.json';
-const backgroundImage = "/14346016_ml-1024x680-1.jpg"; 
+const backgroundImage = "/14346016_ml-1024x680-1.jpg";
+const { isTitleLink = false } = Astro.props;
 ---
 <section id="contact-us"
   class="contact-section"
@@ -8,7 +10,13 @@ const backgroundImage = "/14346016_ml-1024x680-1.jpg";
   <div class="section-overlay"></div>
   <div class="container">
     <div class="contact-header">
-      <h2 class="section-title">تواصل معنا</h2>
+        {isTitleLink ? (
+            <a href="/contact" class="title-link">
+                <h2 class="section-title">تواصل معنا</h2>
+            </a>
+        ) : (
+            <h2 class="section-title">تواصل معنا</h2>
+        )}
       <p class="section-subtitle">
         نحن هنا لمساعدتك. تواصل معنا عبر القنوات التالية أو تفضل بزيارتنا.
       </p>
@@ -51,6 +59,14 @@ const backgroundImage = "/14346016_ml-1024x680-1.jpg";
 </script>
 
 <style>
+    .title-link {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .title-link:hover .section-title {
+        color: #1a5f7a; 
+    }
     .contact-section {
         position: relative;
         background-size: cover;

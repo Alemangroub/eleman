@@ -1,3 +1,4 @@
+
 ---
 import Layout from '../layouts/Layout.astro';
 import Footer from '../components/Footer.astro';
@@ -6,10 +7,11 @@ import Header from '../components/Header.astro';
 
 const contactInfo = {
   address: "محافظة سوهاج - مركز طما - طريق أسيوط سوهاج - أعلى بنك القاهرة",
-  addressLink: "https://maps.app.goo.gl/h6cQtSGcUV5NZfFj7",
+  addressLink: "https://maps.app.goo.gl/Gug3Z6UsNur9r2kRA",
   phone: "+20 111 200 6333",
   email: "info@elemancompany.net",
-  whatsapp: "201112006333"
+  whatsapp: "201112006333",
+  workingHours: "السبت - الخميس: 11:00 صباحًا - 12:00 منتصف الليل"
 };
 ---
 
@@ -26,46 +28,48 @@ const contactInfo = {
       <p class="intro-text">نحن هنا للاستماع إليك. سواء كان لديك استفسار عن مشاريعنا، أو ترغب في بدء استثمار جديد، فريقنا جاهز لمساعدتك.</p>
 
       <div class="contact-grid">
-        <!-- Phone Card -->
+        <!-- All info cards -->
         <div class="info-item">
-          <div class="item-header">
-            <span class="icon"><i class="fas fa-phone-alt"></i></span>
-            <h2>عبر الهاتف</h2>
-          </div>
+          <div class="item-header"><span class="icon"><i class="fas fa-phone-alt"></i></span><h2>عبر الهاتف</h2></div>
           <p>يمكنك الاتصال بنا مباشرة خلال ساعات العمل الرسمية.</p>
           <a href={`tel:${contactInfo.phone}`} class="contact-link">{contactInfo.phone}</a>
         </div>
-
-        <!-- Email Card -->
         <div class="info-item">
-            <div class="item-header">
-              <span class="icon"><i class="fas fa-envelope"></i></span>
-              <h2>عبر البريد الإلكتروني</h2>
-            </div>
+            <div class="item-header"><span class="icon"><i class="fas fa-envelope"></i></span><h2>عبر البريد الإلكتروني</h2></div>
             <p>أرسل لنا استفساراتك، وسنقوم بالرد عليك في أقرب وقت ممكن.</p>
             <a href={`mailto:${contactInfo.email}`} class="contact-link">{contactInfo.email}</a>
         </div>
-
-        <!-- WhatsApp Card -->
         <div class="info-item">
-          <div class="item-header">
-            <span class="icon"><i class="fab fa-whatsapp"></i></span>
-            <h2>عبر واتساب</h2>
-          </div>
+          <div class="item-header"><span class="icon"><i class="fab fa-whatsapp"></i></span><h2>عبر واتساب</h2></div>
           <p>تواصل معنا بسرعة وسهولة عبر تطبيق واتساب.</p>
           <a href={`https://wa.me/${contactInfo.whatsapp}`} class="contact-link" target="_blank">{contactInfo.phone}</a>
         </div>
-
-        <!-- Address Card -->
         <div class="info-item">
-            <div class="item-header">
-                <span class="icon"><i class="fas fa-map-marker-alt"></i></span>
-                <h2>مقر الشركة</h2>
-            </div>
+            <div class="item-header"><span class="icon"><i class="fas fa-map-marker-alt"></i></span><h2>مقر الشركة</h2></div>
             <p>شرفنا بزيارتك في مقرنا الرئيسي لمناقشة كل التفاصيل. انقر على العنوان لعرضه على الخريطة.</p>
-            <a href={contactInfo.addressLink} target="_blank" class="address-link">
-                <p class="address">{contactInfo.address}</p>
-            </a>
+            <a href={contactInfo.addressLink} target="_blank" class="address-link"><p class="address">{contactInfo.address}</p></a>
+        </div>
+      </div>
+
+      <!-- Working Hours Section -->
+      <div class="working-hours">
+        <span class="icon"><i class="fas fa-clock"></i></span>
+        <h3>ساعات العمل</h3>
+        <p>{contactInfo.workingHours}</p>
+      </div>
+
+      <!-- Why Contact Us Section -->
+      <div class="why-contact-us-section">
+        <h2>لماذا تتواصل معنا؟</h2>
+        <p>في شركة الإيمان، نعتبر كل عميل شريكًا في النجاح. تواصلك معنا هو الخطوة الأولى نحو تحقيق أهدافك العقارية، سواء كنت تبحث عن منزل أحلامك أو فرصة استثمارية مضمونة. فريقنا المتخصص جاهز ليقدم لك استشارة متكاملة، ويجيب على كافة استفساراتك بشفافية واحترافية، ويرافقك في كل خطوة من رحلتك معنا.</p>
+        <p>نحن لا نبيع عقارات فقط، بل نبني علاقات ثقة طويلة الأمد. ندعوك للتواصل معنا اليوم لاستكشاف كيف يمكننا مساعدتك في بناء مستقبل آمن ومزدهر. سواء كان لديك استفسار بسيط أو مشروع كبير، صوتك يهمنا.</p>
+      </div>
+
+      <!-- Google Maps Section -->
+      <div class="map-section">
+        <h2>موقعنا على الخريطة</h2>
+        <div class="map-container">
+            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3489.200155694245!2d31.43763837551271!3d26.91137027667472!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x144f06df7a002a29%3A0x5a18118084a44696!2sBanque%20Du%20Caire!5e0!3m2!1sar!2seg" width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
         </div>
       </div>
     </div>
@@ -75,119 +79,54 @@ const contactInfo = {
 </Layout>
 
 <style>
-  .contact-page {
-    padding: 5rem 1rem;
-    background-color: #f8f9fa;
-    text-align: center;
-    direction: rtl;
-  }
-
-  .container {
-    max-width: 960px;
-    margin: 0 auto;
-  }
-
-  h1 {
-    font-family: 'Cairo', sans-serif;
-    font-size: 3rem;
-    font-weight: 800;
-    color: #2c3e50;
-    margin-bottom: 1rem;
-  }
-
-  .intro-text {
-    font-family: 'Almarai', sans-serif;
-    font-size: 1.2rem;
-    color: #555;
-    margin-bottom: 4rem;
-    max-width: 700px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .contact-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2rem;
-  }
-
-  .info-item {
-    background-color: #fff;
-    padding: 2.5rem;
+  .contact-page { padding: 5rem 1rem; background-color: #f8f9fa; text-align: center; direction: rtl; }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 { font-family: 'Cairo', sans-serif; font-size: 3rem; font-weight: 800; color: #2c3e50; margin-bottom: 1rem; }
+  .intro-text { font-family: 'Almarai', sans-serif; font-size: 1.2rem; color: #555; margin-bottom: 4rem; max-width: 700px; margin-left: auto; margin-right: auto; }
+  .contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-bottom: 4rem; }
+  .info-item { background-color: #fff; padding: 2.5rem; border-radius: 15px; box-shadow: 0 4px 25px rgba(0,0,0,0.07); transition: transform 0.3s ease, box-shadow 0.3s ease; text-align: right; display: flex; flex-direction: column; }
+  .info-item:hover { transform: translateY(-8px); box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+  .item-header { display: flex; align-items: center; margin-bottom: 1.2rem; }
+  .item-header .icon { font-size: 1.8rem; color: #3498db; margin-left: 15px; width: 40px; text-align: center; }
+  .info-item h2 { font-family: 'Cairo', sans-serif; font-size: 1.7rem; font-weight: 700; color: #2c3e50; margin: 0; }
+  .info-item p { font-family: 'Almarai', sans-serif; font-size: 1rem; color: #666; line-height: 1.7; margin-bottom: 1.5rem; flex-grow: 1; }
+  .address-link { text-decoration: none; }
+  .address { font-family: 'Almarai', sans-serif; font-size: 1.1rem !important; font-weight: 600; color: #333; margin: 0; transition: color 0.3s ease; }
+  .address-link:hover .address { color: #3498db; }
+  .contact-link { font-family: 'Cairo', sans-serif; font-size: 1.3rem; font-weight: 700; color: #2980b9; text-decoration: none; display: inline-block; transition: color 0.3s ease, letter-spacing 0.3s ease; margin-top: auto; }
+  .contact-link:hover { color: #e67e22; letter-spacing: 0.5px; }
+  .working-hours { background-color: #ffffff; padding: 2rem; border-radius: 12px; margin: 4rem auto; max-width: 600px; box-shadow: 0 4px 25px rgba(0,0,0,0.07); display: flex; align-items: center; justify-content: center; text-align: center; }
+  .working-hours .icon { font-size: 2rem; color: #3498db; margin-left: 20px; }
+  .working-hours h3 { font-family: 'Cairo', sans-serif; font-size: 1.8rem; color: #2c3e50; margin: 0 0 0 10px; font-weight: 700; }
+  .working-hours p { font-family: 'Almarai', sans-serif; font-size: 1.1rem; color: #555; margin: 0; }
+  
+  .why-contact-us-section {
+    background-color: #ffffff;
+    padding: 3rem;
     border-radius: 15px;
     box-shadow: 0 4px 25px rgba(0,0,0,0.07);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    margin-bottom: 4rem;
     text-align: right;
-    display: flex;
-    flex-direction: column;
   }
 
-  .info-item:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-  }
-
-  .item-header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 1.2rem;
-  }
-
-  .item-header .icon {
-      font-size: 1.8rem;
-      color: #3498db;
-      margin-left: 15px;
-      width: 40px;
-      text-align: center;
-  }
-
-  .info-item h2 {
+  .why-contact-us-section h2 {
     font-family: 'Cairo', sans-serif;
-    font-size: 1.7rem;
+    font-size: 2.2rem;
     font-weight: 700;
     color: #2c3e50;
-    margin: 0;
+    text-align: center;
+    margin-bottom: 2.5rem;
   }
 
-  .info-item p {
+  .why-contact-us-section p {
     font-family: 'Almarai', sans-serif;
-    font-size: 1rem;
-    color: #666;
-    line-height: 1.7;
+    font-size: 1.1rem;
+    color: #555;
+    line-height: 1.8;
     margin-bottom: 1.5rem;
-    flex-grow: 1;
-  }
-  
-  .address-link {
-    text-decoration: none;
-  }
-  
-  .address {
-    font-family: 'Almarai', sans-serif;
-    font-size: 1.1rem !important;
-    font-weight: 600;
-    color: #333;
-    margin: 0;
-    transition: color 0.3s ease;
-  }
-  
-  .address-link:hover .address {
-      color: #3498db;
   }
 
-  .contact-link {
-    font-family: 'Cairo', sans-serif;
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: #2980b9;
-    text-decoration: none;
-    display: inline-block;
-    transition: color 0.3s ease, letter-spacing 0.3s ease;
-    margin-top: auto; /* Push link to the bottom */
-  }
-
-  .contact-link:hover {
-    color: #e67e22;
-    letter-spacing: 0.5px;
-  }
+  .map-section { margin-top: 4rem; }
+  .map-section h2 { font-family: 'Cairo', sans-serif; font-size: 2.2rem; margin-bottom: 2rem; color: #2c3e50; text-align: center; }
+  .map-container { border-radius: 15px; overflow: hidden; box-shadow: 0 4px 25px rgba(0,0,0,0.1); }
 </style>
