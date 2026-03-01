@@ -76,7 +76,7 @@ try {
                             <p class="page-subtitle">اختر نوع التقارير التي تود عرضها لهذا المشروع.</p>
                         </div>
                         <div>
-                          <a href="/admin/projects" class="back-link">&larr; العودة إلى المشاريع</a>
+                          <a href="/crs/projects" class="back-link">&larr; العودة إلى المشاريع</a>
                           <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
                         </div>
                     </header>
@@ -97,7 +97,7 @@ try {
                     </section>
 
                     <section class="report-links-section">
-                        <a href={`/admin/projects/${id}/expense-reports`} class="report-link-card">
+                        <a href={`/crs/projects/${id}/expense-reports`} class="report-link-card">
                             {unreadExpenseReports > 0 && 
                                 <div class="notification-badge">
                                     <span class="dot"></span>
@@ -112,7 +112,7 @@ try {
                                 <p>سجل كامل لجميع المصروفات اليومية والفواتير المرفقة.</p>
                             </div>
                         </a>
-                        <a href={`/admin/projects/${id}/remains-reports`} class="report-link-card">
+                        <a href={`/crs/projects/${id}/remains-reports`} class="report-link-card">
                             {unreadRemainsReports > 0 && 
                                 <div class="notification-badge">
                                     <span class="dot"></span>
@@ -127,7 +127,7 @@ try {
                                 <p>سجل يوضح المواد المتبقية في الموقع.</p>
                             </div>
                         </a>
-                        <a href={`/admin/projects/${id}/daily-reports`} class="report-link-card">
+                        <a href={`/crs/projects/${id}/daily-reports`} class="report-link-card">
                              {unreadDailyReports > 0 && 
                                 <div class="notification-badge">
                                     <span class="dot"></span>
@@ -142,7 +142,7 @@ try {
                                 <p>سجل يوضح سير العمل اليومي والملاحظات والمرفقات.</p>
                             </div>
                         </a>
-                         <a href={`/admin/projects/${id}/items`} class="report-link-card">
+                         <a href={`/crs/projects/${id}/items`} class="report-link-card">
                             <div class="card-icon items-icon">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-list-details" width="36" height="36" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -159,7 +159,7 @@ try {
                                 <p>عرض وإدارة بنود المشروع.</p>
                             </div>
                         </a>
-                        <a href={`/admin/projects/${id}/suppliers`} class="report-link-card">
+                        <a href={`/crs/projects/${id}/suppliers`} class="report-link-card">
                             <div class="card-icon suppliers-icon">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-truck-delivery" width="36" height="36" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -181,7 +181,7 @@ try {
                 <div class="error-card">
                     <h2>خطأ في تحميل البيانات</h2>
                     <p>حدث خطأ حرج أثناء محاولة تحميل تفاصيل المشروع. برجاء المحاولة مرة أخرى لاحقاً.</p>
-                    <a href="/admin/projects" class="back-link">العودة إلى قائمة المشاريع</a>
+                    <a href="/crs/projects" class="back-link">العودة إلى قائمة المشاريع</a>
                 </div>
             )}
         </div>
@@ -214,13 +214,13 @@ try {
                         if (logoutButton) {
                             logoutButton.addEventListener('click', async () => {
                                 await signOut(auth);
-                                window.location.href = '/admin';
+                                window.location.href = '/crs';
                             });
                         }
 
                     } else {
                         await signOut(auth);
-                        window.location.href = '/admin';
+                        window.location.href = '/crs';
                     }
                 } catch (error) {
                     console.error('Auth Check Error:', error);

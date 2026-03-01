@@ -17,7 +17,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
       <div class="page-header">
         <h1>إضافة مشروع جديد</h1>
         <div class="header-actions">
-          <a href="/admin/projects" class="btn btn-secondary">إلغاء</a>
+          <a href="/crs/projects" class="btn btn-secondary">إلغاء</a>
           <button id="logout-button" class="btn btn-danger">تسجيل الخروج</button>
         </div>
       </div>
@@ -74,7 +74,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
                       if(loginContainer) loginContainer.style.display = 'none';
                       document.getElementById('logout-button')?.addEventListener('click', async () => {
                           await signOut(auth);
-                          window.location.href = '/admin';
+                          window.location.href = '/crs';
                       });
                       initializePage();
                   } else {
@@ -191,7 +191,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
       try {
         await addDoc(collection(db, "projects"), projectData);
-        window.location.href = '/admin/projects';
+        window.location.href = '/crs/projects';
       } catch (error) {
         console.error("Error adding document: ", error);
         alert('حدث خطأ أثناء حفظ المشروع. يرجى المحاولة مرة أخرى.');

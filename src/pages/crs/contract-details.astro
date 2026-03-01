@@ -265,8 +265,8 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
         currentProjectId = urlParams.get('projectId');
         currentCustomerName = urlParams.get('customerName');
 
-        document.getElementById('back-link').href = `/admin/project-installments?projectId=${currentProjectId}`;
-        document.getElementById('edit-contract-btn').href = `/admin/edit-contract?projectId=${currentProjectId}&customerName=${encodeURIComponent(currentCustomerName)}`;
+        document.getElementById('back-link').href = `/crs/project-installments?projectId=${currentProjectId}`;
+        document.getElementById('edit-contract-btn').href = `/crs/edit-contract?projectId=${currentProjectId}&customerName=${encodeURIComponent(currentCustomerName)}`;
 
         if (!currentProjectId || !currentCustomerName) {
             loader.style.display = 'none';
@@ -597,7 +597,7 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
             await batch.commit();
             
             alert('تم حذف العقد بنجاح.');
-            window.location.href = `/admin/project-installments?projectId=${currentProjectId}`;
+            window.location.href = `/crs/project-installments?projectId=${currentProjectId}`;
 
         } catch (error) {
             console.error("Error deleting contract: ", error);

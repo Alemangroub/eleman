@@ -202,7 +202,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
             return;
         }
 
-        document.getElementById('cancel-btn').href = `/admin/project-installments?projectId=${currentProjectId}`;
+        document.getElementById('cancel-btn').href = `/crs/project-installments?projectId=${currentProjectId}`;
         document.getElementById('add-contract-form').addEventListener('submit', handleFormSubmit);
 
         document.getElementById('total-amount').addEventListener('input', updateRemainingAmount);
@@ -358,7 +358,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         try {
             await batch.commit();
             alert('تم إنشاء العقد والأقساط بنجاح!');
-            window.location.href = `/admin/project-installments?projectId=${currentProjectId}`;
+            window.location.href = `/crs/project-installments?projectId=${currentProjectId}`;
         } catch (error) {
             console.error("Error creating contract: ", error);
             alert('فشل إنشاء العقد. الرجاء المحاولة مرة أخرى.');

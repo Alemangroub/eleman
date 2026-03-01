@@ -20,7 +20,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
                 <div class="header-actions">
                     <a id="add-contract-btn" href="#" class="btn btn-primary">+ إضافة عقد جديد</a>
                     <a id="notifications-btn" href="#" class="btn btn-info">تنبيهات الأقساط <span class="notification-badge" style="display: none;"></span></a>
-                    <a href="/admin/projects" class="btn btn-secondary">العودة للمشاريع</a>
+                    <a href="/crs/projects" class="btn btn-secondary">العودة للمشاريع</a>
                 </div>
             </div>
 
@@ -54,7 +54,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
             <div id="error-display" style="display: none;">
                 <h1>حدث خطأ</h1>
                 <p id="error-message"></p>
-                <a href="/admin/projects" class="btn btn-primary">العودة إلى لوحة التحكم</a>
+                <a href="/crs/projects" class="btn btn-primary">العودة إلى لوحة التحكم</a>
             </div>
         </div>
     </main>
@@ -374,8 +374,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
             return;
         }
 
-        addContractBtn.href = `/admin/add-contract?projectId=${projectId}`;
-        notificationsBtn.href = `/admin/notifications?projectId=${projectId}`;
+        addContractBtn.href = `/crs/add-contract?projectId=${projectId}`;
+        notificationsBtn.href = `/crs/notifications?projectId=${projectId}`;
         
 
         try {
@@ -490,7 +490,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         contracts.forEach(contract => {
             const link = document.createElement('a');
             link.className = 'contract-item';
-            link.href = `/admin/contract-details?projectId=${projectId}&customerName=${encodeURIComponent(contract.customerName)}`;
+            link.href = `/crs/contract-details?projectId=${projectId}&customerName=${encodeURIComponent(contract.customerName)}`;
 
             const unitTypeFormatted = unitTypeTranslations[contract.unitType] || contract.unitType || 'غير محدد';
 

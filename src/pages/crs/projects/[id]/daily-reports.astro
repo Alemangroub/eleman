@@ -6,42 +6,58 @@ import { db } from "../../../../firebase/admin";
 
 const { id } = Astro.params;
 let project = null;
-let remainsReports = [];
+let dailyReports = [];
 let feedback = { message: '', type: '' };
 
-// Mark reports as read when the page is loaded
 if (id) {
-    try {
-        const unreadReportsRef = db.collection('remains_reports').where('projectId', '==', id).where('isRead', '==', false);
-        const unreadReportsSnapshot = await unreadReportsRef.get();
-        if (!unreadReportsSnapshot.empty) {
-            const batch = db.batch();
-            unreadReportsSnapshot.docs.forEach(doc => {
-                batch.update(doc.ref, { isRead: true });
-            });
-            await batch.commit();
-        }
-    } catch (error) {
-        console.error("Error marking remains reports as read:", error);
+    const unreadReportsRef = db.collection('daily_reports').where('projectId', '==', id).where('isRead', '==', false);
+    const unreadReportsSnapshot = await unreadReportsRef.get();
+    if (!unreadReportsSnapshot.empty) {
+        const batch = db.batch();
+        unreadReportsSnapshot.docs.forEach(doc => {
+            batch.update(doc.ref, { isRead: true });
+        });
+        await batch.commit();
     }
 }
 
-// Handle Delete
+if (Astro.request.method === 'POST') {
+    try {
+        const formData = await Astro.request.formData();
+        const reportIdToUpdate = formData.get('reportId')?.toString();
+        if (!reportIdToUpdate) throw new Error('Report ID is missing.');
+
+        const reportText = formData.get('reportText')?.toString();
+        const notes = formData.get('notes')?.toString();
+
+        await db.collection('daily_reports').doc(reportIdToUpdate).update({
+            reportText: reportText, // Correct field name
+            notes: notes,
+        });
+
+        return Astro.redirect(`/crs/projects/${id}/daily-reports?feedback=updated`);
+    } catch (error) {
+        console.error("Error updating daily report:", error);
+        return Astro.redirect(`/crs/projects/${id}/daily-reports?feedback=update_error`);
+    }
+}
+
 const reportIdToDelete = Astro.url.searchParams.get('delete');
 if (reportIdToDelete) {
     try {
-        await db.collection('remains_reports').doc(reportIdToDelete).delete();
-        return Astro.redirect(`/admin/projects/${id}/remains-reports?feedback=deleted`);
+        await db.collection('daily_reports').doc(reportIdToDelete).delete();
+        return Astro.redirect(`/crs/projects/${id}/daily-reports?feedback=deleted`);
     } catch (error) {
-        console.error("Error deleting report:", error);
-        return Astro.redirect(`/admin/projects/${id}/remains-reports?feedback=error`);
+        console.error("Error deleting daily report:", error);
+        return Astro.redirect(`/crs/projects/${id}/daily-reports?feedback=error`);
     }
 }
 
-// Handle feedback messages
 const feedbackParam = Astro.url.searchParams.get('feedback');
-if (feedbackParam === 'deleted') feedback = { message: 'تم حذف تقرير البواقي بنجاح.', type: 'success' };
-if (feedbackParam === 'error') feedback = { message: 'حدث خطأ أثناء حذف التقرير.', type: 'error' };
+if (feedbackParam === 'deleted') feedback = { message: 'تم حذف التقرير اليومي بنجاح.', type: 'success' };
+if (feedbackParam === 'updated') feedback = { message: 'تم تحديث التقرير اليومي بنجاح.', type: 'success' };
+if (feedbackParam === 'error') feedback = { message: 'حدث خطأ أثناء حذف التقرير اليومي.', type: 'error' };
+if (feedbackParam === 'update_error') feedback = { message: 'حدث خطأ أثناء تحديث التقرير اليومي.', type: 'error' };
 
 const formatTimestamp = (timestamp) => {
     if (!timestamp || !timestamp.toDate) return 'تاريخ غير متوفر';
@@ -53,24 +69,20 @@ try {
     if (!projectDoc.exists) return Astro.redirect('/404');
     
     project = { id: projectDoc.id, ...projectDoc.data() };
-    const reportsSnapshot = await db.collection('remains_reports').where('projectId', '==', id).get();
+    const dailyReportsSnapshot = await db.collection('daily_reports').where('projectId', '==', id).get();
     
-    remainsReports = reportsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return { 
-            id: doc.id, 
-            ...data, 
-            createdAtFormatted: formatTimestamp(data.createdAt) 
-        };
-    }).sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+    dailyReports = dailyReportsSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data(), createdAtFormatted: formatTimestamp(doc.data().createdAt) }))
+        .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
 
 } catch (error) {
-    console.error("Error fetching data:", error);
+    console.error("Error fetching daily reports:", error);
     project = { projectName: "خطأ في تحميل البيانات" };
 }
+
 ---
 
-<Layout title={`تقارير البواقي: ${project?.projectName}`}>
+<Layout title={`التقارير اليومية: ${project?.projectName}`}>
     <div id="auth-loading-message" class="auth-container">
         <p>جارٍ التحقق من صلاحيات الدخول...</p>
     </div>
@@ -78,64 +90,67 @@ try {
     <div id="admin-login-container" class="auth-container" style="display: none;">
       <AdminLogin />
     </div>
-
+    
     <main id="page-content" class="reports-display-page" style="display: none;">
         <div class="container">
-             <header class="page-header">
-                <div>
-                    <h1>تقارير بواقي مشروع: {project.projectName}</h1>
-                    <p class="page-subtitle">عرض وحذف تقارير المواد المتبقية.</p>
-                </div>
+            <header class="page-header">
                  <div>
-                    <a href={`/admin/projects/${id}`} class="back-link">&larr; العودة للتفاصيل</a>
+                    <h1>التقارير اليومية لمشروع: {project.projectName}</h1>
+                    <p class="page-subtitle">عرض وتعديل وحذف التقارير اليومية مباشرة.</p>
+                </div>
+                <div>
+                    <a href={`/crs/projects/${id}`} class="back-link">&larr; العودة للتفاصيل</a>
                     <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
-                 </div>
+                </div>
             </header>
 
             {feedback.message && <div class={`feedback-banner ${feedback.type}`}>{feedback.message}</div>}
 
             <section class="reports-section">
-                {remainsReports.length === 0 ? (
-                    <div class="no-items-card"><p>لا توجد تقارير بواقي لهذا المشروع بعد.</p></div>
+                {dailyReports.length === 0 ? (
+                    <div class="no-items-card"><p>لا توجد تقارير يومية لهذا المشروع بعد.</p></div>
                 ) : (
                     <div class="list-container">
-                        {remainsReports.map(report => (
-                            <article class="card remains-report-card" data-report-id={report.id}>
+                        {dailyReports.map(report => (
+                            <article class="card daily-report-card" data-report-id={report.id}>
                                 <div class="card-header"><span>بواسطة: {report.supervisorName}</span><time>{report.createdAtFormatted}</time></div>
 
-                                <div class="card-content">
+                                <div class="card-content view-mode">
                                     <div class="card-body">
-                                        <div class="items-container">
-                                            {report.items && report.items.length > 0 ? (
-                                                report.items.map(item => (
-                                                    <div class="remains-item-display">
-                                                        <p class="item-name"><strong>الصنف:</strong> {item.name}</p>
-                                                        <p class="item-quantity"><strong>الكمية:</strong> {item.amount}</p>
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <div class="remains-item-display">
-                                                    <p>لا توجد أصناف في هذا التقرير.</p>
-                                                </div>
-                                            )}
-                                        </div>
-
+                                        <div class="report-text-section"><h4>تفاصيل التقرير:</h4><p>{report.reportText}</p></div>
                                         {report.notes && <div class="notes-section"><h4>ملاحظات:</h4><p>{report.notes}</p></div>}
-                                        {report.imageUrl && (
+                                        {report.imageUrls && report.imageUrls.length > 0 && (
                                             <div class="attachments">
-                                                <h3 class="attachments-title">المرفقات:</h3>
+                                                <h3 class="attachments-title">الصور المرفقة:</h3>
                                                 <div class="image-gallery">
-                                                    <a href={report.imageUrl} target="_blank" rel="noopener noreferrer" class="image-thumbnail">
-                                                        <img src={report.imageUrl} alt="صورة مرفقة" loading="lazy" />
-                                                    </a>
+                                                    {report.imageUrls.map(url => (
+                                                        <a href={url} target="_blank" rel="noopener noreferrer" class="image-thumbnail">
+                                                            <img src={url} alt="صورة مرفقة" loading="lazy" />
+                                                        </a>
+                                                    ))}
                                                 </div>
                                             </div>
                                         )}
                                     </div>
                                     <div class="card-footer">
-                                        <button type="button" class="action-btn delete-btn" data-delete-url={`/admin/projects/${id}/remains-reports?delete=${report.id}`}>حذف</button>
+                                        <button type="button" class="action-btn edit-btn-toggle">تعديل</button>
+                                        <button type="button" class="action-btn delete-btn" data-delete-url={`/crs/projects/${id}/daily-reports?delete=${report.id}`}>حذف</button>
                                     </div>
                                 </div>
+
+                                <form method="POST" class="card-content edit-mode" style="display: none;">
+                                    <div class="card-body edit-form-body">
+                                        <input type="hidden" name="reportId" value={report.id} />
+                                        <h4>تعديل التقرير:</h4>
+                                        <textarea name="reportText" class="report-input">{report.reportText || ''}</textarea>
+                                        <h4>تعديل الملاحظات:</h4>
+                                        <textarea name="notes" class="notes-input">{report.notes || ''}</textarea>
+                                    </div>
+                                    <div class="card-footer">
+                                        <button type="button" class="action-btn cancel-btn-toggle">إلغاء</button>
+                                        <button type="submit" class="action-btn save-btn">حفظ التعديلات</button>
+                                    </div>
+                                </form>
                             </article>
                         ))}
                     </div>
@@ -166,48 +181,72 @@ try {
         const pageContent = document.getElementById('page-content');
 
         onAuthStateChanged(auth, async (user) => {
-            if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+            if (authLoadingMessage) authLoadingMessage.style.display = 'none';
+
             if (user) {
-                 try {
+                try {
                     const userDocRef = doc(db, "users", user.uid);
                     const userDoc = await getDoc(userDocRef);
+
                     if (userDoc.exists() && userDoc.data().role === 'admin') {
-                        if(pageContent) pageContent.style.display = 'block';
-                        if(loginContainer) loginContainer.style.display = 'none';
+                        if (pageContent) pageContent.style.display = 'block';
+                        if (loginContainer) loginContainer.style.display = 'none';
+
                         const logoutButton = document.getElementById('logout-button');
                         if (logoutButton) {
                             logoutButton.addEventListener('click', async () => {
                                 await signOut(auth);
-                                window.location.href = '/admin';
+                                window.location.href = '/crs';
                             });
                         }
+
                     } else {
                         await signOut(auth);
-                        window.location.href = '/admin';
+                        window.location.href = '/crs';
                     }
                 } catch (error) {
                     console.error('Auth Check Error:', error);
                     await signOut(auth);
-                    if(loginContainer) loginContainer.style.display = 'block';
-                    if(pageContent) pageContent.style.display = 'none';
+                    if (loginContainer) loginContainer.style.display = 'block';
+                    if (pageContent) pageContent.style.display = 'none';
                 }
             } else {
-                if(pageContent) pageContent.style.display = 'none';
-                if(loginContainer) loginContainer.style.display = 'block';
+                if (pageContent) pageContent.style.display = 'none';
+                if (loginContainer) loginContainer.style.display = 'block';
             }
         });
+
         const container = document.querySelector('.container');
         if (!container) return;
+
         container.addEventListener('click', (e) => {
             const target = e.target;
+            const card = target.closest('.daily-report-card');
+            if (!card) return;
+
+            const viewMode = card.querySelector('.view-mode');
+            const editMode = card.querySelector('.edit-mode');
+
+            if (target.matches('.edit-btn-toggle')) {
+                if(viewMode) viewMode.style.display = 'none';
+                if(editMode) editMode.style.display = 'block';
+            }
+
+            if (target.matches('.cancel-btn-toggle')) {
+                if(editMode) editMode.style.display = 'none';
+                if(viewMode) viewMode.style.display = 'block';
+            }
+
             if (target.matches('.delete-btn')) {
                 const deleteUrl = target.dataset.deleteUrl;
                 if(deleteUrl) showDeleteModal(deleteUrl);
             }
         });
+
         const deleteModal = document.getElementById('delete-modal');
         const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
         const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+
         function showDeleteModal(deleteUrl) {
             if(confirmDeleteBtn) confirmDeleteBtn.href = deleteUrl;
             if(deleteModal) deleteModal.style.display = 'flex';
@@ -215,6 +254,7 @@ try {
         function hideDeleteModal() { 
             if(deleteModal) deleteModal.style.display = 'none'; 
         }
+
         if(cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', hideDeleteModal);
         if(deleteModal) deleteModal.addEventListener('click', e => { 
             if (e.target === deleteModal) hideDeleteModal(); 
@@ -223,6 +263,7 @@ try {
 </script>
 
 <style>
+/* ... (styles remain the same) ... */
 .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
 .auth-container p { font-size: 1.2rem; }
 .btn-logout { background-color: #ef4444; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
@@ -234,7 +275,6 @@ try {
     --danger-color: #dc3545;
     --border-color: #e9ecef; 
     --card-shadow: 0 4px 15px rgba(0,0,0,0.06);
-    --remains-color: #6f42c1; /* Purple for remains */
 }
 .reports-display-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; padding: 2.5rem; }
 .container { max-width: 1100px; margin: 0 auto; }
@@ -254,45 +294,24 @@ h1 { font-size: 2.25rem; font-weight: 800; }
 .card-header { display: flex; justify-content: space-between; padding: 1rem 1.5rem; background: #fdfdff; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; color: #6c757d; }
 
 .card-body { padding: 1.5rem; }
-
-.items-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.remains-item-display {
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    padding: 1.5rem;
-    border-left: 5px solid var(--remains-color);
-}
-.remains-item-display p {
-    margin: 0 0 0.75rem 0;
-    font-size: 1.1rem;
-    color: #495057;
-}
-.remains-item-display p:last-child {
-    margin-bottom: 0;
-}
-.remains-item-display strong {
-    font-weight: 700;
-    color: #343a40;
-    margin-left: 8px;
-}
-
-.notes-section, .attachments { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
-h4 { font-weight: 700; margin-bottom: 1rem; }
+.report-text-section p, .notes-section p { line-height: 1.8; margin: 0; color: #495057; white-space: pre-wrap; }
+.report-text-section, .notes-section, .attachments { margin-bottom: 1.5rem; }
+.notes-section, .attachments { padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
+h3, h4 { font-weight: 700; margin-bottom: 1rem; }
 .attachments-title { font-size: 1rem; }
-.notes-section p { line-height: 1.8; margin: 0; color: #495057; }
 
 .image-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 0.75rem; }
 .image-thumbnail img { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; }
 
 .card-footer { display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1rem 1.5rem; background-color: #f8f9fa; border-top: 1px solid var(--border-color); }
 .action-btn { padding: 0.5rem 1.25rem; border: none; border-radius: 8px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.edit-btn-toggle { background-color: #e9ecef; color: #343a40; }
 .delete-btn { background-color: var(--danger-color); color: #fff; }
+.save-btn { background-color: var(--success-color); color: #fff; }
 .cancel-btn-toggle { background-color: #6c757d; color: #fff;}
+
+.edit-form-body { padding-top: 0; }
+.report-input, .notes-input { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; min-height: 120px; resize: vertical; margin-bottom: 1rem; }
 
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 1000; }
 .modal-content { background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); text-align: center; max-width: 400px; width: 90%; }

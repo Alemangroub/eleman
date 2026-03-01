@@ -57,7 +57,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 </div>
                 <div class="header-actions">
                     <button id="toggle-form-btn" class="btn btn-primary">+ إضافة بند جديد</button>
-                    <a href={`/admin/projects/${id}`} class="back-link">&larr; العودة للتفاصيل</a>
+                    <a href={`/crs/projects/${id}`} class="back-link">&larr; العودة للتفاصيل</a>
                     <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
                 </div>
             </header>
@@ -261,7 +261,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                     setupPageInteractions();
                 } else {
                     await signOut(auth);
-                    window.location.href = '/admin';
+                    window.location.href = '/crs';
                 }
             } catch (error) {
                 console.error('Auth Check Error:', error);
@@ -275,7 +275,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
             if (logoutButton) {
                 logoutButton.addEventListener('click', async () => {
                     await signOut(auth);
-                    window.location.href = '/admin';
+                    window.location.href = '/crs';
                 });
             }
 

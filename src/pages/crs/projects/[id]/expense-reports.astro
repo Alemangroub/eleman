@@ -57,10 +57,10 @@ if (Astro.request.method === 'POST') {
             expenses: admin.firestore.FieldValue.delete() // Clean up the old `expenses` object
         });
 
-        return Astro.redirect(`/admin/projects/${id}/expense-reports?feedback=updated`);
+        return Astro.redirect(`/crs/projects/${id}/expense-reports?feedback=updated`);
     } catch (error) {
         console.error("Error updating report:", error);
-        return Astro.redirect(`/admin/projects/${id}/expense-reports?feedback=update_error`);
+        return Astro.redirect(`/crs/projects/${id}/expense-reports?feedback=update_error`);
     }
 }
 
@@ -69,9 +69,9 @@ const reportIdToDelete = Astro.url.searchParams.get('delete');
 if (reportIdToDelete) {
     try {
         await db.collection('daily_expenses').doc(reportIdToDelete).delete();
-        return Astro.redirect(`/admin/projects/${id}/expense-reports?feedback=deleted`);
+        return Astro.redirect(`/crs/projects/${id}/expense-reports?feedback=deleted`);
     } catch (error) {
-        return Astro.redirect(`/admin/projects/${id}/expense-reports?feedback=error`);
+        return Astro.redirect(`/crs/projects/${id}/expense-reports?feedback=error`);
     }
 }
 
@@ -147,7 +147,7 @@ try {
                     <p class="page-subtitle">عرض وتعديل وحذف تقارير المصروفات مباشرة.</p>
                 </div>
                  <div>
-                    <a href={`/admin/projects/${id}`} class="back-link">&larr; العودة للتفاصيل</a>
+                    <a href={`/crs/projects/${id}`} class="back-link">&larr; العودة للتفاصيل</a>
                     <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
                  </div>
             </header>
@@ -197,7 +197,7 @@ try {
                                     </div>
                                     <div class="card-footer">
                                         <button type="button" class="action-btn edit-btn-toggle">تعديل</button>
-                                        <button type="button" class="action-btn delete-btn" data-delete-url={`/admin/projects/${id}/expense-reports?delete=${report.id}`}>حذف</button>
+                                        <button type="button" class="action-btn delete-btn" data-delete-url={`/crs/projects/${id}/expense-reports?delete=${report.id}`}>حذف</button>
                                     </div>
                                 </div>
 
@@ -284,13 +284,13 @@ try {
                         if (logoutButton) {
                             logoutButton.addEventListener('click', async () => {
                                 await signOut(auth);
-                                window.location.href = '/admin';
+                                window.location.href = '/crs';
                             });
                         }
 
                     } else {
                         await signOut(auth);
-                        window.location.href = '/admin'; // Redirect if not admin
+                        window.location.href = '/crs'; // Redirect if not admin
                     }
                 } catch (error) {
                     console.error('Auth Check Error:', error);

@@ -19,7 +19,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
       <div class="page-header">
         <h1>المشاريع المؤرشفة</h1>
         <div class="header-actions">
-          <a href="/admin/projects" class="btn btn-primary">&larr; العودة إلى المشاريع النشطة</a>
+          <a href="/crs/projects" class="btn btn-primary">&larr; العودة إلى المشاريع النشطة</a>
           <button id="logout-button" class="btn btn-danger">تسجيل الخروج</button>
         </div>
       </div>
@@ -211,7 +211,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
                       if (logoutButton) {
                           logoutButton.addEventListener('click', async () => {
                               await signOut(auth);
-                              window.location.href = '/admin';
+                              window.location.href = '/crs';
                           });
                       }
                       
@@ -300,7 +300,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
       } else {
         const projectId = row.dataset.id;
         if (projectId) {
-            window.location.href = `/admin/projects/${projectId}`;
+            window.location.href = `/crs/projects/${projectId}`;
         }
       }
     });

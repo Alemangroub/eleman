@@ -260,7 +260,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
             return;
         }
 
-        backLink.href = `/admin/project-installments?projectId=${projectId}`;
+        backLink.href = `/crs/project-installments?projectId=${projectId}`;
 
         try {
             const projectSnap = await getDoc(doc(db, 'projects', projectId));
@@ -329,7 +329,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         sortedInstallments.forEach(inst => {
             const card = document.createElement('a');
             card.className = `installment-card ${type}`;
-            card.href = `/admin/contract-details?projectId=${projectId}&customerName=${encodeURIComponent(inst.customerName)}`;
+            card.href = `/crs/contract-details?projectId=${projectId}&customerName=${encodeURIComponent(inst.customerName)}`;
 
             const daysDiff = calculateDaysDifference(inst.dueDate.toDate());
             let diffText = '';

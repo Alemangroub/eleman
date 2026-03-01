@@ -148,7 +148,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         currentProjectId = urlParams.get('projectId');
         originalCustomerName = decodeURIComponent(urlParams.get('customerName'));
 
-        document.getElementById('cancel-btn').href = `/admin/contract-details?projectId=${currentProjectId}&customerName=${encodeURIComponent(originalCustomerName)}`;
+        document.getElementById('cancel-btn').href = `/crs/contract-details?projectId=${currentProjectId}&customerName=${encodeURIComponent(originalCustomerName)}`;
 
         if (!currentProjectId || !originalCustomerName) {
             loader.style.display = 'none';
@@ -222,7 +222,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
             alert('تم تحديث بيانات العقد بنجاح!');
             // Redirect back to the details page with the new name if it was changed
-            window.location.href = `/admin/contract-details?projectId=${currentProjectId}&customerName=${encodeURIComponent(updatedData.customerName)}`;
+            window.location.href = `/crs/contract-details?projectId=${currentProjectId}&customerName=${encodeURIComponent(updatedData.customerName)}`;
 
         } catch (error) {
             console.error("Error updating contract: ", error);

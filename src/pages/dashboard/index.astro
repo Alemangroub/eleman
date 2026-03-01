@@ -191,8 +191,8 @@ import Layout from '../../layouts/Layout.astro';
               await fetchAndDisplayProjects(currentSupervisor.uid);
               loadingMessage.style.display = 'none';
               dashboardContent.style.display = 'block';
-          } else { window.location.href = '/admin'; }
-      } else { window.location.href = '/admin'; }
+          } else { window.location.href = '/crs'; }
+      } else { window.location.href = '/crs'; }
     });
 
     async function uploadFiles(files, projectId, folder) {
@@ -390,7 +390,7 @@ import Layout from '../../layouts/Layout.astro';
     }
 
     if (logoutButton) logoutButton.addEventListener('click', async () => {
-        try { await signOut(auth); window.location.href = '/admin'; } 
+        try { await signOut(auth); window.location.href = '/crs'; } 
         catch (error) { console.error("Logout Error:", error); }
     });
   }

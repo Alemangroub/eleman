@@ -20,12 +20,12 @@ import AdminLogin from '../../components/AdminLogin.astro';
       <div class="page-header">
         <h1>إدارة المشروعات</h1>
         <div class="header-actions">
-          <a href="/admin/add-project" class="btn btn-primary">+ إضافة مشروع جديد</a>
+          <a href="/crs/add-project" class="btn btn-primary">+ إضافة مشروع جديد</a>
           <button id="installments-notification-btn" class="btn btn-info"> 
             تنبيهات الأقساط
             <span id="notification-badge" class="notification-badge" style="display: none;"></span>
           </button>
-          <a href="/admin/archived-projects" class="btn btn-secondary">المشاريع المؤرشفة</a>
+          <a href="/crs/archived-projects" class="btn btn-secondary">المشاريع المؤرشفة</a>
           <button id="logout-button" class="btn btn-danger">تسجيل الخروج</button>
         </div>
       </div>
@@ -355,7 +355,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
                       if (logoutButton) {
                           logoutButton.addEventListener('click', async () => {
                               await signOut(auth);
-                              window.location.href = '/admin';
+                              window.location.href = '/crs';
                           });
                       }
                       
@@ -401,7 +401,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
                   <td data-label="العنوان">${project.projectAddress || '-'}</td>
                   <td data-label="المشرفون">${supervisors}</td>
                   <td data-label="الإجراءات" class="btn-action-cell">
-                    <a href="/admin/project-installments?projectId=${doc.id}" class="btn btn-installments-custom">الأقساط</a>
+                    <a href="/crs/project-installments?projectId=${doc.id}" class="btn btn-installments-custom">الأقساط</a>
                     <button class="btn btn-edit-custom">تعديل</button>
                     <button class="btn btn-archive-custom">أرشفة</button>
                   </td>
@@ -484,7 +484,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
                 const statusText = `متأخر ${inst.days} ${dayWord}`;
 
                 contentHTML += `
-                  <a href="/admin/contract-details?projectId=${inst.projectId}&customerName=${encodeURIComponent(inst.customerName)}" class="installment-notification-item-link">
+                  <a href="/crs/contract-details?projectId=${inst.projectId}&customerName=${encodeURIComponent(inst.customerName)}" class="installment-notification-item-link">
                     <div class="installment-notification-item overdue">
                       <div class="notification-item-details">
                         <strong>المشروع:</strong> ${inst.projectName}<br>
@@ -513,7 +513,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
                 }
 
                 contentHTML += `
-                  <a href="/admin/contract-details?projectId=${inst.projectId}&customerName=${encodeURIComponent(inst.customerName)}" class="installment-notification-item-link">
+                  <a href="/crs/contract-details?projectId=${inst.projectId}&customerName=${encodeURIComponent(inst.customerName)}" class="installment-notification-item-link">
                     <div class="installment-notification-item upcoming">
                       <div class="notification-item-details">
                         <strong>المشروع:</strong> ${inst.projectName}<br>
@@ -618,7 +618,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
       } else {
         const projectId = row.dataset.id;
         if (projectId) {
-            window.location.href = `/admin/projects/${projectId}`;
+            window.location.href = `/crs/projects/${projectId}`;
         }
       }
     });
@@ -632,7 +632,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         try {
           const projectRef = doc(db, 'projects', projectIdToArchive);
           await updateDoc(projectRef, { archived: true });
-          window.location.href = '/admin/archived-projects';
+          window.location.href = '/crs/archived-projects';
         } catch (error) { 
             console.error("Error archiving document: ", error); 
             alert('حدث خطأ أثناء أرشفة المشروع.');
