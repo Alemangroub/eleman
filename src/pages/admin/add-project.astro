@@ -35,22 +35,13 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
         <hr class="divider">
 
-        <!-- Static Supervisors -->
-        <div class="person-group">
-            <div class="form-group">
-                <label for="supervisor1Name">اسم المشرف</label>
-                <select id="supervisor1Name" name="personName" class="supervisor-select">
-                    <option value="" disabled selected>جار التحميل...</option>
-                </select>
-            </div>
-        </div>
-
-        <!-- Dynamic Supervisors Container -->
-        <div id="additional-persons-container"></div>
-
-        <!-- Add Button -->
-        <div class="add-person-action">
-          <button type="button" id="add-person-btn" class="btn btn-add">+ إضافة مشرف آخر</button>
+        <!-- Supervisors Section -->
+        <div class="form-group">
+            <label for="supervisor-select">المشرفون</label>
+            <div id="supervisor-tags-container"></div>
+            <select id="supervisor-select" class="supervisor-select">
+                <option value="" disabled selected>اختر مشرفًا لإضافته...</option>
+            </select>
         </div>
 
         <!-- Form Actions -->
@@ -74,26 +65,18 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
       onAuthStateChanged(auth, async (user) => {
           if(authLoadingMessage) authLoadingMessage.style.display = 'none';
-
           if (user) {
               try {
                   const userDocRef = doc(db, "users", user.uid);
                   const userDoc = await getDoc(userDocRef);
-
                   if (userDoc.exists() && userDoc.data().role === 'admin') {
                       if(pageContent) pageContent.style.display = 'block';
                       if(loginContainer) loginContainer.style.display = 'none';
-
-                      const logoutButton = document.getElementById('logout-button');
-                      if (logoutButton) {
-                          logoutButton.addEventListener('click', async () => {
-                              await signOut(auth);
-                              window.location.href = '/admin';
-                          });
-                      }
-                      
+                      document.getElementById('logout-button')?.addEventListener('click', async () => {
+                          await signOut(auth);
+                          window.location.href = '/admin';
+                      });
                       initializePage();
-
                   } else {
                       await signOut(auth);
                       if(loginContainer) loginContainer.style.display = 'block';
@@ -114,96 +97,90 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
   function initializePage() {
     const form = document.getElementById('add-project-form');
-    const addPersonBtn = document.getElementById('add-person-btn');
-    const container = document.getElementById('additional-persons-container');
     const submitBtn = document.getElementById('submit-btn');
-    let personCounter = 1;
-    let supervisorsList = [];
+    const supervisorSelect = document.getElementById('supervisor-select');
+    const tagsContainer = document.getElementById('supervisor-tags-container');
 
-    function createSupervisorSelect() {
-      const select = document.createElement('select');
-      select.name = 'personName';
-      select.className = 'supervisor-select';
-      let optionsHtml = '<option value="" disabled selected>اختر مشرفًا</option>';
-      supervisorsList.forEach(supervisor => {
-          optionsHtml += `<option value="${supervisor.id}">${supervisor.name}</option>`;
-      });
-      select.innerHTML = optionsHtml;
-      return select;
+    let allSupervisors = [];
+    let selectedSupervisors = [];
+
+    function renderSupervisorBadges() {
+        tagsContainer.innerHTML = '';
+        selectedSupervisors.forEach(supervisor => {
+            const badge = document.createElement('div');
+            badge.className = 'supervisor-badge';
+            badge.innerHTML = `
+                <span>${supervisor.name}</span>
+                <button type="button" class="badge-remove" data-id="${supervisor.id}">&times;</button>
+            `;
+            tagsContainer.appendChild(badge);
+        });
+
+        document.querySelectorAll('.badge-remove').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const idToRemove = e.target.getAttribute('data-id');
+                selectedSupervisors = selectedSupervisors.filter(s => s.id !== idToRemove);
+                render();
+            });
+        });
     }
 
-    async function fetchAndPrepareSupervisors() {
-      const allSelects = document.querySelectorAll('.supervisor-select');
-      try {
-          const q = query(collection(db, "users"), where("role", "==", "supervisor"));
-          const querySnapshot = await getDocs(q);
-          supervisorsList = querySnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-          let optionsHtml = '<option value="" disabled selected>اختر مشرفًا</option>';
-          supervisorsList.forEach(supervisor => {
-              optionsHtml += `<option value="${supervisor.id}">${supervisor.name}</option>`;
-          });
-          allSelects.forEach(select => {
-              select.innerHTML = optionsHtml;
-          });
-      } catch (error) {
-          console.error("Error fetching supervisors: ", error);
-          allSelects.forEach(select => {
-              select.innerHTML = '<option value="" disabled selected>خطأ في تحميل المشرفين</option>';
-          });
-      }
+    function renderSelectOptions() {
+        const availableSupervisors = allSupervisors.filter(
+            avail => !selectedSupervisors.some(sel => sel.id === avail.id)
+        );
+
+        let optionsHtml = '<option value="" disabled selected>اختر مشرفًا لإضافته...</option>';
+        availableSupervisors.forEach(supervisor => {
+            optionsHtml += `<option value="${supervisor.id}">${supervisor.name}</option>`;
+        });
+        supervisorSelect.innerHTML = optionsHtml;
     }
 
-    addPersonBtn.addEventListener('click', () => {
-      personCounter++;
-      const newPersonGroup = document.createElement('div');
-      newPersonGroup.className = 'person-group dynamic';
-      const select = createSupervisorSelect();
-      newPersonGroup.innerHTML = `
-          <div class="form-group">
-              <label>اسم المشرف الإضافي</label>
-              ${select.outerHTML}
-          </div>
-          <div class="remove-btn-container">
-            <button type="button" class="btn-remove">إزالة</button>
-          </div>
-      `;
-      container.appendChild(newPersonGroup);
-    });
+    function render() {
+        renderSupervisorBadges();
+        renderSelectOptions();
+    }
 
-    container.addEventListener('click', (e) => {
-        if (e.target.classList.contains('btn-remove')) {
-            e.target.closest('.person-group.dynamic').remove();
+    supervisorSelect.addEventListener('change', (e) => {
+        const selectedId = e.target.value;
+        if (!selectedId) return;
+
+        const supervisorToAdd = allSupervisors.find(s => s.id === selectedId);
+        if (supervisorToAdd) {
+            selectedSupervisors.push(supervisorToAdd);
+            supervisorSelect.value = '';
+            render();
         }
     });
+
+    async function fetchAndPopulateSupervisors() {
+        try {
+            const q = query(collection(db, "users"), where("role", "==", "supervisor"));
+            const querySnapshot = await getDocs(q);
+            allSupervisors = querySnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+            render();
+        } catch (error) {
+            console.error("Error fetching supervisors: ", error);
+            supervisorSelect.innerHTML = '<option value="" disabled>خطأ في تحميل المشرفين</option>';
+        }
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       submitBtn.disabled = true;
       submitBtn.textContent = 'جارٍ الحفظ...';
 
-      const personGroups = form.querySelectorAll('.person-group');
-      const supervisors = [];
-      personGroups.forEach(group => {
-          const selectElement = group.querySelector('select[name="personName"]');
-          if (selectElement && selectElement.value) {
-              const selectedOption = selectElement.options[selectElement.selectedIndex];
-              supervisors.push({
-                  id: selectedOption.value,
-                  name: selectedOption.textContent
-              });
-          }
-      });
-
+      const supervisors = selectedSupervisors;
       const supervisorIds = supervisors.map(s => s.id);
-      const hasDuplicates = supervisorIds.some((id, index) => supervisorIds.indexOf(id) !== index);
-
-      if (hasDuplicates) {
-          alert('لا يمكن تعيين نفس المشرف مرتين للمشروع.');
+      
+      if (supervisorIds.length === 0) {
+          alert('يجب تعيين مشرف واحد على الأقل للمشروع.');
           submitBtn.disabled = false;
           submitBtn.textContent = 'حفظ المشروع';
           return;
       }
-      
+
       const projectData = {
           projectName: form.projectName.value,
           projectAddress: form.projectAddress.value,
@@ -223,45 +200,113 @@ import AdminLogin from '../../components/AdminLogin.astro';
       }
     });
 
-    fetchAndPrepareSupervisors();
+    fetchAndPopulateSupervisors();
   }
-
 </script>
 
-<style>
-  /* Auth and Logout Styles */
+<style is:global>
+  /* This makes the styles available to dynamically generated elements */
+  #supervisor-tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  
+  .supervisor-badge {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #e8eaf6; /* Light indigo background */
+    color: #303f9f; /* Darker indigo text */
+    border: 1px solid #c5cae9; /* Softer border */
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  
+  .badge-remove {
+    background: none;
+    border: none;
+    color: #7986cb; /* Mid-range indigo */
+    margin-right: 12px; /* RTL: margin on the right */
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+    padding: 0;
+    transition: color 0.2s ease, transform 0.2s ease;
+  }
+
+  .badge-remove:hover {
+    color: #d32f2f; /* Red on hover */
+    transform: scale(1.1);
+  }
+
+  /* General page styles below */
   .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
   .auth-container p { font-size: 1.2rem; }
   .btn-danger { background-color: #d9534f; border-color: #d9534f; }
   .btn-danger:hover { background-color: #c9302c; }
 
-  main#page-content { display: block; } /* Keep as block for this page layout */
+  main#page-content { display: block; }
   .add-project-page { padding: 4rem 2rem; background-color: #f4f7f6; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
   .container { max-width: 800px; margin: 0 auto; background-color: #fff; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); }
   .page-header { display: flex; justify-content: space-between; align-items: center; text-align: right; margin-bottom: 2rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 1.5rem; }
   .page-header h1 { font-size: 2.5rem; color: #333; font-weight: 900; margin: 0;}
   .header-actions { display: flex; gap: 1rem; }
   .project-form { display: flex; flex-direction: column; gap: 1.5rem; }
+  
   .form-group { display: flex; flex-direction: column; }
-  .form-group label { font-size: 1rem; font-weight: 700; color: #333; margin-bottom: 0.5rem; text-align: right; }
-  .form-group input, .form-group select { padding: 0.8rem 1rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; font-family: 'Cairo', sans-serif; transition: all 0.3s ease; background-color: #fff; }
-  .form-group input:focus, .form-group select:focus { outline: none; border-color: #3f51b5; box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.2); }
-  .divider { border: 0; height: 1px; background-color: #e0e0e0; margin: 1rem 0; }
-  .person-group { display: grid; grid-template-columns: 1fr; gap: 1.5rem; padding: 1.5rem; border: 1px solid #e9ecef; border-radius: 8px; background-color: #f8f9fa; }
-  .person-group.dynamic { grid-template-columns: 1fr auto; align-items: end; }
-  .remove-btn-container { display: flex; align-items: flex-end; }
-  .btn-remove { background-color: #dc3545; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: background-color 0.3s; font-size: 0.9rem; height: fit-content; }
-  .btn-remove:hover { background-color: #c82333; }
-  .add-person-action { text-align: left; margin-top: -1rem; margin-bottom: 1rem; }
-  .btn-add { background: none; border: 1px dashed #3f51b5; color: #3f51b5; font-weight: 700; padding: 0.6rem 1rem; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
-  .btn-add:hover { background-color: rgba(63, 81, 181, 0.05); }
+  .form-group label { font-size: 1.1rem; font-weight: 700; color: #333; margin-bottom: 0.75rem; text-align: right; }
+  
+  .form-group input, .form-group select {
+    padding: 1rem 1.2rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-family: 'Cairo', sans-serif;
+    transition: all 0.3s ease;
+    background-color: #fafafa;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .form-group select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%236c757d%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.6-3.6%205.4-7.9%205.4-12.8%200-5-1.8-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E');
+    background-repeat: no-repeat;
+    background-position: left 1.2rem center;
+    background-size: 0.8rem;
+    padding-right: 1.2rem; 
+    padding-left: 3rem; 
+  }
+
+  .form-group input {
+    background-image: none;
+  }
+
+  .form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: #3f51b5;
+    box-shadow: 0 0 0 4px rgba(63, 81, 181, 0.15);
+    background-color: #fff;
+  }
+
+  .divider { border: 0; height: 1px; background-color: #e8e8e8; margin: 1.5rem 0; }
+
   .form-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; }
-  .btn { display: inline-block; padding: 0.8rem 1.5rem; color: #fff; text-decoration: none; border-radius: 8px; font-size: 1rem; font-weight: 700; transition: all 0.3s ease; text-align: center; border: none; cursor: pointer; }
-  .btn:hover { transform: translateY(-2px); }
+  .btn { display: inline-block; padding: 0.9rem 1.8rem; color: #fff; text-decoration: none; border-radius: 10px; font-size: 1.1rem; font-weight: 700; transition: all 0.3s ease; text-align: center; border: none; cursor: pointer; letter-spacing: 0.5px;}
+  .btn:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .btn:active { transform: translateY(-1px); }
   .btn-primary { background-color: #3f51b5; }
   .btn-primary:hover { background-color: #303f9f; }
-  .btn-primary:disabled { background-color: #aaa; cursor: not-allowed; }
+  .btn-primary:disabled { background-color: #b0bec5; cursor: not-allowed; transform: none; box-shadow: none; }
   .btn-secondary { background-color: #6c757d; color: white; }
   .btn-secondary:hover { background-color: #5a6268; }
-  @media (max-width: 600px) { .person-group { grid-template-columns: 1fr; } }
+
 </style>

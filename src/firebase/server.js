@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import admin from 'firebase-admin';
 
 // This function ensures the admin app is initialized only once.
