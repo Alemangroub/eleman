@@ -24,7 +24,9 @@ try {
             return {
                 id: doc.id,
                 ...data,
-                createdAt: data.createdAt.toDate().toLocaleDateString('en-CA') 
+                createdAt: data.createdAt.toDate().toLocaleDateString('en-CA'),
+                // Ensure totalPrice is always a number
+                totalPrice: typeof data.totalPrice === 'number' ? data.totalPrice : 0
             };
         });
 
@@ -74,15 +76,10 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                             <input type="date" id="itemDate" name="itemDate" required>
                         </div>
                         <div class="form-group">
-                            <label for="personName">اسم الشخص/الجهة</label>
-                            <input type="text" id="personName" name="personName" required placeholder="ادخل اسم المقاول أو المورد">
-                        </div>
-                        <div class="form-group">
                             <label for="main-category">الفئة الرئيسية (لتحديد اسم البند)</label>
                             <select id="main-category" required>
                                 <option value="" disabled selected>-- اختر فئة --</option>
                                 <option value="بند العماله">بند العماله</option>
-                                <option value="بند المقاول">بند المقاول</option>
                                 <option value="بند الخرسانه">بند الخرسانه</option>
                                 <option value="بند المباني">بند المباني</option>
                                 <option value="بند الكهرباء">بند الكهرباء</option>
@@ -106,16 +103,8 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                             <input type="text" id="other-name" name="other-name" placeholder="ادخل اسم البند الجديد">
                         </div>
                         <div class="form-group">
-                            <label for="quantity">الكمية</label>
-                            <input type="number" id="quantity" name="quantity" step="0.01" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="unitPrice">سعر الوحدة</label>
-                            <input type="number" id="unitPrice" name="unitPrice" step="0.01" required>
-                        </div>
-                        <div class="form-group">
                             <label for="totalPrice">الإجمالي</label>
-                            <input type="number" id="totalPrice" name="totalPrice" step="0.01" disabled>
+                            <input type="number" id="totalPrice" name="totalPrice" step="0.01" required>
                         </div>
                          <div class="form-group form-group-full-width">
                             <label for="notes">ملاحظات</label>
@@ -167,9 +156,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                                     <tr>
                                         <th>التاريخ</th>
                                         <th>اسم البند</th>
-                                        <th>اسم الشخص/الجهة</th>
-                                        <th>الكمية</th>
-                                        <th>سعر الوحدة</th>
                                         <th>الإجمالي</th>
                                         <th>ملاحظات</th>
                                         <th>إجراءات</th>
@@ -180,9 +166,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                                         <tr class="item-row" data-item-id={item.id} data-item-name={item.name} data-project-id={project.id} id={`item-row-${item.id}`} data-total-price={item.totalPrice}>
 										<td data-label="التاريخ" data-field="createdAt">{item.createdAt}</td>
 										<td data-label="اسم البند" data-field="name">{item.name}</td>
-										<td data-label="اسم الشخص/الجهة" data-field="personName">{item.personName || '-'}</td>
-										<td data-label="الكمية" data-field="quantity">{item.quantity}</td>
-										<td data-label="سعر الوحدة" data-field="unitPrice">{item.unitPrice.toFixed(2)}</td>
 										<td data-label="الإجمالي" data-field="totalPrice">{item.totalPrice.toFixed(2)}</td>
 										<td data-label="ملاحظات" data-field="notes">{item.notes || '-'}</td>
                                         <td data-label="إجراءات" class="actions-cell">
@@ -293,23 +276,18 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                         if (!projectId) throw new Error("Project ID is not available.");
 
                         const name = document.getElementById('name').value;
-                        const personName = document.getElementById('personName').value;
-                        const quantity = parseFloat(document.getElementById('quantity').value);
-                        const unitPrice = parseFloat(document.getElementById('unitPrice').value);
+                        const totalPrice = parseFloat(document.getElementById('totalPrice').value);
                         const itemDate = document.getElementById('itemDate').value;
                         const notes = document.getElementById('notes').value;
 
-                        if (!name || !personName || isNaN(quantity) || isNaN(unitPrice) || !itemDate) {
+                        if (!name || isNaN(totalPrice) || !itemDate) {
                             throw new Error('يرجى ملء جميع الحقول المطلوبة والتأكد من صحة البيانات.');
                         }
 
                         const itemsColRef = collection(db, 'projects', projectId, 'items');
                         await addDoc(itemsColRef, {
                             name,
-                            personName,
-                            quantity,
-                            unitPrice,
-                            totalPrice: quantity * unitPrice,
+                            totalPrice,
                             notes,
                             createdAt: Timestamp.fromDate(new Date(itemDate))
                         });
@@ -520,7 +498,8 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                     updates[input.name] = input.value;
                 });
 
-                if (!updates.name || !updates.personName || !updates.quantity || !updates.unitPrice || !updates.createdAt) {
+                // Updated validation for totalPrice
+                if (!updates.name || !updates.totalPrice || !updates.createdAt) {
                     alert('يرجى ملء جميع الحقول المطلوبة.');
                     return;
                 }
@@ -537,7 +516,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                     row.querySelectorAll('td[data-field]').forEach(cell => {
                         const field = cell.dataset.field;
                         let newValue = result.data[field];
-                        if (field === 'unitPrice' || field === 'totalPrice') {
+                        if (field === 'totalPrice') {
                             newValue = parseFloat(newValue).toFixed(2);
                         }
                         cell.textContent = newValue;
@@ -570,29 +549,14 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                         let inputHtml;
                         switch (field) {
                             case 'createdAt': inputHtml = `<input type="date" name="createdAt" value="${currentValue}" class="form-control-inline">`; break;
-                            case 'quantity':
-                            case 'unitPrice': inputHtml = `<input type="number" name="${field}" value="${currentValue}" step="0.01" class="form-control-inline">`; break;
+                            case 'totalPrice': inputHtml = `<input type="number" name="totalPrice" value="${currentValue}" step="0.01" class="form-control-inline">`; break;
                             case 'name':
-                            case 'personName':
                             case 'notes': inputHtml = `<input type="text" name="${field}" value="${currentValue}" class="form-control-inline">`; break;
-                            case 'totalPrice': return;
                             default: return;
                         }
                         cell.innerHTML = inputHtml;
                     });
 
-                    const quantityInput = row.querySelector('input[name="quantity"]');
-                    const unitPriceInput = row.querySelector('input[name="unitPrice"]');
-                    const totalPriceCell = row.querySelector('td[data-field="totalPrice"]');
-                    const updateInlineTotal = () => {
-                        const quantity = parseFloat(quantityInput.value) || 0;
-                        const unitPrice = parseFloat(unitPriceInput.value) || 0;
-                        totalPriceCell.textContent = (quantity * unitPrice).toFixed(2);
-                    };
-                    if (quantityInput && unitPriceInput) {
-                        quantityInput.addEventListener('input', updateInlineTotal);
-                        unitPriceInput.addEventListener('input', updateInlineTotal);
-                    }
                 } else {
                     viewButtons.style.display = 'flex';
                     editButtons.style.display = 'none';
@@ -674,7 +638,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 });
             }
 
-            const subCategories = { 'بند العماله': ['بند المصروف اليومي','بند اجرة العمال'],'بند المقاول':['بند لبشه عاديه','بند لبشه مسلحه'],'بند الخرسانه':['الاسمنت','الحديد','الزلط','الرمله','المقاول'],'بند المباني':['رمله','اسمنت','طوب','تشوين','اجرة مباني'],'بند الكهرباء':['بند الاساسيات','بند اجرة التركيب'],'بند السباكه':['بند الاساسيات','بند اجرة التركيب'],'بند المحاره':['الاسمنت','الرمله','اجرة عمال','تشوين'],'بند الرخام':['تمن الرخام','تمن التركيب'],'بند الدهانات':['مونه','اجره'],'بند تشطيبات الكهرباء':['مونه','اجره'],'بند المجلس':['مصروف الرخصه','التصالح','المحاضر'],'بند الحفر':['اجرة العمال','المعدات'],'بند الهدم':['اجرة عمال','المعدات'] };
+            const subCategories = { 'بند العماله': ['بند المصروف اليومي','بند اجرة العمال'],'بند الخرسانه':['الاسمنت','الحديد','الزلط','الرمله'],'بند المباني':['رمله','اسمنت','طوب','تشوين','اجرة مباني'],'بند الكهرباء':['بند الاساسيات','بند اجرة التركيب'],'بند السباكه':['بند الاساسيات','بند اجرة التركيب'],'بند المحاره':['الاسمنت','الرمله','اجرة عمال','تشوين'],'بند الرخام':['تمن الرخام','تمن التركيب'],'بند الدهانات':['مونه','اجره'],'بند تشطيبات الكهرباء':['مونه','اجره'],'بند المجلس':['مصروف الرخصه','التصالح','المحاضر'],'بند الحفر':['اجرة العمال','المعدات'],'بند الهدم':['اجرة عمال','المعدات'] };
             
             const mainCategorySelect=document.getElementById('main-category');
             const subCategoryGroup=document.getElementById('sub-category-group');
@@ -683,11 +647,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
             const otherNameInput=document.getElementById('other-name');
             const hiddenNameInput=document.getElementById('name');
             function updateHiddenItemName(){const mainCategory=mainCategorySelect.value;if(mainCategory==='اخرى'){hiddenNameInput.value=otherNameInput.value}else if(subCategories[mainCategory]){hiddenNameInput.value=subCategorySelect.value}else{hiddenNameInput.value=mainCategory}}mainCategorySelect.addEventListener('change',()=>{const selectedCategory=mainCategorySelect.value;subCategorySelect.innerHTML='';otherNameGroup.style.display='none';otherNameInput.required=false;if(subCategories[selectedCategory]){subCategories[selectedCategory].forEach(sub=>{const option=document.createElement('option');option.value=sub;option.textContent=sub;subCategorySelect.appendChild(option)});subCategoryGroup.style.display='block'}else if(selectedCategory==='اخرى'){otherNameGroup.style.display='block';otherNameInput.required=true}updateHiddenItemName()});subCategorySelect.addEventListener('change',updateHiddenItemName);otherNameInput.addEventListener('input',updateHiddenItemName);updateHiddenItemName();
-
-            const quantityInput = document.getElementById('quantity');
-            const unitPriceInput = document.getElementById('unitPrice');
-            const totalPriceInput = document.getElementById('totalPrice');
-            function calculateTotal(){const quantity=parseFloat(quantityInput.value)||0;const unitPrice=parseFloat(unitPriceInput.value)||0;totalPriceInput.value=(quantity*unitPrice).toFixed(2)}if(quantityInput&&unitPriceInput){quantityInput.addEventListener('input',calculateTotal);unitPriceInput.addEventListener('input',calculateTotal);}
 
             const mainCategoryFilter = document.getElementById('main-category-filter');
             const subCategoryFilterGroup = document.getElementById('sub-category-filter-group');
