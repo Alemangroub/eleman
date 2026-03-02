@@ -510,8 +510,8 @@ try {
                 <div class="card-header">
                     <h3>${title || '-'}</h3>
                     <div class="card-actions">
-                        <button class="btn btn-edit-custom"></button>
-                        <button class="btn btn-delete-custom"></button>
+                         <button class="btn-icon btn-edit-custom" title="تعديل"><i class="material-icons">edit</i></button>
+                         <button class="btn-icon btn-delete-custom" title="حذف"><i class="material-icons">delete</i></button>
                     </div>
                 </div>
                 <div class="card-body">
@@ -668,14 +668,34 @@ try {
 .card-details-full strong { font-weight: 700; color: var(--dark-text); display: block; margin-bottom: 0.5rem; }
 .card-details-full p { margin: 0; line-height: 1.7; color: var(--light-text); white-space: pre-wrap; word-wrap: break-word; }
 
-.btn-edit-custom, .btn-delete-custom {
-    background: transparent; border: none; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background-color 0.2s ease; 
+.btn-icon {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
 }
-.btn-edit-custom::after, .btn-delete-custom::after { font-family: 'Material Icons'; font-size: 20px; }
-.btn-edit-custom::after { content: 'edit'; color: var(--primary-color); }
-.btn-delete-custom::after { content: 'delete'; color: var(--danger-color); }
-.btn-edit-custom:hover { background-color: rgba(63, 81, 181, 0.1); }
-.btn-delete-custom:hover { background-color: rgba(217, 83, 79, 0.1); }
+.btn-icon .material-icons {
+    font-size: 22px;
+}
+.btn-edit-custom .material-icons {
+    color: var(--primary-color);
+}
+.btn-delete-custom .material-icons {
+    color: var(--danger-color);
+}
+.btn-edit-custom:hover {
+    background-color: rgba(63, 81, 181, 0.1);
+}
+.btn-delete-custom:hover {
+    background-color: rgba(217, 83, 79, 0.1);
+}
 
 #no-agreements-message { text-align: center; padding: 3rem 0; font-size: 1.1rem; color: #777; background-color: var(--white); border-radius: 8px; }
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 1000; visibility: hidden; opacity: 0; transition: opacity 0.3s ease; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
