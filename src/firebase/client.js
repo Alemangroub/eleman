@@ -3,6 +3,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getStorage } from "firebase/storage"; // Import storage
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -19,15 +20,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const storage = getStorage(app); // Initialize storage
 
 // Export everything the client-side scripts might need
 export { 
     app,
     db, 
-    auth, 
+    auth,
+    storage, // Export storage
     onAuthStateChanged, 
     collection, 
     addDoc, 
     serverTimestamp,
-    firebaseConfig // Added firebaseConfig to exports
+    firebaseConfig
 };
