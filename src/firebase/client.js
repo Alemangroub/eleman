@@ -22,10 +22,12 @@ const auth = getAuth(app);
 
 // Export everything the client-side scripts might need
 export { 
+    app,
     db, 
     auth, 
     onAuthStateChanged, 
     collection, 
     addDoc, 
-    serverTimestamp 
+    serverTimestamp,
+    firebaseConfig // Added firebaseConfig to exports
 };
