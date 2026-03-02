@@ -50,7 +50,6 @@ try {
                         </div>
                     </header>
 
-                    <!-- Agreements List -->
                     <div class="agreements-list-container">
                          <div class="list-controls">
                             <div class="filter-group">
@@ -77,8 +76,18 @@ try {
                                 </select>
                             </div>
                         </div>
+                        <div class="totals-summary-container">
+                            <div class="total-box">
+                                <span class="total-label">إجمالي المعروض</span>
+                                <span id="filtered-agreements-total" class="total-value">0.00 ج.م</span>
+                            </div>
+                            <div class="total-box grand-total-box">
+                                <span class="total-label">الإجمالي الكلي</span>
+                                <span id="grand-agreements-total" class="total-value">0.00 ج.م</span>
+                            </div>
+                        </div>
                         <div id="agreements-grid" class="agreements-grid">
-                            <!-- Agreement cards will be injected by JavaScript -->
+                            <!-- Agreement cards are injected by JS -->
                         </div>
                         <p id="no-agreements-message" style="display: none;">لم يتم إضافة أي اتفاقات لهذا المشروع بعد.</p>
                     </div>
@@ -93,7 +102,7 @@ try {
         </div>
     </main>
 
-    <!-- Add/Edit Agreement Modal -->
+    <!-- Modals (Add/Edit, Delete) -->
     <div id="agreement-modal" class="modal-overlay">
       <div class="modal-box">
         <h3 id="modal-title">إضافة اتفاق جديد</h3>
@@ -175,8 +184,6 @@ try {
         </form>
       </div>
     </div>
-    
-    <!-- Delete Confirmation Modal -->
     <div id="delete-modal" class="modal-overlay">
       <div class="modal-box">
         <h3>تأكيد الحذف</h3>
@@ -202,16 +209,12 @@ try {
     function toYYYYMMDD(date) {
         if (!date) return '';
         const d = date instanceof Date ? date : date.toDate();
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
     document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
-
         onAuthStateChanged(auth, async (user) => {
             authLoadingMessage.style.display = 'none';
             if (user) {
@@ -221,11 +224,9 @@ try {
                         pageContent.style.display = 'block';
                         loginContainer.style.display = 'none';
                         initializePage();
-                    } else {
-                        throw new Error('User is not an admin');
-                    }
+                    } else { throw new Error('User is not an admin'); }
                 } catch (e) {
-                     signOut(auth);
+                    signOut(auth);
                     pageContent.style.display = 'none';
                     loginContainer.style.display = 'block';
                 }
@@ -261,15 +262,10 @@ try {
         const subtypeFilterGroup = document.getElementById('subtype-filter-group');
 
         categoryFilter.addEventListener('change', () => {
-            if (categoryFilter.value === 'المقاول') {
-                subtypeFilterGroup.style.display = 'flex';
-            } else {
-                subtypeFilterGroup.style.display = 'none';
-            }
-            subtypeFilter.value = 'all'; // Reset sub-filter when main filter changes
+            subtypeFilterGroup.style.display = categoryFilter.value === 'المقاول' ? 'flex' : 'none';
+            subtypeFilter.value = 'all';
             displayFilteredAgreements();
         });
-
         subtypeFilter.addEventListener('change', displayFilteredAgreements);
 
         const otherTitleGroup = document.getElementById('other-title-group');
@@ -277,7 +273,6 @@ try {
         const contractorSubtypeGroup = document.getElementById('contractor-subtype-group');
         const contractorFields = document.getElementById('contractor-fields');
         const genericFields = document.getElementById('generic-fields');
-        
         const areaInput = document.getElementById('area');
         const pricePerMeterInput = document.getElementById('price-per-meter');
         const quantityInput = document.getElementById('quantity');
@@ -302,30 +297,20 @@ try {
             const isContractor = title === 'المقاول';
             const isOther = title === 'اخري';
             const isGeneric = !isContractor && !isOther && title !== '';
-
             otherTitleGroup.style.display = isOther ? 'block' : 'none';
             contractorSubtypeGroup.style.display = isContractor ? 'block' : 'none';
             contractorFields.style.display = isContractor ? 'block' : 'none';
             genericFields.style.display = (isGeneric || isOther) ? 'block' : 'none';
-            
             otherAgreementTitleInput.required = isOther;
             totalInput.readOnly = isContractor || isGeneric || isOther;
-            
             if (!isContractor) {
                 areaInput.value = '';
                 pricePerMeterInput.value = '';
                 document.getElementById('contractor-subtype').value = '';
             }
-            if (!isGeneric && !isOther) {
-                quantityInput.value = '';
-                priceInput.value = '';
-            }
-             if (!isOther) {
-                otherAgreementTitleInput.value = '';
-            }
-            if(title === '') {
-                 totalInput.readOnly = false;
-            }
+            if (!isGeneric && !isOther) { quantityInput.value = ''; priceInput.value = ''; }
+            if (!isOther) { otherAgreementTitleInput.value = ''; }
+            if (title === '') { totalInput.readOnly = false; }
         });
 
         function calculateTotal() {
@@ -340,38 +325,25 @@ try {
                 totalInput.value = (quantity * price).toFixed(2);
             }
         }
-
         [areaInput, pricePerMeterInput, quantityInput, priceInput].forEach(input => input.addEventListener('input', calculateTotal));
         
         agreementForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const selectedTitle = agreementTitleSelect.value;
             let finalTitle = selectedTitle;
-             if (selectedTitle === 'اخري') {
+            if (selectedTitle === 'اخري') {
                 finalTitle = otherAgreementTitleInput.value.trim();
-                if (!finalTitle) {
-                    alert('يرجى إدخال اسم البند.');
-                    return;
-                }
+                if (!finalTitle) { alert('يرجى إدخال اسم البند.'); return; }
             } else if (selectedTitle === 'المقاول') {
                 const subtype = document.getElementById('contractor-subtype').value;
-                 if (!subtype) {
-                    alert('يرجى اختيار نوع البند الفرعي للمقاول.');
-                    return;
-                }
+                if (!subtype) { alert('يرجى اختيار نوع البند الفرعي للمقاول.'); return; }
                 finalTitle = subtype;
             }
-
-            if (!finalTitle || finalTitle === "") {
-                alert('يرجى تحديد بند الاتفاق.');
-                return;
-            }
+            if (!finalTitle || finalTitle === "") { alert('يرجى تحديد بند الاتفاق.'); return; }
             
             const dateValue = document.getElementById('date').value;
             const [year, month, day] = dateValue.split('-').map(Number);
             const localDate = new Date(year, month - 1, day);
-
             const agreementData = {
                 title: finalTitle,
                 agreedWith: document.getElementById('agreed-with').value,
@@ -381,7 +353,6 @@ try {
                 notes: document.getElementById('agreement-notes').value,
                 mainCategory: selectedTitle, 
             };
-
             if (selectedTitle === 'المقاول') {
                 agreementData.area = parseFloat(areaInput.value) || 0;
                 agreementData.pricePerMeter = parseFloat(pricePerMeterInput.value) || 0;
@@ -389,7 +360,6 @@ try {
                 agreementData.quantity = parseFloat(quantityInput.value) || 0;
                 agreementData.price = parseFloat(priceInput.value) || 0;
             }
-
             const agreementsColRef = collection(db, 'projects', projectId, 'agreements');
             try {
                 if (currentEditAgreementId) {
@@ -407,26 +377,16 @@ try {
         agreementsGrid.addEventListener('click', async (e) => {
             const button = e.target.closest('button[class^="btn-icon"]');
             if (!button) return;
-
             const card = e.target.closest('.agreement-card');
             if (!card) return;
-            
             const agreementId = card.dataset.id;
             const agreementData = JSON.parse(card.dataset.agreement);
             const projectName = document.getElementById('page-content').dataset.projectName;
-
-            if (button.classList.contains('btn-edit-custom')) {
-                openEditModal(agreementId, agreementData);
-            } else if (button.classList.contains('btn-delete-custom')) {
-                agreementIdToDelete = agreementId;
-                showModal(deleteModal);
-            } else if (button.classList.contains('btn-print-custom')) {
-                printCard(card);
-            } else if (button.classList.contains('btn-pdf-custom')) {
-                await exportCardAsPDF(card, agreementData, projectName);
-            } else if (button.classList.contains('btn-excel-custom')) {
-                exportDataAsExcel(agreementData, projectName);
-            }
+            if (button.classList.contains('btn-edit-custom')) openEditModal(agreementId, agreementData);
+            else if (button.classList.contains('btn-delete-custom')) { agreementIdToDelete = agreementId; showModal(deleteModal); }
+            else if (button.classList.contains('btn-print-custom')) printCard(card);
+            else if (button.classList.contains('btn-pdf-custom')) await exportCardAsPDF(card, agreementData, projectName);
+            else if (button.classList.contains('btn-excel-custom')) exportDataAsExcel(agreementData, projectName);
         });
 
         document.getElementById('cancel-delete-btn').addEventListener('click', () => hideModal(deleteModal));
@@ -438,7 +398,7 @@ try {
                     hideModal(deleteModal);
                     agreementIdToDelete = null;
                 } catch (error) {
-                     console.error("Error deleting agreement: ", error);
+                    console.error("Error deleting agreement: ", error);
                     alert("حدث خطأ أثناء حذف الاتفاق. يرجى المحاولة مرة أخرى.");
                 }
             }
@@ -459,30 +419,13 @@ try {
         const { jsPDF } = window.jspdf;
         const canvas = await html2canvas(cardElement, { scale: 2, useCORS: true });
         const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({
-            orientation: 'p',
-            unit: 'px',
-            format: [canvas.width, canvas.height]
-        });
+        const pdf = new jsPDF({ orientation: 'p', unit: 'px', format: [canvas.width, canvas.height] });
         pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
         pdf.save(`اتفاق-${projectName}-${agreementData.title}.pdf`);
     }
 
     function exportDataAsExcel(agreementData, projectName) {
-        const data = [
-            ['البند الرئيسي', agreementData.mainCategory],
-            ['البند', agreementData.title],
-            ['المتفق معه', agreementData.agreedWith],
-            ['التاريخ', agreementData.date],
-            ['الإجمالي', agreementData.total],
-            ['المساحة', agreementData.area || '-'],
-            ['سعر المتر', agreementData.pricePerMeter || '-'],
-            ['الكمية', agreementData.quantity || '-'],
-            ['السعر', agreementData.price || '-'],
-            ['التفاصيل', agreementData.details || '-'],
-            ['ملاحظات', agreementData.notes || '-']
-        ];
-
+        const data = [['البند الرئيسي', agreementData.mainCategory], ['البند', agreementData.title], ['المتفق معه', agreementData.agreedWith], ['التاريخ', agreementData.date], ['الإجمالي', agreementData.total], ['المساحة', agreementData.area || '-'], ['سعر المتر', agreementData.pricePerMeter || '-'], ['الكمية', agreementData.quantity || '-'], ['السعر', agreementData.price || '-'], ['التفاصيل', agreementData.details || '-'], ['ملاحظات', agreementData.notes || '-']];
         const worksheet = XLSX.utils.aoa_to_sheet(data);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Agreement Details");
@@ -494,10 +437,8 @@ try {
         const agreementsQuery = query(collection(db, 'projects', projectId, 'agreements'), orderBy('date', 'desc'));
         const noAgreementsMessage = document.getElementById('no-agreements-message');
         const agreementsGrid = document.getElementById('agreements-grid');
-
         onSnapshot(agreementsQuery, (snapshot) => {
             allAgreementsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            
             if (allAgreementsData.length === 0) {
                  noAgreementsMessage.textContent = 'لم يتم إضافة أي اتفاقات لهذا المشروع بعد.';
                  noAgreementsMessage.style.display = 'block';
@@ -505,6 +446,7 @@ try {
             } else {
                 displayFilteredAgreements();
             }
+            updateTotals();
         });
     }
 
@@ -518,15 +460,14 @@ try {
             agreementsGrid.innerHTML = '';
             noAgreementsMessage.textContent = 'يرجى اختيار بند من القائمة لعرض الاتفاقات.';
             noAgreementsMessage.style.display = 'block';
+            updateTotals();
             return;
         }
 
         let filteredData = allAgreementsData;
-
         if (mainFilterValue !== 'all') {
             filteredData = filteredData.filter(item => item.mainCategory === mainFilterValue);
         }
-
         if (mainFilterValue === 'المقاول' && subtypeFilterValue !== 'all') {
             filteredData = filteredData.filter(item => item.title === subtypeFilterValue);
         }
@@ -539,12 +480,30 @@ try {
             agreementsGrid.innerHTML = filteredData.map(renderAgreementCard).join('');
             noAgreementsMessage.style.display = 'none';
         }
+        updateTotals();
+    }
+
+    function updateTotals() {
+        const filteredTotalEl = document.getElementById('filtered-agreements-total');
+        const grandTotalEl = document.getElementById('grand-agreements-total');
+
+        const grandTotal = allAgreementsData.reduce((sum, agr) => sum + (agr.total || 0), 0);
+        if (grandTotalEl) {
+            grandTotalEl.textContent = grandTotal.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+        }
+
+        let filteredTotal = 0;
+        document.querySelectorAll('.agreement-card').forEach(card => {
+            filteredTotal += parseFloat(card.dataset.total) || 0;
+        });
+         if (filteredTotalEl) {
+            filteredTotalEl.textContent = filteredTotal.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+        }
     }
 
     function renderAgreementCard(data) {
         const { id, title, agreedWith, date, total, details, notes, mainCategory, area, pricePerMeter, quantity, price } = data;
         const dateObj = date.toDate ? date.toDate() : new Date(date);
-        
         const storedData = {...data, date: toYYYYMMDD(date) };
         if (storedData.createdAt) delete storedData.createdAt;
 
@@ -558,7 +517,7 @@ try {
         }
 
         return `
-            <div class="agreement-card" data-id="${id}" data-agreement='${JSON.stringify(storedData)}' data-main-category="${mainCategory}" data-title="${title}">
+            <div class="agreement-card" data-id="${id}" data-agreement='${JSON.stringify(storedData)}' data-main-category="${mainCategory}" data-title="${title}" data-total="${total || 0}">
                 <div class="card-header">
                     <h3>${title || '-'}</h3>
                      <div class="card-actions">
@@ -577,16 +536,8 @@ try {
                 </div>
                 ${(details || notes) ? `
                 <div class="card-footer">
-                    ${details ? `
-                    <div class="card-details-full">
-                        <strong>تفاصيل الاتفاق:</strong>
-                        <p>${details}</p>
-                    </div>` : ''}
-                    ${notes ? `
-                    <div class="card-details-full">
-                        <strong>ملاحظات:</strong>
-                        <p>${notes}</p>
-                    </div>` : ''}
+                    ${details ? `<div class="card-details-full"><strong>تفاصيل الاتفاق:</strong><p>${details}</p></div>` : ''}
+                    ${notes ? `<div class="card-details-full"><strong>ملاحظات:</strong><p>${notes}</p></div>` : ''}
                 </div>
                 ` : ''}
             </div>
@@ -598,16 +549,13 @@ try {
         document.getElementById('modal-title').textContent = 'تعديل اتفاق';
         const agreementForm = document.getElementById('agreement-form');
         agreementForm.reset();
-
         const titleSelect = document.getElementById('agreement-title');
         const otherAgreementTitleInput = document.getElementById('other-agreement-title');
         const contractorSubtypeSelect = document.getElementById('contractor-subtype');
         const options = Array.from(titleSelect.options).map(opt => opt.value);
-        
         const mainCategory = data.mainCategory || (options.includes(data.title) ? data.title : 'اخري');
         titleSelect.value = mainCategory;
         titleSelect.dispatchEvent(new Event('change'));
-        
         if (mainCategory === 'المقاول') {
             contractorSubtypeSelect.value = data.title || '';
             document.getElementById('area').value = data.area || '';
@@ -615,17 +563,13 @@ try {
         } else {
              document.getElementById('quantity').value = data.quantity || '';
              document.getElementById('price').value = data.price || '';
-             if (mainCategory === 'اخري') {
-                otherAgreementTitleInput.value = data.title || '';
-             }
+             if (mainCategory === 'اخري') { otherAgreementTitleInput.value = data.title || ''; }
         }
-        
         document.getElementById('agreed-with').value = data.agreedWith || '';
         document.getElementById('date').value = data.date || '';
         document.getElementById('agreement-total').value = data.total || '';
         document.getElementById('agreement-details').value = data.details || '';
         document.getElementById('agreement-notes').value = data.notes || '';
-
         showModal(document.getElementById('agreement-modal'));
     }
 </script>
@@ -647,9 +591,7 @@ try {
 }
 .agreements-admin-page { padding: 3rem 1.5rem; background-color: var(--light-gray); min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
 .container { max-width: 1400px; margin: 0 auto; }
-.auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
-.auth-container p { font-size: 1.2rem; }
-.error-card { text-align: center; padding: 4rem; background: var(--white); border-radius: 12px; box-shadow: var(--shadow); }
+.auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
 .page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); }
 .page-header h1 { font-size: 2.2rem; color: var(--dark-text); font-weight: 900; }
 .page-subtitle { color: var(--light-text); margin-top: 0.25rem; }
@@ -657,55 +599,25 @@ try {
 .btn { display: inline-block; padding: 0.7rem 1.3rem; color: var(--white); text-decoration: none; border-radius: 8px; font-size: 0.95rem; font-weight: 700; transition: all 0.2s ease-in-out; text-align: center; border: 1px solid transparent; cursor: pointer; }
 .btn:hover { transform: translateY(-2px); }
 .btn-primary { background-color: var(--primary-color); border-color: var(--primary-color); }
-.btn-secondary { background-color: var(--secondary-color); border-color: var(--secondary-color); color: var(--white); }
+.btn-secondary { background-color: var(--secondary-color); border-color: var(--secondary-color); }
 .btn-danger { background-color: var(--danger-color); border-color: var(--danger-color); }
 .agreements-list-container { background-color: transparent; padding: 0; border-radius: 0; box-shadow: none; }
 
-.list-controls {
-    margin-bottom: 1.5rem;
-    padding: 1rem;
-    background-color: var(--white);
-    border-radius: 8px;
-    box-shadow: var(--shadow);
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-}
-.filter-group {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-.filter-group label {
-    font-weight: 700;
-    color: var(--light-text);
-    white-space: nowrap;
-}
-.filter-group select {
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    font-size: 0.95rem;
-    background-color: #fff;
-    min-width: 200px;
-    cursor: pointer;
-}
+.list-controls { margin-bottom: 1rem; padding: 1rem; background-color: var(--white); border-radius: 8px; box-shadow: var(--shadow); display: flex; gap: 1rem; flex-wrap: wrap; justify-content: flex-start; }
+.filter-group { display: flex; align-items: center; gap: 0.75rem; }
+.filter-group label { font-weight: 700; color: var(--light-text); white-space: nowrap; }
+.filter-group select { padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; background-color: #fff; min-width: 200px; cursor: pointer; }
+
+.totals-summary-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.total-box { background-color: var(--white); padding: 1rem; border-radius: 8px; box-shadow: var(--shadow); border: 1px solid var(--border-color); }
+.total-label { display: block; color: var(--secondary-color); font-size: 0.9rem; margin-bottom: 0.5rem; font-weight: 600; }
+.total-value { display: block; font-size: 1.5rem; font-weight: 800; color: var(--dark-text); }
+.grand-total-box { background-color: #e9f5ea; border-color: #a0d8a4; }
+.grand-total-box .total-value { color: #1e8449; }
 
 .agreements-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 1.5rem; }
-
-.agreement-card {
-    background-color: var(--white);
-    border-radius: 12px;
-    box-shadow: var(--card-shadow);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    display: flex;
-    flex-direction: column;
-}
-.agreement-card:hover { 
-    transform: translateY(-5px);
-    box-shadow: var(--card-hover-shadow);
-}
+.agreement-card { background-color: var(--white); border-radius: 12px; box-shadow: var(--card-shadow); transition: transform 0.2s ease, box-shadow 0.2s ease; display: flex; flex-direction: column; }
+.agreement-card:hover { transform: translateY(-5px); box-shadow: var(--card-hover-shadow); }
 .card-header, .card-body, .card-footer { padding: 1rem 1.5rem; }
 .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
 .card-header h3 { font-size: 1.4rem; font-weight: 800; color: var(--primary-color); margin: 0; }
@@ -722,40 +634,18 @@ try {
 .card-details-full:last-child { margin-bottom: 0; }
 .card-details-full strong { font-weight: 700; color: var(--dark-text); display: block; margin-bottom: 0.5rem; }
 .card-details-full p { margin: 0; line-height: 1.7; color: var(--light-text); white-space: pre-wrap; word-wrap: break-word; }
-
-.btn-icon {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: background-color 0.2s ease;
-}
-.btn-icon .material-icons {
-    font-size: 22px;
-}
-.btn-edit-custom .material-icons {
-    color: var(--primary-color);
-}
-.btn-delete-custom .material-icons {
-    color: var(--danger-color);
-}
+.btn-icon { background: transparent; border: none; cursor: pointer; width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background-color 0.2s ease; }
+.btn-icon .material-icons { font-size: 22px; }
+.btn-edit-custom .material-icons { color: var(--primary-color); }
+.btn-delete-custom .material-icons { color: var(--danger-color); }
 .btn-print-custom .material-icons { color: #555; }
 .btn-pdf-custom .material-icons { color: #e74c3c; }
 .btn-excel-custom .material-icons { color: #1e8449; }
-
 .btn-edit-custom:hover { background-color: rgba(63, 81, 181, 0.1); }
 .btn-delete-custom:hover { background-color: rgba(217, 83, 79, 0.1); }
 .btn-print-custom:hover { background-color: rgba(0,0,0,0.08); }
 .btn-pdf-custom:hover { background-color: rgba(231, 76, 60, 0.1); }
 .btn-excel-custom:hover { background-color: rgba(30, 132, 73, 0.1); }
-
-
 #no-agreements-message { text-align: center; padding: 3rem 0; font-size: 1.1rem; color: #777; background-color: var(--white); border-radius: 8px; }
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 1000; visibility: hidden; opacity: 0; transition: opacity 0.3s ease; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }
 .modal-overlay.visible { visibility: visible; opacity: 1; }
@@ -769,11 +659,11 @@ try {
 .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.8rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; background-color: #fff; }
 
 @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
-
 @media (max-width: 768px) {
     .agreements-grid { grid-template-columns: 1fr; }
     .card-body { grid-template-columns: 1fr; }
     .list-controls { flex-direction: column; gap: 1rem; }
     .filter-group { flex-direction: column; align-items: stretch; }
+    .totals-summary-container { grid-template-columns: 1fr; }
 }
 </style>
