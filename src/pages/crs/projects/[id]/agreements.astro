@@ -404,20 +404,28 @@ try {
             }
         });
         
-        agreementsGrid.addEventListener('click', (e) => {
-            const button = e.target.closest('button');
+        agreementsGrid.addEventListener('click', async (e) => {
+            const button = e.target.closest('button[class^="btn-icon"]');
             if (!button) return;
 
             const card = e.target.closest('.agreement-card');
             if (!card) return;
-
+            
             const agreementId = card.dataset.id;
+            const agreementData = JSON.parse(card.dataset.agreement);
+            const projectName = document.getElementById('page-content').dataset.projectName;
+
             if (button.classList.contains('btn-edit-custom')) {
-                const agreementData = JSON.parse(card.dataset.agreement);
                 openEditModal(agreementId, agreementData);
             } else if (button.classList.contains('btn-delete-custom')) {
                 agreementIdToDelete = agreementId;
                 showModal(deleteModal);
+            } else if (button.classList.contains('btn-print-custom')) {
+                printCard(card);
+            } else if (button.classList.contains('btn-pdf-custom')) {
+                await exportCardAsPDF(card, agreementData, projectName);
+            } else if (button.classList.contains('btn-excel-custom')) {
+                exportDataAsExcel(agreementData, projectName);
             }
         });
 
@@ -435,6 +443,50 @@ try {
                 }
             }
         });
+    }
+
+    function printCard(cardElement) {
+        const printableArea = cardElement.cloneNode(true);
+        const printContainer = document.createElement('div');
+        printContainer.classList.add('printable-area');
+        printContainer.appendChild(printableArea);
+        document.body.appendChild(printContainer);
+        window.print();
+        document.body.removeChild(printContainer);
+    }
+
+    async function exportCardAsPDF(cardElement, agreementData, projectName) {
+        const { jsPDF } = window.jspdf;
+        const canvas = await html2canvas(cardElement, { scale: 2, useCORS: true });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+            orientation: 'p',
+            unit: 'px',
+            format: [canvas.width, canvas.height]
+        });
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save(`اتفاق-${projectName}-${agreementData.title}.pdf`);
+    }
+
+    function exportDataAsExcel(agreementData, projectName) {
+        const data = [
+            ['البند الرئيسي', agreementData.mainCategory],
+            ['البند', agreementData.title],
+            ['المتفق معه', agreementData.agreedWith],
+            ['التاريخ', agreementData.date],
+            ['الإجمالي', agreementData.total],
+            ['المساحة', agreementData.area || '-'],
+            ['سعر المتر', agreementData.pricePerMeter || '-'],
+            ['الكمية', agreementData.quantity || '-'],
+            ['السعر', agreementData.price || '-'],
+            ['التفاصيل', agreementData.details || '-'],
+            ['ملاحظات', agreementData.notes || '-']
+        ];
+
+        const worksheet = XLSX.utils.aoa_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Agreement Details");
+        XLSX.writeFile(workbook, `اتفاق-${projectName}-${agreementData.title}.xlsx`);
     }
     
     function listenForAgreements() {
@@ -509,7 +561,10 @@ try {
             <div class="agreement-card" data-id="${id}" data-agreement='${JSON.stringify(storedData)}' data-main-category="${mainCategory}" data-title="${title}">
                 <div class="card-header">
                     <h3>${title || '-'}</h3>
-                    <div class="card-actions">
+                     <div class="card-actions">
+                        <button class="btn-icon btn-print-custom" title="طباعة"><i class="material-icons">print</i></button>
+                        <button class="btn-icon btn-pdf-custom" title="تصدير PDF"><i class="material-icons">picture_as_pdf</i></button>
+                        <button class="btn-icon btn-excel-custom" title="تصدير Excel"><i class="material-icons">description</i></button>
                          <button class="btn-icon btn-edit-custom" title="تعديل"><i class="material-icons">edit</i></button>
                          <button class="btn-icon btn-delete-custom" title="حذف"><i class="material-icons">delete</i></button>
                     </div>
@@ -690,12 +745,16 @@ try {
 .btn-delete-custom .material-icons {
     color: var(--danger-color);
 }
-.btn-edit-custom:hover {
-    background-color: rgba(63, 81, 181, 0.1);
-}
-.btn-delete-custom:hover {
-    background-color: rgba(217, 83, 79, 0.1);
-}
+.btn-print-custom .material-icons { color: #555; }
+.btn-pdf-custom .material-icons { color: #e74c3c; }
+.btn-excel-custom .material-icons { color: #1e8449; }
+
+.btn-edit-custom:hover { background-color: rgba(63, 81, 181, 0.1); }
+.btn-delete-custom:hover { background-color: rgba(217, 83, 79, 0.1); }
+.btn-print-custom:hover { background-color: rgba(0,0,0,0.08); }
+.btn-pdf-custom:hover { background-color: rgba(231, 76, 60, 0.1); }
+.btn-excel-custom:hover { background-color: rgba(30, 132, 73, 0.1); }
+
 
 #no-agreements-message { text-align: center; padding: 3rem 0; font-size: 1.1rem; color: #777; background-color: var(--white); border-radius: 8px; }
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 1000; visibility: hidden; opacity: 0; transition: opacity 0.3s ease; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; }

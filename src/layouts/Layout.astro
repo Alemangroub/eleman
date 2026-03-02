@@ -20,6 +20,9 @@ const { title, showGlowEffect = false } = Astro.props;
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 	</head>
 	<body>
         <!-- Frame Elements -->
@@ -146,5 +149,24 @@ const { title, showGlowEffect = false } = Astro.props;
     input, button, select, textarea {
         font-family: inherit;
         font-size: 1rem;
+    }
+
+    @media print {
+        body {
+            background-color: #fff;
+        }
+
+        .printable-area {
+            display: block !important;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: auto;
+        }
+
+        body > *:not(.printable-area) {
+            display: none !important;
+        }
     }
 </style>
