@@ -10,7 +10,6 @@ const { id } = Astro.params;
 let project = null;
 let unreadExpenseReports = 0;
 let unreadDailyReports = 0;
-let unreadRemainsReports = 0; // Added for remains reports
 
 try {
     const projectDoc = await db.collection('projects').doc(id).get();
@@ -36,12 +35,6 @@ try {
             .get();
         unreadDailyReports = dailyReportsSnapshot.size;
         
-        const remainsReportsSnapshot = await db.collection('remains_reports') // Assuming this is the collection name
-            .where('projectId', '==', id)
-            .where('isRead', '==', false)
-            .get();
-        unreadRemainsReports = remainsReportsSnapshot.size;
-
         project = { 
             id: projectDoc.id, 
             projectName: projectData.projectName || 'اسم غير متوفر',
@@ -98,6 +91,15 @@ try {
                     </section>
 
                     <section class="report-links-section">
+                        <a href={`/crs/projects/${id}/remains`} class="report-link-card">
+                             <div class="card-icon remains-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-package" width="36" height="36" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><polyline points="12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5 12 3" /><line x1="12" y1="12" x2="20" y2="7.5" /><line x1="12" y1="12" x2="4" y2="7.5" /><line x1="12" y1="12" x2="12" y2="21" /><line x1="12" y1="3" x2="8" y2="5.25" /><line x1="16" y1="5.25" x2="12" y2="3" /></svg>
+                            </div>
+                            <div class="card-content">
+                                <h3>البواقي</h3>
+                                <p>سجل يوضح المواد المتبقية في الموقع.</p>
+                            </div>
+                        </a>
                         <a href={`/crs/projects/${id}/expense-reports`} class="report-link-card">
                             {unreadExpenseReports > 0 && 
                                 <div class="notification-badge">
@@ -111,21 +113,6 @@ try {
                             <div class="card-content">
                                 <h3>عرض تقارير المصروفات</h3>
                                 <p>سجل كامل لجميع المصروفات اليومية والفواتير المرفقة.</p>
-                            </div>
-                        </a>
-                        <a href={`/crs/projects/${id}/remains-reports`} class="report-link-card">
-                            {unreadRemainsReports > 0 && 
-                                <div class="notification-badge">
-                                    <span class="dot"></span>
-                                    <span class="text">تقرير جديد</span>
-                                </div>
-                            }
-                             <div class="card-icon remains-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-package" width="36" height="36" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><polyline points="12 3 20 7.5 20 16.5 12 21 4 16.5 4 7.5 12 3" /><line x1="12" y1="12" x2="20" y2="7.5" /><line x1="12" y1="12" x2="4" y2="7.5" /><line x1="12" y1="12" x2="12" y2="21" /><line x1="12" y1="3" x2="8" y2="5.25" /><line x1="16" y1="5.25" x2="12" y2="3" /></svg>
-                            </div>
-                            <div class="card-content">
-                                <h3>عرض تقارير البواقي</h3>
-                                <p>سجل يوضح المواد المتبقية في الموقع.</p>
                             </div>
                         </a>
                         <a href={`/crs/projects/${id}/daily-reports`} class="report-link-card">

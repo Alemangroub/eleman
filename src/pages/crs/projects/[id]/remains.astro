@@ -1,0 +1,97 @@
+
+---
+import Layout from '../../../../layouts/Layout.astro';
+import { db } from "../../../../firebase/admin";
+
+export const prerender = false;
+
+const { id } = Astro.params;
+let project = null;
+
+try {
+    const projectDoc = await db.collection('projects').doc(id).get();
+    if (projectDoc.exists) {
+        const projectData = projectDoc.data();
+        project = { 
+            id: projectDoc.id, 
+            projectName: projectData.projectName || 'اسم غير متوفر',
+            assignedSupervisor: projectData.supervisorIds && projectData.supervisorIds.length > 0 ? projectData.supervisorIds[0] : null 
+        };
+    } else {
+        // Let the frontend handle the error message
+    }
+} catch (error) {
+    console.error("Error fetching project data in remains.astro:", error);
+    project = null;
+}
+
+---
+
+<Layout title={`بواقي مشروع: ${project ? project.projectName : 'غير متوفر'}`}>
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
+    </div>
+
+    <main 
+        id="page-content" 
+        class="remains-page" 
+        style="display: none;" 
+        data-project-exists={project !== null}
+        data-supervisor-id={project?.assignedSupervisor || ''}
+    >
+         <div class="container">
+            {project ? (
+                <>
+                    <header class="page-header">
+                        <div>
+                            <h1>بواقي مشروع: {project.projectName}</h1>
+                            <p class="page-subtitle">صفحة مخصصة لإدارة البواقي للمشرف والأدمن.</p>
+                        </div>
+                        <a href={`/crs/projects/${id}`} class="back-link">&larr; العودة لتفاصيل المشروع</a>
+                    </header>
+
+                    <section class="content-section">
+                        <div class="placeholder-card">
+                             <h2>قريبًا...</h2>
+                             <p>هذه هي صفحة إدارة البواقي. سيتم إضافة واجهة المستخدم لإضافة وعرض وتعديل البواقي هنا.</p>
+                        </div>
+                    </section>
+                </>
+            ) : (
+                <div class="error-card">
+                    <h2>خطأ في تحميل البيانات</h2>
+                    <p>تعذر العثور على المشروع المطلوب أو حدث خطأ أثناء تحميله. يرجى التأكد من صحة الرابط.</p>
+                     <a href="/crs/projects" class="back-link">العودة إلى قائمة المشاريع</a>
+                </div>
+            )}
+        </div>
+    </main>
+</Layout>
+
+<script>
+    import { initializeAuthCheck } from '../../../../scripts/auth/remains-auth.ts';
+    initializeAuthCheck();
+</script>
+
+
+<style>
+:root {
+    --primary-color: #007bff;
+    --border-color: #e9ecef;
+    --card-shadow: 0 4px 15px rgba(0,0,0,0.06);
+}
+.auth-container { display: flex; align-items: center; justify-content: center; min-height: 80vh; }
+.auth-container p { font-size: 1.2rem; color: #6c757d; }
+
+.remains-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; min-height: 100vh; padding: 2.5rem; }
+.container { max-width: 1100px; margin: 0 auto; }
+
+.page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
+h1 { font-size: 2.25rem; font-weight: 800; }
+.page-subtitle { color: #6c757d; }
+.back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; padding: 0.6rem 1rem; background-color: #e7f3ff; border-radius: 8px; }
+
+.placeholder-card, .error-card { background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); padding: 4rem; text-align: center; border: 1px solid var(--border-color); }
+.placeholder-card h2, .error-card h2 { font-size: 2rem; margin-bottom: 1rem; }
+.error-card h2 { color: #dc3545; }
+</style>
