@@ -7,8 +7,6 @@ import { doc, getDoc } from "firebase/firestore";
 type AuthCallback = (user: User, userRole: string) => void;
 
 export function initializeAuthCheck(callback?: AuthCallback) {
-  // This listener is attached once and should be safe across page transitions
-  // as long as the page re-executes scripts.
   document.addEventListener('DOMContentLoaded', () => {
     const authLoadingMessage = document.getElementById('auth-loading-message');
     const pageContent = document.getElementById('page-content') as HTMLElement | null;
@@ -26,14 +24,13 @@ export function initializeAuthCheck(callback?: AuthCallback) {
       if (pageContent) pageContent.style.display = 'block';
     };
 
-    // If project doesn't exist, just show the error message from the .astro file
     if (!projectExists) {
       showPageContent();
       return; 
     }
 
     const unauthorizedRedirect = () => {
-      window.location.href = '/crs'; // Redirect to a generic login/access-denied page
+      window.location.href = '/crs';
     };
 
     onAuthStateChanged(auth, async (user) => {
@@ -47,27 +44,29 @@ export function initializeAuthCheck(callback?: AuthCallback) {
             const userRole = userData.role;
             
             const isAdmin = userRole === 'admin';
+            const isSupervisor = userRole === 'supervisor';
             
             const supervisorIdsString = pageContent.dataset.supervisorIds;
             const supervisorIds = supervisorIdsString ? JSON.parse(supervisorIdsString) : [];
             const isProjectSupervisor = supervisorIds.includes(user.uid);
 
-            if (isAdmin || isProjectSupervisor) {
-              // Show role-specific elements
+            // User must be an Admin or a Supervisor assigned to this project
+            if (isAdmin || (isSupervisor && isProjectSupervisor)) {
               const adminElements = pageContent.querySelectorAll('.admin-only');
-              const supervisorElements = pageContent.querySelectorAll('.supervisor-only');
+              const supervisorAndAdminElements = pageContent.querySelectorAll('.supervisor-only');
 
+              // Show admin-specific logs
               if (isAdmin) {
                 adminElements.forEach(el => (el as HTMLElement).style.display = 'block');
-                supervisorElements.forEach(el => (el as HTMLElement).style.display = 'none');
-              } else { // isProjectSupervisor
-                supervisorElements.forEach(el => (el as HTMLElement).style.display = 'block');
-                adminElements.forEach(el => (el as HTMLElement).style.display = 'none');
+              } else {
+                 adminElements.forEach(el => (el as HTMLElement).style.display = 'none');
               }
+              
+              // Show forms for both Admin and assigned Supervisor
+              supervisorAndAdminElements.forEach(el => (el as HTMLElement).style.display = 'block');
 
               showPageContent();
 
-              // If a callback is provided, execute it with user details
               if (callback) {
                 callback(user, userRole);
               }
@@ -76,7 +75,6 @@ export function initializeAuthCheck(callback?: AuthCallback) {
               unauthorizedRedirect();
             }
           } else {
-            // User document doesn't exist
             unauthorizedRedirect();
           }
         } catch (error) {
@@ -84,7 +82,6 @@ export function initializeAuthCheck(callback?: AuthCallback) {
           unauthorizedRedirect();
         }
       } else {
-        // No user is signed in
         unauthorizedRedirect();
       }
     });
