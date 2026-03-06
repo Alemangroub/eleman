@@ -76,7 +76,6 @@ try {
                                         <button class="toggle-btn active" data-form="add-iron-form">إضافة</button>
                                         <button class="toggle-btn" data-form="dispense-iron-form">صرف</button>
                                     </div>
-                                    <!-- ADD IRON FORM (STATIC HTML) -->
                                     <form id="add-iron-form" class="material-form">
                                         <h4>إضافة عدد أسياخ</h4>
                                         <div class="form-fields">
@@ -103,7 +102,6 @@ try {
                                             <button type="submit" class="btn-submit">إضافة</button>
                                         </div>
                                     </form>
-                                    <!-- DISPENSE IRON FORM (STATIC HTML) -->
                                     <form id="dispense-iron-form" class="material-form" style="display: none;">
                                          <h4>صرف عدد أسياخ</h4>
                                         <div class="form-fields">
@@ -145,12 +143,7 @@ try {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="table-container">
-                                            <table>
-                                                <thead><tr><th>التاريخ</th><th>العملية</th><th>النوع</th><th>العدد</th><th>المشرف</th><th>السبب</th><th>الإجراءات</th></tr></thead>
-                                                <tbody id="iron-log-body"></tbody>
-                                            </table>
-                                        </div>
+                                        <div id="iron-log-container" class="log-container"></div>
                                         <p id="iron-log-empty" class="log-empty">لا توجد سجلات.</p>
                                         <button id="show-all-iron" class="btn-show-all" style="display:none;">عرض الكل</button>
                                     </div>
@@ -174,7 +167,6 @@ try {
                                         <button class="toggle-btn active" data-form="add-cement-form">إضافة</button>
                                         <button class="toggle-btn" data-form="dispense-cement-form">صرف</button>
                                     </div>
-                                    <!-- ADD CEMENT FORM (STATIC HTML) -->
                                     <form id="add-cement-form" class="material-form">
                                         <h4>إضافة أسمنت</h4>
                                         <div class="form-fields">
@@ -191,7 +183,6 @@ try {
                                             <button type="submit" class="btn-submit">إضافة</button>
                                         </div>
                                     </form>
-                                    <!-- DISPENSE CEMENT FORM (STATIC HTML) -->
                                     <form id="dispense-cement-form" class="material-form" style="display: none;">
                                         <h4>صرف أسمنت</h4>
                                         <div class="form-fields">
@@ -212,12 +203,7 @@ try {
                                 <div class="admin-only" style="display: none;">
                                     <div class="log-section">
                                         <h4>سجل الأسمنت</h4>
-                                        <div class="table-container">
-                                            <table>
-                                                <thead><tr><th>التاريخ</th><th>العملية</th><th>الكمية</th><th>المشرف</th><th>السبب</th><th>الإجراءات</th></tr></thead>
-                                                <tbody id="cement-log-body"></tbody>
-                                            </table>
-                                        </div>
+                                        <div id="cement-log-container" class="log-container"></div>
                                         <p id="cement-log-empty" class="log-empty">لا توجد سجلات.</p>
                                         <button id="show-all-cement" class="btn-show-all" style="display:none;">عرض الكل</button>
                                     </div>
@@ -241,8 +227,7 @@ try {
                                         <button class="toggle-btn active" data-form="add-other-form">إضافة</button>
                                         <button class="toggle-btn" data-form="dispense-other-form">صرف</button>
                                     </div>
-                                     <!-- ADD OTHER FORM (STATIC HTML) -->
-                                    <form id="add-other-form" class="material-form">
+                                     <form id="add-other-form" class="material-form">
                                         <h4>إضافة مواد أخرى</h4>
                                         <div class="form-fields">
                                             <div class="form-group">
@@ -258,7 +243,6 @@ try {
                                             <button type="submit" class="btn-submit">إضافة</button>
                                         </div>
                                     </form>
-                                    <!-- DISPENSE OTHER FORM (STATIC HTML) -->
                                     <form id="dispense-other-form" class="material-form" style="display: none;">
                                         <h4>صرف مواد أخرى</h4>
                                         <div class="form-fields">
@@ -279,12 +263,7 @@ try {
                                 <div class="admin-only" style="display: none;">
                                    <div class="log-section">
                                         <h4>سجل المواد الأخرى</h4>
-                                        <div class="table-container">
-                                            <table>
-                                                <thead><tr><th>التاريخ</th><th>العملية</th><th>الكمية</th><th>المشرف</th><th>السبب</th><th>الإجراءات</th></tr></thead>
-                                                <tbody id="other-log-body"></tbody>
-                                            </table>
-                                        </div>
+                                        <div id="other-log-container" class="log-container"></div>
                                         <p id="other-log-empty" class="log-empty">لا توجد سجلات.</p>
                                         <button id="show-all-other" class="btn-show-all" style="display:none;">عرض الكل</button>
                                     </div>
@@ -336,6 +315,70 @@ try {
                 </form>
             </div>
         </div>
+
+        <!-- TEMPLATES FOR LOG CARDS -->
+        <template id="simple-log-card-template">
+            <div class="log-card">
+                <div class="log-card-header">
+                    <span class="log-action-type"></span>
+                    <span class="log-date"></span>
+                </div>
+                <div class="log-card-body">
+                    <dl class="log-details-list">
+                        <div class="log-detail-item">
+                            <dt>الكمية</dt>
+                            <dd data-key="quantity"></dd>
+                        </div>
+                        <div class="log-detail-item">
+                            <dt>المشرف</dt>
+                            <dd data-key="supervisor"></dd>
+                        </div>
+                        <div class="log-detail-item-full">
+                            <dt>السبب</dt>
+                            <dd data-key="notes"></dd>
+                        </div>
+                    </dl>
+                </div>
+                <div class="log-card-actions">
+                    <button class="btn-action btn-edit">تعديل</button>
+                    <button class="btn-action btn-delete">حذف</button>
+                </div>
+            </div>
+        </template>
+
+        <template id="iron-log-card-template">
+            <div class="log-card">
+                <div class="log-card-header">
+                    <span class="log-action-type"></span>
+                    <span class="log-date"></span>
+                </div>
+                <div class="log-card-body">
+                    <dl class="log-details-list">
+                        <div class="log-detail-item">
+                            <dt>النوع</dt>
+                            <dd data-key="ironType"></dd>
+                        </div>
+                        <div class="log-detail-item">
+                            <dt>العدد</dt>
+                            <dd data-key="quantity"></dd>
+                        </div>
+                        <div class="log-detail-item">
+                            <dt>المشرف</dt>
+                            <dd data-key="supervisor"></dd>
+                        </div>
+                        <div class="log-detail-item-full">
+                            <dt>السبب</dt>
+                            <dd data-key="notes"></dd>
+                        </div>
+                    </dl>
+                </div>
+                <div class="log-card-actions">
+                    <button class="btn-action btn-edit">تعديل</button>
+                    <button class="btn-action btn-delete">حذف</button>
+                </div>
+            </div>
+        </template>
+
     </main>
 </Layout>
 
@@ -350,12 +393,11 @@ try {
     let allLogs = { iron: [], cement: [], other: [] };
     let currentIronFilter = 'all';
 
-    // --- GENERIC MATERIAL SECTION SETUP (SIMPLIFIED) --- //
+    // --- GENERIC MATERIAL SECTION SETUP --- //
     function setupMaterialSection(material, projectId, user, userRole) {
         const card = document.getElementById(`${material}-card`);
         if (!card) return;
 
-        // --- Form Toggling --- //
         const toggleButtons = card.querySelectorAll('.toggle-btn');
         toggleButtons.forEach(button => {
             button.addEventListener('click', (e) => {
@@ -368,7 +410,6 @@ try {
             });
         });
 
-        // --- Data Fetching & Display --- //
         const remainsQuery = query(collection(db, 'remains'), where("projectId", "==", projectId), where("material", "==", material), orderBy("createdAt", "desc"));
         onSnapshot(remainsQuery, (snapshot) => {
             allLogs[material] = [];
@@ -390,19 +431,18 @@ try {
                 document.getElementById('iron-total-3').textContent = ironTotals['3'];
                 document.getElementById('iron-total-4').textContent = ironTotals['4'];
                 document.getElementById('iron-total-5').textContent = ironTotals['5'];
-                if (userRole === 'admin') renderIronLogTable();
+                if (userRole === 'admin') renderIronLog();
             } else {
                 document.getElementById(`${material}-total`).textContent = total;
-                if (userRole === 'admin') renderSimpleLogTable(material);
+                if (userRole === 'admin') renderSimpleLog(material);
             }
         });
 
-        // --- Admin Features --- //
         if (userRole === 'admin') {
             card.addEventListener('click', handleAdminActions);
             const showAllBtn = document.getElementById(`show-all-${material}`);
             if(showAllBtn) showAllBtn.addEventListener('click', () => {
-                if(material === 'iron') renderIronLogTable(true); else renderSimpleLogTable(material, true);
+                if(material === 'iron') renderIronLog(true); else renderSimpleLog(material, true);
             });
              if (material === 'iron') {
                 const liyaFilterButtons = card.querySelectorAll('[data-filter-type="liya"]');
@@ -411,13 +451,12 @@ try {
                         liyaFilterButtons.forEach(b => b.classList.remove('active'));
                         btn.classList.add('active');
                         currentIronFilter = btn.dataset.filterValue;
-                        renderIronLogTable(); 
+                        renderIronLog(); 
                     });
                 });
             }
         }
 
-        // --- Form Submission Logic --- //
         if (userRole === 'admin' || userRole === 'supervisor') {
             const addForm = card.querySelector(`#add-${material}-form`);
             const dispenseForm = card.querySelector(`#dispense-${material}-form`);
@@ -426,74 +465,102 @@ try {
         }
     }
 
-    // --- LOG RENDERING --- //
-    function renderSimpleLogTable(material, showAll = false) {
-        const tbody = document.getElementById(`${material}-log-body`);
+    // --- NEW LOG RENDERING FUNCTIONS --- //
+    function renderSimpleLog(material, showAll = false) {
+        const container = document.getElementById(`${material}-log-container`);
         const emptyMsg = document.getElementById(`${material}-log-empty`);
         const showAllBtn = document.getElementById(`show-all-${material}`);
+        const template = document.getElementById('simple-log-card-template');
+        
+        if (!container || !emptyMsg || !showAllBtn || !template) return;
+
         const entries = allLogs[material] || [];
-
-        if(!tbody || !emptyMsg || !showAllBtn) return;
-
         emptyMsg.style.display = entries.length === 0 ? 'block' : 'none';
         showAllBtn.style.display = (entries.length > LOG_LIMIT && !showAll) ? 'block' : 'none';
 
         const entriesToRender = showAll ? entries : entries.slice(0, LOG_LIMIT);
-        tbody.innerHTML = entriesToRender.map(entry => {
+        
+        container.innerHTML = ''; // Clear previous entries
+
+        entriesToRender.forEach(entry => {
+            const cardClone = template.content.cloneNode(true);
+            const isAddition = entry.quantity > 0;
             const supervisorName = entry.supervisorName || supervisorMap[entry.supervisorId] || 'مشرف غير معروف';
-            const actionsHtml = userIsAdmin ? `
-                <td class="log-actions">
-                    <button class="btn-action btn-edit" data-id="${entry.id}" data-material="${material}">تعديل</button>
-                    <button class="btn-action btn-delete" data-id="${entry.id}" data-material="${material}">حذف</button>
-                </td>` : '';
-            return `
-                <tr>
-                    <td>${entry.createdAt?.toDate().toLocaleDateString('ar-EG') || ''}</td>
-                    <td class="${entry.quantity > 0 ? 'text-success' : 'text-danger'}">${entry.quantity > 0 ? 'إضافة' : 'صرف'}</td>
-                    <td>${Math.abs(entry.quantity)}</td>
-                    <td>${supervisorName}</td>
-                    <td>${entry.notes || '-'}</td>
-                    ${actionsHtml}
-                </tr>
-            `;
-        }).join('');
+
+            cardClone.querySelector('.log-card').classList.add(isAddition ? 'log-card-add' : 'log-card-dispense');
+            cardClone.querySelector('.log-action-type').textContent = isAddition ? 'إضافة' : 'صرف';
+            cardClone.querySelector('.log-date').textContent = entry.createdAt?.toDate().toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }) || '';
+            
+            cardClone.querySelector('[data-key="quantity"]').textContent = Math.abs(entry.quantity);
+            cardClone.querySelector('[data-key="supervisor"]').textContent = supervisorName;
+            cardClone.querySelector('[data-key="notes"]').textContent = entry.notes || '-';
+
+            const actionsContainer = cardClone.querySelector('.log-card-actions');
+            if (userIsAdmin) {
+                const editBtn = cardClone.querySelector('.btn-edit');
+                editBtn.dataset.id = entry.id;
+                editBtn.dataset.material = material;
+
+                const deleteBtn = cardClone.querySelector('.btn-delete');
+                deleteBtn.dataset.id = entry.id;
+                deleteBtn.dataset.material = material;
+            } else {
+                if (actionsContainer) actionsContainer.remove();
+            }
+
+            container.appendChild(cardClone);
+        });
     }
 
-    function renderIronLogTable(showAll = false) {
-        const tbody = document.getElementById('iron-log-body');
+    function renderIronLog(showAll = false) {
+        const container = document.getElementById('iron-log-container');
         const emptyMsg = document.getElementById('iron-log-empty');
         const showAllBtn = document.getElementById('show-all-iron');
+        const template = document.getElementById('iron-log-card-template');
 
-        if(!tbody || !emptyMsg || !showAllBtn) return;
+        if (!container || !emptyMsg || !showAllBtn || !template) return;
 
         let filteredEntries = allLogs.iron;
         if (currentIronFilter !== 'all') {
             filteredEntries = filteredEntries.filter(e => e.ironType === currentIronFilter);
         }
-
+        
         emptyMsg.style.display = filteredEntries.length === 0 ? 'block' : 'none';
         showAllBtn.style.display = (filteredEntries.length > LOG_LIMIT && !showAll) ? 'block' : 'none';
-
+        
         const entriesToRender = showAll ? filteredEntries : filteredEntries.slice(0, LOG_LIMIT);
-        tbody.innerHTML = entriesToRender.map(entry => {
-            const supervisorName = entry.supervisorName || supervisorMap[entry.supervisorId] || 'مشرف غير معروف';
-            const actionsHtml = userIsAdmin ? `
-                <td class="log-actions">
-                    <button class="btn-action btn-edit" data-id="${entry.id}" data-material="iron">تعديل</button>
-                    <button class="btn-action btn-delete" data-id="${entry.id}" data-material="iron">حذف</button>
-                </td>` : '';
+        
+        container.innerHTML = ''; // Clear previous entries
 
-            return `
-                <tr>
-                    <td>${entry.createdAt?.toDate().toLocaleDateString('ar-EG') || ''}</td>
-                    <td class="${entry.quantity > 0 ? 'text-success' : 'text-danger'}">${entry.quantity > 0 ? 'إضافة' : 'صرف'}</td>
-                    <td>${(entry.ironType || '').replace('حديد','').trim()}</td>
-                    <td>${Math.abs(entry.quantity)}</td>
-                    <td>${supervisorName}</td>
-                    <td>${entry.notes || '-'}</td>
-                    ${actionsHtml}
-                </tr>
-            `}).join('');
+        entriesToRender.forEach(entry => {
+            const cardClone = template.content.cloneNode(true);
+            const isAddition = entry.quantity > 0;
+            const supervisorName = entry.supervisorName || supervisorMap[entry.supervisorId] || 'مشرف غير معروف';
+
+            cardClone.querySelector('.log-card').classList.add(isAddition ? 'log-card-add' : 'log-card-dispense');
+            cardClone.querySelector('.log-action-type').textContent = isAddition ? 'إضافة' : 'صرف';
+            cardClone.querySelector('.log-date').textContent = entry.createdAt?.toDate().toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }) || '';
+            
+            cardClone.querySelector('[data-key="ironType"]').textContent = (entry.ironType || '').replace('حديد', '').trim();
+            cardClone.querySelector('[data-key="quantity"]').textContent = Math.abs(entry.quantity);
+            cardClone.querySelector('[data-key="supervisor"]').textContent = supervisorName;
+            cardClone.querySelector('[data-key="notes"]').textContent = entry.notes || '-';
+            
+            const actionsContainer = cardClone.querySelector('.log-card-actions');
+            if (userIsAdmin) {
+                const editBtn = cardClone.querySelector('.btn-edit');
+                editBtn.dataset.id = entry.id;
+                editBtn.dataset.material = 'iron';
+
+                const deleteBtn = cardClone.querySelector('.btn-delete');
+                deleteBtn.dataset.id = entry.id;
+                deleteBtn.dataset.material = 'iron';
+            } else {
+                if (actionsContainer) actionsContainer.remove();
+            }
+
+            container.appendChild(cardClone);
+        });
     }
 
     // --- FORM SUBMISSION --- //
@@ -530,7 +597,7 @@ try {
             alert(error.message || 'حدث خطأ أثناء الحفظ.');
         } finally {
             submitBtn.disabled = false;
-            const buttonText = form.id.includes('dispense') ? 'صرف' : 'إضافة'; // Determine button text correctly
+            const buttonText = form.id.includes('dispense') ? 'صرف' : 'إضافة';
             submitBtn.textContent = buttonText;
         }
     }
@@ -657,7 +724,6 @@ try {
         setupMaterialSection('cement', projectId, user, userRole);
         setupMaterialSection('other', projectId, user, userRole);
 
-        // Set initial form display
         document.querySelectorAll('.material-form').forEach(form => {
              if (form.id.startsWith('add-')) {
                  form.style.display = 'flex'; 
@@ -675,32 +741,32 @@ try {
     --primary-color: #3b82f6;
     --secondary-color: #10b981;
     --danger-color: #ef4444;
-    --border-color: #e9ecef;
+    --border-color: #e5e7eb;
     --card-shadow: 0 4px 15px rgba(0,0,0,0.06);
-    --text-dark: #2d3748;
-    --text-light: #6c757d;
-    --bg-light: #f8f9fa;
+    --text-dark: #1f2937;
+    --text-light: #6b7280;
+    --bg-light: #f9fafb;
     --bg-white: #ffffff;
     --success-color: #10b981;
 }
 .auth-container { display: flex; align-items: center; justify-content: center; min-height: 80vh; }
-.remains-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: var(--bg-light); min-height: 100vh; padding: 2.5rem; }
-.container { max-width: 1100px; margin: 0 auto; }
+.remains-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: var(--bg-light); min-height: 100vh; padding: 2rem 1rem; }
+.container { max-width: 1200px; margin: 0 auto; }
 
-.page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
-h1 { font-size: 2.25rem; font-weight: 800; color: var(--text-dark); }
-.page-subtitle { color: var(--text-light); }
-.back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; padding: 0.6rem 1rem; background-color: #e7f3ff; border-radius: 8px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2.5rem; flex-wrap: wrap; gap: 1rem; }
+h1 { font-size: 2rem; font-weight: 800; color: var(--text-dark); }
+.page-subtitle { color: var(--text-light); margin-top: 0.25rem; }
+.back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; padding: 0.6rem 1rem; background-color: #e0e7ff; border-radius: 8px; }
 
 .error-card { background: var(--bg-white); border-radius: 12px; box-shadow: var(--card-shadow); padding: 4rem; text-align: center; border: 1px solid var(--border-color); }
 
 .materials-section { display: grid; grid-template-columns: 1fr; gap: 2.5rem; }
 
 .material-card { background-color: var(--bg-white); border-radius: 12px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); overflow: hidden; display: flex; flex-direction: column; }
-.card-header { padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1.5rem; background-color: #fcfdff; }
-.card-header h3 { font-size: 1.75rem; font-weight: 700; color: var(--text-dark); margin: 0; }
+.card-header { padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1.5rem; background-color: #fdfdff; }
+.card-header h3 { font-size: 1.5rem; font-weight: 700; color: var(--text-dark); margin: 0; }
 
-.iron-totals-grid { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+.iron-totals-grid { display: flex; gap: 1rem; flex-wrap: wrap; }
 .total-amount-display { text-align: right; background-color: #f8f9fa; padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border-color);}
 .total-amount-display span:first-child { color: var(--text-light); font-size: 0.9rem; margin-left: 0.5rem; }
 .total-amount-display span:last-child { font-size: 1.25rem; font-weight: 700; color: var(--primary-color); }
@@ -717,95 +783,53 @@ h1 { font-size: 2.25rem; font-weight: 800; color: var(--text-dark); }
 .toggle-btn.active { background-color: var(--primary-color); color: white; }
 .toggle-btn:not(.active):hover { background-color: #f1f5f9; }
 
-/* --- FINAL, ROBUST FLEXBOX FORM LAYOUT --- */
-.material-form {
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1.5rem;
-    background-color: #fcfdff;
-    display: flex; /* Use Flexbox */
-    flex-direction: column; /* Main direction is vertical */
-    gap: 1.5rem;
-}
-
+.material-form { border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; background-color: #fcfdff; display: flex; flex-direction: column; gap: 1.5rem; }
 .material-form h4 { font-size: 1.2rem; margin: 0; font-weight: 600; }
-
-.form-fields {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-}
-
-.form-row {
-    display: flex;
-    flex-direction: row;
-    gap: 1.25rem;
-}
-
-.form-group {
-    flex: 1;
-    min-width: 0;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: .5rem;
-    font-weight: 600;
-}
-
-.form-group input,
-.form-group select {
-    width: 100%;
-    padding: .75rem;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    background-color: white;
-}
-
-.form-actions {
-    display: flex;
-    justify-content: flex-end; /* Aligns button to the right (left in RTL) */
-}
-
-.btn-submit { 
-    background-color: var(--secondary-color);
-    color: white;
-    border: none;
-    padding: .85rem 2.5rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: 700;
-    transition: background-color 0.2s; 
-}
+.form-fields { display: flex; flex-direction: column; gap: 1.25rem; }
+.form-row { display: flex; flex-direction: row; gap: 1.25rem; }
+.form-group { flex: 1; min-width: 0; }
+.form-group label { display: block; margin-bottom: .5rem; font-weight: 600; }
+.form-group input, .form-group select { width: 100%; padding: .75rem; border: 1px solid #cbd5e1; border-radius: 8px; background-color: white; }
+.form-actions { display: flex; justify-content: flex-end; }
+.btn-submit { background-color: var(--secondary-color); color: white; border: none; padding: .85rem 2.5rem; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 700; transition: background-color 0.2s; }
 .btn-submit:hover { background-color: #059669; }
 .btn-submit.btn-dispense { background-color: var(--danger-color); }
 .btn-submit.btn-dispense:hover { background-color: #dc2626; }
 .btn-submit:disabled { background-color: #9ca3af; cursor: not-allowed; }
 
-.admin-only { display: flex; flex-direction: column; gap: 2rem; padding-top: 1rem; }
-.log-section h4 { font-size: 1.2rem; margin-bottom: 1rem; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
-.table-container { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px; }
-table { width: 100%; border-collapse: collapse; text-align: center; }
-thead { background-color: #f1f5f9; }
-th, td { padding: 1rem; border-bottom: 1px solid var(--border-color); }
-th { font-weight: 700; color: var(--text-dark); }
-tbody tr:last-child td { border-bottom: none; }
-tbody td { color: var(--text-light); }
+.admin-only { padding-top: 1.5rem; }
+.log-section h4 { font-size: 1.3rem; margin-bottom: 1rem; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; }
+.log-container { display: grid; grid-template-columns: 1fr; gap: 1rem; }
 .log-empty { text-align: center; padding: 1.5rem; color: var(--text-light); background-color: #f8f9fa; border-radius: 8px; }
 
-.text-success { color: var(--success-color) !important; font-weight: 600; }
-.text-danger { color: var(--danger-color) !important; font-weight: 600; }
+.log-card { border-radius: 10px; border: 1px solid var(--border-color); background-color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.04); overflow: hidden; transition: box-shadow 0.2s;}
+.log-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 
-.btn-show-all { background-color: var(--primary-color); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; margin-top: 1rem; align-self: center; transition: background-color 0.2s;}
-.btn-show-all:hover { background-color: #2563eb; }
+.log-card-header { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.25rem; border-bottom: 1px solid var(--border-color); }
+.log-card-add .log-card-header { background-color: #f0fdf4; }
+.log-card-dispense .log-card-header { background-color: #fef2f2; }
 
-.log-actions { width: 120px; text-align: center; }
-.btn-action { background: none; border: 1px solid transparent; border-radius: 6px; cursor: pointer; padding: 0.3rem 0.6rem; margin: 0 0.2rem; font-weight: 600; font-size: 0.85rem;}
+.log-action-type { font-weight: 700; font-size: 1rem;}
+.log-card-add .log-action-type { color: var(--success-color); }
+.log-card-dispense .log-action-type { color: var(--danger-color); }
+.log-date { font-size: 0.85rem; color: var(--text-light); }
+
+.log-card-body { padding: 1.25rem; }
+.log-details-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem 1.5rem; margin: 0; padding: 0;}
+.log-detail-item, .log-detail-item-full { display: flex; flex-direction: column; }
+.log-detail-item dt, .log-detail-item-full dt { font-size: 0.85rem; font-weight: 600; color: var(--text-light); margin-bottom: 0.25rem; }
+.log-detail-item dd, .log-detail-item-full dd { font-size: 1rem; font-weight: 500; color: var(--text-dark); margin: 0; }
+.log-detail-item-full { grid-column: 1 / -1; }
+
+.log-card-actions { padding: 0.75rem 1.25rem; background-color: #f9fafb; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.5rem; }
+.btn-action { background: none; border: 1px solid transparent; border-radius: 6px; cursor: pointer; padding: 0.3rem 0.6rem; margin: 0; font-weight: 600; font-size: 0.85rem;}
 .btn-edit { color: var(--primary-color); border-color: var(--primary-color);}
 .btn-edit:hover { background-color: #eef5ff; }
 .btn-delete { color: var(--danger-color); border-color: var(--danger-color);}
 .btn-delete:hover { background-color: #fef2f2; }
+
+.btn-show-all { background-color: transparent; color: var(--primary-color); border: 1px solid var(--primary-color); padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; margin-top: 1rem; align-self: center; transition: all 0.2s;}
+.btn-show-all:hover { background-color: #eef5ff; }
 
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 1000;}
 .modal-content { direction: rtl; background: white; padding: 2.5rem; border-radius: 12px; width: 90%; max-width: 500px; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.1);}
@@ -814,7 +838,7 @@ tbody td { color: var(--text-light); }
 #edit-form .form-group { margin-bottom: 1.5rem; }
 #edit-form .btn-submit { width: 100%; padding: 1rem; }
 
-.iron-filter-controls { display: flex; align-items: center; gap: 2rem; margin-bottom: 1.5rem; flex-wrap: wrap; background-color: #f8f9fa; padding: 1rem; border-radius: 8px; }
+.iron-filter-controls { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; background-color: var(--bg-white); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); }
 .filter-group { display: flex; align-items: center; gap: 0.75rem; }
 .filter-group span { font-weight: 600; color: var(--text-dark); }
 .filter-buttons { display: flex; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
@@ -824,9 +848,13 @@ tbody td { color: var(--text-light); }
 .filter-btn:not(.active):hover { background-color: #eef5ff; }
 
 @media (max-width: 768px) {
-    .form-row {
-        flex-direction: column;
-    }
+    .form-row { flex-direction: column; }
+    h1 {font-size: 1.75rem;}
+    .card-header { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 480px) {
+    .log-details-list { grid-template-columns: 1fr; }
 }
 
 </style>
