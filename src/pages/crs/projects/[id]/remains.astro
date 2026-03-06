@@ -56,7 +56,7 @@ try {
                             <div class="card-header">
                                 <h3>الحديد (بالسيخ)</h3>
                                 <div class="material-header-content">
-                                    <div class="iron-totals-grid">
+                                    <div class="totals-grid">
                                         <div class="total-amount-display">
                                             <span>3 لينه:</span>
                                             <span id="iron-total-3">0</span>
@@ -94,7 +94,7 @@ try {
                                             <div class="form-row">
                                                 <div class="form-group">
                                                     <label for="add-iron-type">نوع الحديد</label>
-                                                    <select id="add-iron-type" name="ironType" required>
+                                                    <select id="add-iron-type" name="subType" required>
                                                         <option value="حديد 3 لينه">حديد 3 لينه</option>
                                                         <option value="حديد 4 لينه">حديد 4 لينه</option>
                                                         <option value="حديد 5 لينه">حديد 5 لينه</option>
@@ -107,7 +107,7 @@ try {
                                             </div>
                                             <div class="form-group">
                                                 <label for="add-iron-notes">السبب</label>
-                                                <input type="text" id="add-iron-notes" name="notes" required placeholder="مثال: توريد للمخزون">
+                                                <input type="text" id="add-iron-notes" name="notes" required>
                                             </div>
                                         </div>
                                         <div class="form-actions">
@@ -120,7 +120,7 @@ try {
                                             <div class="form-row">
                                                 <div class="form-group">
                                                     <label for="dispense-iron-type">نوع الحديد</label>
-                                                    <select id="dispense-iron-type" name="ironType" required>
+                                                    <select id="dispense-iron-type" name="subType" required>
                                                         <option value="حديد 3 لينه">حديد 3 لينه</option>
                                                         <option value="حديد 4 لينه">حديد 4 لينه</option>
                                                         <option value="حديد 5 لينه">حديد 5 لينه</option>
@@ -133,7 +133,7 @@ try {
                                             </div>
                                             <div class="form-group">
                                                 <label for="dispense-iron-notes">السبب</label>
-                                                <input type="text" id="dispense-iron-notes" name="notes" required placeholder="مثال: أعمدة الدور الأول">
+                                                <input type="text" id="dispense-iron-notes" name="notes" required>
                                             </div>
                                         </div>
                                         <div class="form-actions">
@@ -144,14 +144,14 @@ try {
                                 <div class="admin-only" style="display: none;">
                                     <div class="log-section">
                                         <h4>سجل الحديد</h4>
-                                         <div class="iron-filter-controls">
+                                         <div class="filter-controls">
                                             <div class="filter-group">
                                                 <span>النوع:</span>
                                                 <div class="filter-buttons">
-                                                    <button class="filter-btn active" data-filter-type="liya" data-filter-value="all">الكل</button>
-                                                    <button class="filter-btn" data-filter-type="liya" data-filter-value="حديد 3 لينه">3 لينه</button>
-                                                    <button class="filter-btn" data-filter-type="liya" data-filter-value="حديد 4 لينه">4 لينه</button>
-                                                    <button class="filter-btn" data-filter-type="liya" data-filter-value="حديد 5 لينه">5 لينه</button>
+                                                    <button class="filter-btn active" data-material="iron" data-filter-type="subType" data-filter-value="all">الكل</button>
+                                                    <button class="filter-btn" data-material="iron" data-filter-type="subType" data-filter-value="حديد 3 لينه">3 لينه</button>
+                                                    <button class="filter-btn" data-material="iron" data-filter-type="subType" data-filter-value="حديد 4 لينه">4 لينه</button>
+                                                    <button class="filter-btn" data-material="iron" data-filter-type="subType" data-filter-value="حديد 5 لينه">5 لينه</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -200,7 +200,7 @@ try {
                                             </div>
                                             <div class="form-group">
                                                 <label for="add-cement-notes">السبب</label>
-                                                <input type="text" id="add-cement-notes" name="notes" required placeholder="مثال: توريد للمخزون">
+                                                <input type="text" id="add-cement-notes" name="notes" required>
                                             </div>
                                         </div>
                                         <div class="form-actions">
@@ -216,7 +216,7 @@ try {
                                             </div>
                                             <div class="form-group">
                                                 <label for="dispense-cement-notes">السبب</label>
-                                                <input type="text" id="dispense-cement-notes" name="notes" required placeholder="مثال: صبة السقف">
+                                                <input type="text" id="dispense-cement-notes" name="notes" required>
                                             </div>
                                         </div>
                                         <div class="form-actions">
@@ -238,20 +238,29 @@ try {
                         <!-- Other Card -->
                         <div class="material-card" id="other-card">
                             <div class="card-header">
-                                <h3>مواد أخرى (بالوحدة)</h3>
+                                <h3>مواد أخرى</h3>
                                 <div class="material-header-content">
-                                   <div class="total-amount-display simple">
-                                        <span>الكمية الحالية:</span>
-                                        <span id="other-total">0</span>
-                                         <span>وحدة</span>
+                                    <div class="totals-grid">
+                                        <div class="total-amount-display">
+                                            <span>مواد صبة:</span>
+                                            <span id="other-total-sapa">0</span>
+                                        </div>
+                                        <div class="total-amount-display">
+                                            <span>سوائل:</span>
+                                            <span id="other-total-liquids">0</span>
+                                        </div>
+                                        <div class="total-amount-display">
+                                            <span>أخرى:</span>
+                                            <span id="other-total-misc">0</span>
+                                        </div>
                                     </div>
                                     <div class="movements-summary">
                                         <div class="movement-total added">
-                                            <span>إجمالي المضاف:</span>
+                                            <span>إجمالي الوحدات المضافة:</span>
                                             <span id="other-total-added">0</span>
                                         </div>
                                         <div class="movement-total dispensed">
-                                            <span>إجمالي المصروف:</span>
+                                            <span>إجمالي الوحدات المصروفة:</span>
                                             <span id="other-total-dispensed">0</span>
                                         </div>
                                     </div>
@@ -266,13 +275,41 @@ try {
                                      <form id="add-other-form" class="material-form">
                                         <h4>إضافة مواد أخرى</h4>
                                         <div class="form-fields">
-                                            <div class="form-group">
-                                                <label for="add-other-quantity">الكمية (وحدة)</label>
-                                                <input type="number" id="add-other-quantity" name="quantity" step="1" required placeholder="10">
+                                            <div class="form-row">
+                                                <div class="form-group">
+                                                    <label for="add-other-type">نوع المادة</label>
+                                                    <select name="subType" class="subType-select" required>
+                                                        <option value="مواد صبة">مواد صبة</option>
+                                                        <option value="سوائل">سوائل</option>
+                                                        <option value="أخرى">أخرى</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group conditional-field" style="display: none;">
+                                                    <label for="add-other-custom-subtype">تحديد النوع</label>
+                                                    <input type="text" name="customSubType" placeholder="مثال: أدوات سباكة">
+                                                </div>
+                                            </div>
+                                            <div class="form-row">
+                                                <div class="form-group">
+                                                    <label for="add-other-quantity">الكمية</label>
+                                                    <input type="number" name="quantity" step="1" required placeholder="10">
+                                                </div>
+                                                 <div class="form-group">
+                                                    <label for="add-other-unit">وحدة القياس</label>
+                                                    <select name="unit" class="unit-select" required>
+                                                        <option value="قطعة">قطعة</option>
+                                                        <option value="لتر">لتر</option>
+                                                        <option value="أخرى">أخرى</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group conditional-field" style="display: none;">
+                                                    <label for="add-other-custom-unit">تحديد الوحدة</label>
+                                                    <input type="text" name="customUnit" placeholder="مثال: كرتونة">
+                                                </div>
                                             </div>
                                             <div class="form-group">
                                                 <label for="add-other-notes">السبب</label>
-                                                <input type="text" id="add-other-notes" name="notes" required placeholder="مثال: أدوات كهرباء">
+                                                <input type="text" name="notes" required>
                                             </div>
                                         </div>
                                         <div class="form-actions">
@@ -281,14 +318,42 @@ try {
                                     </form>
                                     <form id="dispense-other-form" class="material-form" style="display: none;">
                                         <h4>صرف مواد أخرى</h4>
-                                        <div class="form-fields">
-                                            <div class="form-group">
-                                                <label for="dispense-other-quantity">الكمية (وحدة)</label>
-                                                <input type="number" id="dispense-other-quantity" name="quantity" step="1" required placeholder="5">
+                                         <div class="form-fields">
+                                            <div class="form-row">
+                                                <div class="form-group">
+                                                    <label for="dispense-other-type">نوع المادة</label>
+                                                    <select name="subType" class="subType-select" required>
+                                                        <option value="مواد صبة">مواد صبة</option>
+                                                        <option value="سوائل">سوائل</option>
+                                                        <option value="أخرى">أخرى</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group conditional-field" style="display: none;">
+                                                    <label for="dispense-other-custom-subtype">تحديد النوع</label>
+                                                    <input type="text" name="customSubType" placeholder="مثال: أدوات سباكة">
+                                                </div>
+                                            </div>
+                                            <div class="form-row">
+                                                <div class="form-group">
+                                                    <label for="dispense-other-quantity">الكمية</label>
+                                                    <input type="number" name="quantity" step="1" required placeholder="5">
+                                                </div>
+                                                 <div class="form-group">
+                                                    <label for="dispense-other-unit">وحدة القياس</label>
+                                                    <select name="unit" class="unit-select" required>
+                                                        <option value="قطعة">قطعة</option>
+                                                        <option value="لتر">لتر</option>
+                                                        <option value="أخرى">أخرى</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group conditional-field" style="display: none;">
+                                                    <label for="dispense-other-custom-unit">تحديد الوحدة</label>
+                                                    <input type="text" name="customUnit" placeholder="مثال: كرتونة">
+                                                </div>
                                             </div>
                                             <div class="form-group">
                                                 <label for="dispense-other-notes">السبب</label>
-                                                <input type="text" id="dispense-other-notes" name="notes" required placeholder="مثال: سباكة الحمام">
+                                                <input type="text" name="notes" required>
                                             </div>
                                         </div>
                                         <div class="form-actions">
@@ -299,6 +364,17 @@ try {
                                 <div class="admin-only" style="display: none;">
                                    <div class="log-section">
                                         <h4>سجل المواد الأخرى</h4>
+                                         <div class="filter-controls">
+                                            <div class="filter-group">
+                                                <span>النوع:</span>
+                                                <div class="filter-buttons">
+                                                    <button class="filter-btn active" data-material="other" data-filter-type="subType" data-filter-value="all">الكل</button>
+                                                    <button class="filter-btn" data-material="other" data-filter-type="subType" data-filter-value="مواد صبة">مواد صبة</button>
+                                                    <button class="filter-btn" data-material="other" data-filter-type="subType" data-filter-value="سوائل">سوائل</button>
+                                                    <button class="filter-btn" data-material="other" data-filter-type="subType" data-filter-value="أخرى">أخرى</button>
+                                                </div>
+                                            </div>
+                                        </div>
                                         <div id="other-log-container" class="log-container"></div>
                                         <p id="other-log-empty" class="log-empty">لا توجد سجلات.</p>
                                         <button id="show-all-other" class="btn-show-all" style="display:none;">عرض الكل</button>
@@ -328,13 +404,20 @@ try {
                     <input type="hidden" name="docId">
                     <input type="hidden" name="material">
                     
-                    <div class="form-group" id="edit-iron-type-group" style="display: none;">
-                        <label for="edit-iron-type">نوع الحديد</label>
-                        <select id="edit-iron-type" name="ironType">
-                            <option value="حديد 3 لينه">حديد 3 لينه</option>
-                            <option value="حديد 4 لينه">حديد 4 لينه</option>
-                            <option value="حديد 5 لينه">حديد 5 لينه</option>
+                    <div class="form-group" id="edit-subtype-group" style="display: none;">
+                        <label for="edit-subtype">النوع</label>
+                        <select id="edit-subtype" name="subType"></select>
+                        <input type="text" id="edit-custom-subtype" name="customSubType" class="conditional-field" style="display: none; margin-top: 10px;" placeholder="تحديد النوع">
+                    </div>
+
+                     <div class="form-group" id="edit-unit-group" style="display: none;">
+                        <label for="edit-unit">وحدة القياس</label>
+                        <select id="edit-unit" name="unit">
+                            <option value="قطعة">قطعة</option>
+                            <option value="لتر">لتر</option>
+                            <option value="أخرى">أخرى</option>
                         </select>
+                        <input type="text" id="edit-custom-unit" name="customUnit" class="conditional-field" style="display: none; margin-top: 10px;" placeholder="تحديد الوحدة">
                     </div>
 
                     <div class="form-group">
@@ -366,8 +449,8 @@ try {
         </div>
 
         <!-- TEMPLATES FOR LOG CARDS -->
-        <template id="simple-log-card-template">
-            <div class="log-card">
+        <template id="detailed-log-card-template">
+             <div class="log-card">
                 <div class="log-card-header">
                     <span class="log-action-type"></span>
                     <span class="log-date"></span>
@@ -375,7 +458,11 @@ try {
                 <div class="log-card-body">
                     <dl class="log-details-list">
                         <div class="log-detail-item">
-                            <dt>الكمية</dt>
+                            <dt>النوع</dt>
+                            <dd data-key="subType"></dd>
+                        </div>
+                        <div class="log-detail-item">
+                            <dt data-key-quantity-label>الكمية</dt>
                             <dd data-key="quantity"></dd>
                         </div>
                         <div class="log-detail-item">
@@ -395,7 +482,7 @@ try {
             </div>
         </template>
 
-        <template id="iron-log-card-template">
+        <template id="simple-log-card-template">
             <div class="log-card">
                 <div class="log-card-header">
                     <span class="log-action-type"></span>
@@ -404,11 +491,7 @@ try {
                 <div class="log-card-body">
                     <dl class="log-details-list">
                         <div class="log-detail-item">
-                            <dt>النوع</dt>
-                            <dd data-key="ironType"></dd>
-                        </div>
-                        <div class="log-detail-item">
-                            <dt>عدد الأسياخ</dt>
+                            <dt>الكمية</dt>
                             <dd data-key="quantity"></dd>
                         </div>
                         <div class="log-detail-item">
@@ -440,8 +523,16 @@ try {
     let supervisorMap = {};
     let userIsAdmin = false;
     let allLogs = { iron: [], cement: [], other: [] };
-    let currentIronFilter = 'all';
+    let currentFilters = { iron: 'all', other: 'all' };
     let docIdToDelete = null;
+
+    const standardSubTypes = {
+        iron: ["حديد 3 لينه", "حديد 4 لينه", "حديد 5 لينه"],
+        other: ["مواد صبة", "سوائل"]
+    };
+    const standardUnits = { 
+        other: ["قطعة", "لتر"] 
+    };
 
     // --- GENERIC MATERIAL SECTION SETUP --- //
     function setupMaterialSection(material, projectId, user, userRole) {
@@ -463,40 +554,56 @@ try {
         const remainsQuery = query(collection(db, 'remains'), where("projectId", "==", projectId), where("material", "==", material), orderBy("createdAt", "desc"));
         onSnapshot(remainsQuery, (snapshot) => {
             allLogs[material] = [];
-            let total = 0;
-            let ironTotals = { '3': 0, '4': 0, '5': 0 };
+            let totals = { sapa: 0, liquids: 0, misc: 0, '3': 0, '4': 0, '5': 0 };
             let totalAdded = 0;
             let totalDispensed = 0;
+            let simpleTotal = 0;
 
             snapshot.forEach(doc => {
                 const data = { id: doc.id, ...doc.data() };
                 allLogs[material].push(data);
 
+                const quantity = Math.abs(data.quantity);
                 if (data.quantity > 0) {
-                    totalAdded += data.quantity;
+                    totalAdded += quantity;
                 } else {
-                    totalDispensed += Math.abs(data.quantity);
+                    totalDispensed += quantity;
                 }
 
                 if (material === 'iron') {
-                    const type = data.ironType === 'حديد 3 لينه' ? '3' : data.ironType === 'حديد 4 لينه' ? '4' : '5';
-                    if (ironTotals[type] !== undefined) ironTotals[type] += data.quantity;
+                    const type = data.subType === 'حديد 3 لينه' ? '3' : data.subType === 'حديد 4 لينه' ? '4' : '5';
+                    if (totals[type] !== undefined) totals[type] += data.quantity;
+                } else if (material === 'other') {
+                    let typeKey;
+                    if (data.subType === 'مواد صبة') typeKey = 'sapa';
+                    else if (data.subType === 'سوائل') typeKey = 'liquids';
+                    else typeKey = 'misc';
+                    if (totals[typeKey] !== undefined) totals[typeKey] += data.quantity;
                 } else {
-                    total += data.quantity;
+                    simpleTotal += data.quantity;
                 }
             });
 
-            document.getElementById(`${material}-total-added`).textContent = totalAdded;
-            document.getElementById(`${material}-total-dispensed`).textContent = totalDispensed;
+            if (document.getElementById(`${material}-total-added`)) {
+                 document.getElementById(`${material}-total-added`).textContent = totalAdded;
+                 document.getElementById(`${material}-total-dispensed`).textContent = totalDispensed;
+            }
 
             if (material === 'iron') {
-                document.getElementById('iron-total-3').textContent = ironTotals['3'];
-                document.getElementById('iron-total-4').textContent = ironTotals['4'];
-                document.getElementById('iron-total-5').textContent = ironTotals['5'];
-                if (userRole === 'admin') renderIronLog();
+                document.getElementById('iron-total-3').textContent = totals['3'];
+                document.getElementById('iron-total-4').textContent = totals['4'];
+                document.getElementById('iron-total-5').textContent = totals['5'];
+            } else if (material === 'other') {
+                 document.getElementById('other-total-sapa').textContent = totals['sapa'];
+                document.getElementById('other-total-liquids').textContent = totals['liquids'];
+                document.getElementById('other-total-misc').textContent = totals['misc'];
             } else {
-                document.getElementById(`${material}-total`).textContent = total;
-                if (userRole === 'admin') renderSimpleLog(material);
+                document.getElementById(`${material}-total`).textContent = simpleTotal;
+            }
+
+            if (userRole === 'admin') {
+                if(material === 'cement') renderSimpleLog(material);
+                else renderDetailedLog(material); 
             }
         });
 
@@ -504,36 +611,122 @@ try {
             card.addEventListener('click', handleAdminActions);
             const showAllBtn = document.getElementById(`show-all-${material}`);
             if(showAllBtn) showAllBtn.addEventListener('click', () => {
-                if(material === 'iron') renderIronLog(true); else renderSimpleLog(material, true);
+                 if(material === 'cement') renderSimpleLog(material, true);
+                else renderDetailedLog(material, true);
             });
-             if (material === 'iron') {
-                const liyaFilterButtons = card.querySelectorAll('[data-filter-type="liya"]');
-                liyaFilterButtons.forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        liyaFilterButtons.forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-                        currentIronFilter = btn.dataset.filterValue;
-                        renderIronLog(); 
-                    });
+
+            const filterButtons = card.querySelectorAll(`.filter-btn[data-material="${material}"]`);
+            filterButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    filterButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentFilters[material] = btn.dataset.filterValue;
+                    renderDetailedLog(material);
                 });
-            }
+            });
         }
 
         if (userRole === 'admin' || userRole === 'supervisor') {
             const addForm = card.querySelector(`#add-${material}-form`);
             const dispenseForm = card.querySelector(`#dispense-${material}-form`);
-            if(addForm) setupFormSubmission(addForm, false, projectId, user, material);
-            if(dispenseForm) setupFormSubmission(dispenseForm, true, projectId, user, material);
+            if(addForm) setupForm(addForm, false, projectId, user, material);
+            if(dispenseForm) setupForm(dispenseForm, true, projectId, user, material);
         }
     }
 
-    // --- NEW LOG RENDERING FUNCTIONS --- //
+    function setupConditionalFields(form) {
+        const subTypeSelect = form.querySelector('.subType-select');
+        const customSubTypeInput = form.querySelector('input[name="customSubType"]');
+        const unitSelect = form.querySelector('.unit-select');
+        const customUnitInput = form.querySelector('input[name="customUnit"]');
+
+        if (subTypeSelect && customSubTypeInput) {
+            subTypeSelect.addEventListener('change', (e) => {
+                customSubTypeInput.parentElement.style.display = e.target.value === 'أخرى' ? 'block' : 'none';
+            });
+        }
+        if (unitSelect && customUnitInput) {
+             unitSelect.addEventListener('change', (e) => {
+                customUnitInput.parentElement.style.display = e.target.value === 'أخرى' ? 'block' : 'none';
+            });
+        }
+    }
+
+    function setupForm(form, isDispense, projectId, user, material) {
+        if (form) {
+            form.addEventListener('submit', (e) => handleFormSubmit(e, isDispense, projectId, user, material));
+            if (material === 'other') {
+                setupConditionalFields(form);
+            }
+        }
+    }
+
+    // --- LOG RENDERING FUNCTIONS --- //
+    function renderDetailedLog(material, showAll = false) {
+        const container = document.getElementById(`${material}-log-container`);
+        const emptyMsg = document.getElementById(`${material}-log-empty`);
+        const showAllBtn = document.getElementById(`show-all-${material}`);
+        const template = document.getElementById('detailed-log-card-template');
+
+        if (!container || !emptyMsg || !showAllBtn || !template) return;
+
+        let filteredEntries = allLogs[material];
+        const filterValue = currentFilters[material];
+        if (filterValue !== 'all') {
+            filteredEntries = filteredEntries.filter(e => {
+                 if (filterValue === 'أخرى') {
+                    // Show entries whose subType is NOT one of the standard ones.
+                    return !standardSubTypes[material].includes(e.subType);
+                 } else {
+                    return e.subType === filterValue;
+                 }
+            });
+        }
+        
+        emptyMsg.style.display = filteredEntries.length === 0 ? 'block' : 'none';
+        showAllBtn.style.display = (filteredEntries.length > LOG_LIMIT && !showAll) ? 'block' : 'none';
+        const entriesToRender = showAll ? filteredEntries : filteredEntries.slice(0, LOG_LIMIT);
+        container.innerHTML = ''; 
+
+        entriesToRender.forEach(entry => {
+            const cardClone = template.content.cloneNode(true);
+            const isAddition = entry.quantity > 0;
+            const supervisorName = entry.supervisorName || supervisorMap[entry.supervisorId] || 'مشرف غير معروف';
+
+            cardClone.querySelector('.log-card').classList.add(isAddition ? 'log-card-add' : 'log-card-dispense');
+            cardClone.querySelector('.log-action-type').textContent = isAddition ? 'إضافة' : 'صرف';
+            cardClone.querySelector('.log-date').textContent = entry.createdAt?.toDate().toLocaleString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) || '';
+            
+            const subTypeDisplay = (material === 'iron') ? (entry.subType || '').replace('حديد', '').trim() : (entry.subType || 'غير محدد');
+            cardClone.querySelector('[data-key="subType"]').textContent = subTypeDisplay;
+
+            const quantityLabel = cardClone.querySelector('[data-key-quantity-label]');
+            quantityLabel.textContent = (material === 'iron') ? 'عدد الأسياخ' : 'الكمية';
+            
+            const unit = entry.unit || (material === 'iron' ? 'سيخ' : 'وحدة');
+            cardClone.querySelector('[data-key="quantity"]').textContent = `${Math.abs(entry.quantity)} ${unit}`;
+
+            cardClone.querySelector('[data-key="supervisor"]').textContent = supervisorName;
+            cardClone.querySelector('[data-key="notes"]').textContent = entry.notes || '-';
+            
+            if (userIsAdmin) {
+                cardClone.querySelector('.btn-edit').dataset.id = entry.id;
+                cardClone.querySelector('.btn-edit').dataset.material = material;
+                cardClone.querySelector('.btn-delete').dataset.id = entry.id;
+                cardClone.querySelector('.btn-delete').dataset.material = material;
+            } else {
+                cardClone.querySelector('.log-card-actions')?.remove();
+            }
+
+            container.appendChild(cardClone);
+        });
+    }
+
     function renderSimpleLog(material, showAll = false) {
         const container = document.getElementById(`${material}-log-container`);
         const emptyMsg = document.getElementById(`${material}-log-empty`);
         const showAllBtn = document.getElementById(`show-all-${material}`);
         const template = document.getElementById('simple-log-card-template');
-        
         if (!container || !emptyMsg || !showAllBtn || !template) return;
 
         const entries = allLogs[material] || [];
@@ -541,8 +734,7 @@ try {
         showAllBtn.style.display = (entries.length > LOG_LIMIT && !showAll) ? 'block' : 'none';
 
         const entriesToRender = showAll ? entries : entries.slice(0, LOG_LIMIT);
-        
-        container.innerHTML = ''; // Clear previous entries
+        container.innerHTML = ''; 
 
         entriesToRender.forEach(entry => {
             const cardClone = template.content.cloneNode(true);
@@ -552,75 +744,18 @@ try {
             cardClone.querySelector('.log-card').classList.add(isAddition ? 'log-card-add' : 'log-card-dispense');
             cardClone.querySelector('.log-action-type').textContent = isAddition ? 'إضافة' : 'صرف';
             cardClone.querySelector('.log-date').textContent = entry.createdAt?.toDate().toLocaleString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) || '';
-            
-            cardClone.querySelector('[data-key="quantity"]').textContent = Math.abs(entry.quantity);
+            cardClone.querySelector('[data-key="quantity"]').textContent = `${Math.abs(entry.quantity)} شكارة`;
             cardClone.querySelector('[data-key="supervisor"]').textContent = supervisorName;
             cardClone.querySelector('[data-key="notes"]').textContent = entry.notes || '-';
 
-            const actionsContainer = cardClone.querySelector('.log-card-actions');
             if (userIsAdmin) {
-                const editBtn = cardClone.querySelector('.btn-edit');
-                editBtn.dataset.id = entry.id;
-                editBtn.dataset.material = material;
-
-                const deleteBtn = cardClone.querySelector('.btn-delete');
-                deleteBtn.dataset.id = entry.id;
-                deleteBtn.dataset.material = material;
+                cardClone.querySelector('.btn-edit').dataset.id = entry.id;
+                cardClone.querySelector('.btn-edit').dataset.material = material;
+                cardClone.querySelector('.btn-delete').dataset.id = entry.id;
+                cardClone.querySelector('.btn-delete').dataset.material = material;
             } else {
-                if (actionsContainer) actionsContainer.remove();
+                cardClone.querySelector('.log-card-actions')?.remove();
             }
-
-            container.appendChild(cardClone);
-        });
-    }
-
-    function renderIronLog(showAll = false) {
-        const container = document.getElementById('iron-log-container');
-        const emptyMsg = document.getElementById('iron-log-empty');
-        const showAllBtn = document.getElementById('show-all-iron');
-        const template = document.getElementById('iron-log-card-template');
-
-        if (!container || !emptyMsg || !showAllBtn || !template) return;
-
-        let filteredEntries = allLogs.iron;
-        if (currentIronFilter !== 'all') {
-            filteredEntries = filteredEntries.filter(e => e.ironType === currentIronFilter);
-        }
-        
-        emptyMsg.style.display = filteredEntries.length === 0 ? 'block' : 'none';
-        showAllBtn.style.display = (filteredEntries.length > LOG_LIMIT && !showAll) ? 'block' : 'none';
-        
-        const entriesToRender = showAll ? filteredEntries : filteredEntries.slice(0, LOG_LIMIT);
-        
-        container.innerHTML = ''; // Clear previous entries
-
-        entriesToRender.forEach(entry => {
-            const cardClone = template.content.cloneNode(true);
-            const isAddition = entry.quantity > 0;
-            const supervisorName = entry.supervisorName || supervisorMap[entry.supervisorId] || 'مشرف غير معروف';
-
-            cardClone.querySelector('.log-card').classList.add(isAddition ? 'log-card-add' : 'log-card-dispense');
-            cardClone.querySelector('.log-action-type').textContent = isAddition ? 'إضافة' : 'صرف';
-            cardClone.querySelector('.log-date').textContent = entry.createdAt?.toDate().toLocaleString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) || '';
-            
-            cardClone.querySelector('[data-key="ironType"]').textContent = (entry.ironType || '').replace('حديد', '').trim();
-            cardClone.querySelector('[data-key="quantity"]').textContent = Math.abs(entry.quantity);
-            cardClone.querySelector('[data-key="supervisor"]').textContent = supervisorName;
-            cardClone.querySelector('[data-key="notes"]').textContent = entry.notes || '-';
-            
-            const actionsContainer = cardClone.querySelector('.log-card-actions');
-            if (userIsAdmin) {
-                const editBtn = cardClone.querySelector('.btn-edit');
-                editBtn.dataset.id = entry.id;
-                editBtn.dataset.material = 'iron';
-
-                const deleteBtn = cardClone.querySelector('.btn-delete');
-                deleteBtn.dataset.id = entry.id;
-                deleteBtn.dataset.material = 'iron';
-            } else {
-                if (actionsContainer) actionsContainer.remove();
-            }
-
             container.appendChild(cardClone);
         });
     }
@@ -636,8 +771,7 @@ try {
             const quantity = parseInt(form.quantity.value, 10);
             if (isNaN(quantity) || quantity <= 0) throw new Error('يرجى إدخال كمية صحيحة موجبة.');
             
-            // Fetch the user's display name from Firestore
-            let supervisorName = user.email || 'مستخدم غير معروف'; // Fallback to email
+            let supervisorName = user.email || 'مستخدم غير معروف'; 
             try {
                 const userDocRef = doc(db, 'users', user.uid);
                 const userDocSnap = await getDoc(userDocRef);
@@ -646,7 +780,6 @@ try {
                 }
             } catch (userDocError) {
                 console.error("Error fetching user document:", userDocError);
-                // Continue with the fallback name
             }
 
             let data = {
@@ -654,18 +787,33 @@ try {
                 quantity: isDispense ? -quantity : quantity,
                 notes: form.notes.value,
                 supervisorId: user.uid,
-                supervisorName: supervisorName, // Use the fetched name
+                supervisorName: supervisorName, 
                 createdAt: serverTimestamp()
             };
+            
+            // Handle subType for iron and other
+            if (standardSubTypes[material]) {
+                let subType = form.subType.value;
+                if (subType === 'أخرى') {
+                    subType = form.customSubType.value.trim();
+                    if (!subType) throw new Error('يرجى تحديد النوع المخصص.');
+                }
+                data.subType = subType;
+            }
 
-            if (material === 'iron') {
-                const ironType = form.ironType.value;
-                if (!ironType) throw new Error('يرجى اختيار نوع الحديد.');
-                data.ironType = ironType;
+            // Handle unit for other
+            if (material === 'other') {
+                let unit = form.unit.value;
+                if (unit === 'أخرى') {
+                    unit = form.customUnit.value.trim();
+                     if (!unit) throw new Error('يرجى تحديد الوحدة المخصصة.');
+                }
+                data.unit = unit;
             }
 
             await addDoc(collection(db, 'remains'), data);
             form.reset();
+            form.querySelectorAll('.conditional-field').forEach(f => f.style.display = 'none');
             alert('تمت العملية بنجاح!');
         } catch (error) {
             console.error(`Error submitting ${material} form:`, error);
@@ -674,12 +822,6 @@ try {
             submitBtn.disabled = false;
             const buttonText = form.id.includes('dispense') ? 'صرف' : 'إضافة';
             submitBtn.textContent = buttonText;
-        }
-    }
-
-    function setupFormSubmission(form, isDispense, projectId, user, material) {
-        if (form) {
-            form.addEventListener('submit', (e) => handleFormSubmit(e, isDispense, projectId, user, material));
         }
     }
 
@@ -722,66 +864,118 @@ try {
     function openEditModal(docId, material) {
         const modal = document.getElementById('edit-modal');
         const form = document.getElementById('edit-form');
-        const ironTypeGroup = document.getElementById('edit-iron-type-group');
-        const quantityLabel = document.getElementById('edit-quantity-label');
+        const subTypeGroup = document.getElementById('edit-subtype-group');
+        const subTypeSelect = document.getElementById('edit-subtype');
+        const customSubTypeInput = document.getElementById('edit-custom-subtype');
+        const unitGroup = document.getElementById('edit-unit-group');
+        const unitSelect = document.getElementById('edit-unit');
+        const customUnitInput = document.getElementById('edit-custom-unit');
         
         form.reset();
+        [customSubTypeInput, customUnitInput].forEach(el => el.style.display = 'none');
         form.docId.value = docId;
         form.material.value = material;
 
         const entry = allLogs[material]?.find(log => log.id === docId);
         if (!entry) { return alert('خطأ: لم يتم العثور على السجل.'); }
 
-        ironTypeGroup.style.display = material === 'iron' ? 'block' : 'none';
-        quantityLabel.textContent = material === 'iron' ? 'عدد الأسياخ' : 'الكمية';
+        // Handle SubType
+        if (standardSubTypes[material]) {
+            subTypeSelect.innerHTML = '';
+            const options = [...standardSubTypes[material], 'أخرى'];
+            options.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = (material === 'iron') ? type.replace('حديد','').trim() : type;
+                subTypeSelect.appendChild(option);
+            });
+
+            if (standardSubTypes[material].includes(entry.subType)) {
+                subTypeSelect.value = entry.subType;
+            } else {
+                subTypeSelect.value = 'أخرى';
+                customSubTypeInput.value = entry.subType;
+                customSubTypeInput.style.display = 'block';
+            }
+            subTypeGroup.style.display = 'block';
+        } else {
+             subTypeGroup.style.display = 'none';
+        }
+
+        // Handle Unit (for 'other' material)
+        if (material === 'other') {
+             if (standardUnits.other.includes(entry.unit)) {
+                unitSelect.value = entry.unit;
+            } else {
+                unitSelect.value = 'أخرى';
+                customUnitInput.value = entry.unit;
+                customUnitInput.style.display = 'block';
+            }
+            unitGroup.style.display = 'block';
+        } else {
+            unitGroup.style.display = 'none';
+        }
+
+        document.getElementById('edit-quantity-label').textContent = material === 'iron' ? 'عدد الأسياخ' : 'الكمية';
         form.quantity.value = Math.abs(entry.quantity);
         form.notes.value = entry.notes || '';
-        if (material === 'iron') {
-            form.ironType.value = entry.ironType;
-        } 
-
+        
         modal.style.display = 'flex';
     }
 
+    async function handleEditSubmit(e) {
+        e.preventDefault();
+        const form = e.target;
+        const { docId, material, quantity, notes, subType, customSubType, unit, customUnit } = form.elements;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true; submitBtn.textContent = 'جارٍ الحفظ...';
+        
+        try {
+            const newQuantity = parseInt(quantity.value, 10);
+            if(isNaN(newQuantity) || newQuantity < 0) throw new Error("الكمية يجب أن تكون رقمًا موجبًا.");
+            
+            const originalEntry = allLogs[material.value]?.find(log => log.id === docId.value);
+            if (!originalEntry) throw new Error("لم يتم العثور على السجل الأصلي.");
+
+            let updatedData = {
+                notes: notes.value,
+                quantity: originalEntry.quantity > 0 ? newQuantity : -newQuantity,
+            };
+
+            if (standardSubTypes[material.value]) {
+                let finalSubType = subType.value;
+                if (finalSubType === 'أخرى') {
+                    finalSubType = customSubType.value.trim();
+                    if (!finalSubType) throw new Error('يرجى تحديد النوع المخصص.');
+                }
+                updatedData.subType = finalSubType;
+            }
+
+            if (material.value === 'other') {
+                let finalUnit = unit.value;
+                if (finalUnit === 'أخرى') {
+                    finalUnit = customUnit.value.trim();
+                    if (!finalUnit) throw new Error('يرجى تحديد الوحدة المخصصة.');
+                }
+                updatedData.unit = finalUnit;
+            }
+            
+            await updateDoc(doc(db, 'remains', docId.value), updatedData);
+            alert('تم التعديل بنجاح!');
+            document.getElementById('edit-modal').style.display = 'none';
+        } catch(error) {
+            alert(error.message || 'فشل تحديث السجل.');
+        } finally {
+            submitBtn.disabled = false; submitBtn.textContent = 'حفظ التعديلات';
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
-        // Edit Modal
         const editModal = document.getElementById('edit-modal');
         editModal.querySelector('.modal-close').addEventListener('click', () => editModal.style.display = 'none');
-        document.getElementById('edit-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const form = e.target;
-            const docId = form.docId.value;
-            const material = form.material.value;
-            const submitBtn = form.querySelector('button[type="submit"]');
-            submitBtn.disabled = true; submitBtn.textContent = 'جارٍ الحفظ...';
-            
-            try {
-                const newQuantity = parseInt(form.quantity.value, 10);
-                if(isNaN(newQuantity) || newQuantity < 0) throw new Error("الكمية يجب أن تكون رقمًا موجبًا.");
-                
-                const originalEntry = allLogs[material]?.find(log => log.id === docId);
-                if (!originalEntry) throw new Error("لم يتم العثور على السجل الأصلي.");
+        document.getElementById('edit-form').addEventListener('submit', handleEditSubmit);
+        setupConditionalFields(document.getElementById('edit-form'));
 
-                let updatedData = {
-                    notes: form.notes.value,
-                    quantity: originalEntry.quantity > 0 ? newQuantity : -newQuantity,
-                };
-
-                if (material === 'iron') {
-                    updatedData.ironType = form.ironType.value;
-                }
-                
-                await updateDoc(doc(db, 'remains', docId), updatedData);
-                alert('تم التعديل بنجاح!');
-                document.getElementById('edit-modal').style.display = 'none';
-            } catch(error) {
-                alert(error.message || 'فشل تحديث السجل.');
-            } finally {
-                submitBtn.disabled = false; submitBtn.textContent = 'حفظ التعديلات';
-            }
-        });
-
-        // Delete Modal
         const deleteModal = document.getElementById('delete-confirm-modal');
         deleteModal.querySelector('.modal-close').addEventListener('click', closeDeleteConfirmation);
         document.getElementById('cancel-delete-btn').addEventListener('click', closeDeleteConfirmation);
@@ -863,7 +1057,7 @@ h1 { font-size: 2rem; font-weight: 800; color: var(--text-dark); }
 .card-header h3 { font-size: 1.5rem; font-weight: 700; color: var(--text-dark); margin: 0; }
 
 .material-header-content { display: flex; flex-direction: column; gap: 1rem; flex-grow: 1; }
-.iron-totals-grid { display: flex; gap: 1rem; flex-wrap: wrap; }
+.totals-grid { display: flex; gap: 1rem; flex-wrap: wrap; }
 .total-amount-display { text-align: right; background-color: #f8f9fa; padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border-color);}
 .total-amount-display span:first-child { color: var(--text-light); font-size: 0.9rem; margin-left: 0.5rem; }
 .total-amount-display span:last-child { font-size: 1.25rem; font-weight: 700; color: var(--primary-color); }
@@ -891,7 +1085,7 @@ h1 { font-size: 2rem; font-weight: 800; color: var(--text-dark); }
 .material-form { border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; background-color: #fcfdff; display: flex; flex-direction: column; gap: 1.5rem; }
 .material-form h4 { font-size: 1.2rem; margin: 0; font-weight: 600; }
 .form-fields { display: flex; flex-direction: column; gap: 1.25rem; }
-.form-row { display: flex; flex-direction: row; gap: 1.25rem; }
+.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; }
 .form-group { flex: 1; min-width: 0; }
 .form-group label { display: block; margin-bottom: .5rem; font-weight: 600; }
 .form-group input, .form-group select { width: 100%; padding: .75rem; border: 1px solid #cbd5e1; border-radius: 8px; background-color: white; }
@@ -951,7 +1145,7 @@ h1 { font-size: 2rem; font-weight: 800; color: var(--text-dark); }
 .btn-danger { background-color: var(--danger-color); }
 .btn-danger:hover { background-color: #dc2626; }
 
-.iron-filter-controls { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; background-color: var(--bg-white); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); }
+.filter-controls { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; background-color: var(--bg-white); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); }
 .filter-group { display: flex; align-items: center; gap: 0.75rem; }
 .filter-group span { font-weight: 600; color: var(--text-dark); }
 .filter-buttons { display: flex; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
@@ -961,7 +1155,7 @@ h1 { font-size: 2rem; font-weight: 800; color: var(--text-dark); }
 .filter-btn:not(.active):hover { background-color: #eef5ff; }
 
 @media (max-width: 768px) {
-    .form-row { flex-direction: column; }
+    .form-row { grid-template-columns: 1fr; }
     h1 {font-size: 1.75rem;}
     .card-header { flex-direction: column; align-items: flex-start; }
 }
