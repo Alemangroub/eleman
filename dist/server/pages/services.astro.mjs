@@ -1,9 +1,9 @@
 /* empty css                                 */
 import { e as createComponent, m as maybeRenderHead, u as unescapeHTML, r as renderTemplate, k as renderComponent } from '../chunks/astro/server_4YXjuf9l.mjs';
 import 'piccolore';
-import { $ as $$Layout } from '../chunks/Layout_DCRO8pvN.mjs';
+import { $ as $$Layout } from '../chunks/Layout_C7k-ksFB.mjs';
 import { $ as $$TopBar } from '../chunks/TopBar_Jt1YRuXK.mjs';
-import { $ as $$Header, a as $$Footer } from '../chunks/Footer_Cun5kBRs.mjs';
+import { $ as $$Header, a as $$Footer } from '../chunks/Footer_vSpQzKqV.mjs';
 import { $ as $$Services$1 } from '../chunks/Services_BhC8ALGN.mjs';
 import 'clsx';
 /* empty css                                    */

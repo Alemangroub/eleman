@@ -1,13 +1,17 @@
 /* empty css                                 */
-import { e as createComponent, k as renderComponent, o as renderScript, r as renderTemplate, m as maybeRenderHead } from '../chunks/astro/server_4YXjuf9l.mjs';
+import { e as createComponent } from '../chunks/astro/server_4YXjuf9l.mjs';
 import 'piccolore';
-import { $ as $$Layout } from '../chunks/Layout_DCRO8pvN.mjs';
-import { $ as $$AdminLogin } from '../chunks/AdminLogin_BIaiut0m.mjs';
-/* empty css                                 */
+import 'clsx';
 export { renderers } from '../renderers.mjs';
 
-const $$Admin = createComponent(async ($$result, $$props, $$slots) => {
-  return renderTemplate`${renderComponent($$result, "Layout", $$Layout, { "title": "\u0644\u0648\u062D\u0629 \u062A\u062D\u0643\u0645", "data-astro-cid-2zp6q64z": true }, { "default": async ($$result2) => renderTemplate` ${maybeRenderHead()}<main class="admin-page" data-astro-cid-2zp6q64z> <div id="auth-loading-message" class="auth-container" data-astro-cid-2zp6q64z> <p data-astro-cid-2zp6q64z>جارٍ التحقق من صلاحيات الدخول...</p> </div> <div id="admin-login-container" class="auth-container" style="display: none;" data-astro-cid-2zp6q64z> ${renderComponent($$result2, "AdminLogin", $$AdminLogin, { "data-astro-cid-2zp6q64z": true })} </div> <div id="admin-dashboard-container" style="display: none;" data-astro-cid-2zp6q64z> <button id="logout-button" class="btn btn-logout" data-astro-cid-2zp6q64z>تسجيل الخروج</button> <div class="container" data-astro-cid-2zp6q64z> <div class="dashboard-header" data-astro-cid-2zp6q64z> <h1 data-astro-cid-2zp6q64z>مرحباً بك في لوحة التحكم</h1> <p data-astro-cid-2zp6q64z>من هنا يمكنك إدارة محتوى الموقع بسهولة وأمان.</p> </div> <div class="grid-container" data-astro-cid-2zp6q64z> <a href="/admin/projects" class="card-link" data-astro-cid-2zp6q64z><div class="card" data-astro-cid-2zp6q64z><h3 data-astro-cid-2zp6q64z>إدارة المشاريع</h3><p data-astro-cid-2zp6q64z>إضافة مشاريع جديدة وتعيين المشرفين والمهندسين المسؤولين عنها.</p></div></a> <a href="/admin/users" class="card-link" data-astro-cid-2zp6q64z><div class="card" data-astro-cid-2zp6q64z><h3 data-astro-cid-2zp6q64z>إدارة المستخدمين</h3><p data-astro-cid-2zp6q64z>إضافة وتعديل وحذف المستخدمين وتعيين صلاحياتهم.</p></div></a> </div> </div> </div> </main> ` })} ${renderScript($$result, "/home/user/eleman-company/src/pages/admin.astro?astro&type=script&index=0&lang.ts")} `;
+const $$Admin = createComponent(($$result, $$props, $$slots) => {
+  return new Response(null, {
+    status: 301,
+    // 301 Moved Permanently
+    headers: {
+      "Location": "/crs"
+    }
+  });
 }, "/home/user/eleman-company/src/pages/admin.astro", void 0);
 
 const $$file = "/home/user/eleman-company/src/pages/admin.astro";

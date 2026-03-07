@@ -54,7 +54,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
 </Layout>
 
 <script>
-  import { auth, db } from '../../firebase/client.ts';
+  import { auth, db } from '../../firebase/client.js';
   import { onAuthStateChanged, signOut } from "firebase/auth";
   import { collection, addDoc, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 
@@ -173,13 +173,6 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
       const supervisors = selectedSupervisors;
       const supervisorIds = supervisors.map(s => s.id);
-      
-      if (supervisorIds.length === 0) {
-          alert('يجب تعيين مشرف واحد على الأقل للمشروع.');
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'حفظ المشروع';
-          return;
-      }
 
       const projectData = {
           projectName: form.projectName.value,

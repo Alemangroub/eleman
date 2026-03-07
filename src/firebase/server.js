@@ -10,25 +10,24 @@ const serviceAccount = {
   "client_email": "firebase-adminsdk-fbsvc@elemancompany-2b00c.iam.gserviceaccount.com",
 };
 
-// This function ensures the admin app is initialized only once.
-const getAdminApp = () => {
-  // If the app is already initialized, return the existing instance.
-  if (admin.apps.length > 0) {
-    return admin.apps[0];
-  }
+let app;
+try {
+    if (!admin.apps.length) {
+        app = admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+    } else {
+        app = admin.app();
+    }
+} catch (error) {
+    console.error("Firebase admin initialization error:", error);
+}
 
-  // Initialize the app with the hardcoded credentials
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-
-  // Return the newly initialized app.
-  return admin.app();
-};
+export { app };
 
 // Export functions that provide the auth and firestore services on demand.
-export const getAdminAuth = () => getAdminApp().auth();
-export const getAdminDb = () => getAdminApp().firestore();
+export const getAdminAuth = () => app.auth();
+export const getAdminDb = () => app.firestore();
 
 // Export the classic, namespaced Timestamp constructor.
 export const Timestamp = admin.firestore.Timestamp;

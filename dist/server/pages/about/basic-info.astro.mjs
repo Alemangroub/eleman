@@ -1,7 +1,7 @@
 /* empty css                                    */
 import { e as createComponent, k as renderComponent, r as renderTemplate } from '../../chunks/astro/server_4YXjuf9l.mjs';
 import 'piccolore';
-import { $ as $$InfoPageLayout } from '../../chunks/InfoPageLayout_CyRJC9Fu.mjs';
+import { $ as $$InfoPageLayout } from '../../chunks/InfoPageLayout_CF_nJcwp.mjs';
 import { i as info } from '../../chunks/info_z3mEWYcI.mjs';
 export { renderers } from '../../renderers.mjs';
 

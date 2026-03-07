@@ -1,10 +1,10 @@
 /* empty css                                 */
 import { e as createComponent, k as renderComponent, r as renderTemplate, m as maybeRenderHead } from '../chunks/astro/server_4YXjuf9l.mjs';
 import 'piccolore';
-import { $ as $$Layout } from '../chunks/Layout_DCRO8pvN.mjs';
+import { $ as $$Layout } from '../chunks/Layout_C7k-ksFB.mjs';
 import { $ as $$TopBar } from '../chunks/TopBar_Jt1YRuXK.mjs';
-import { $ as $$Header, a as $$Footer } from '../chunks/Footer_Cun5kBRs.mjs';
-import { $ as $$InfoSection } from '../chunks/InfoSection_I2hIfgsF.mjs';
+import { $ as $$Header, a as $$Footer } from '../chunks/Footer_vSpQzKqV.mjs';
+import { $ as $$InfoSection } from '../chunks/InfoSection_ClasS5mg.mjs';
 import { $ as $$FloatingButton } from '../chunks/FloatingButton_Dc2eHFJr.mjs';
 export { renderers } from '../renderers.mjs';
 
