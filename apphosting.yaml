@@ -13,3 +13,7 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: PUBLIC_FIREBASE_API_KEY
+    secret: FIREBASE_API_KEY
+    availability:
+      - BUILD
