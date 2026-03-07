@@ -7,35 +7,41 @@ let db = null;
 let auth = null;
 let initializationError = null;
 
-console.log("ℹ️ Attempting to initialize Firebase Admin SDK in admin.js...");
+console.log("ℹ️ [server/firebase/admin.js] Attempting to initialize Firebase Admin SDK...");
 
 try {
-  const serviceAccount = {
-    projectId: import.meta.env.FIREBASE_PROJECT_ID,
-    clientEmail: import.meta.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: import.meta.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  };
+  // In a server environment like App Hosting, Node.js `process.env` is used to get runtime environment variables.
+  const serviceAccountConfig = process.env.FIREBASE_ADMIN_SDK_CONFIG;
 
-  if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
-    throw new Error("Firebase credentials are not fully available in the environment.");
+  if (!serviceAccountConfig) {
+    throw new Error("FATAL: The FIREBASE_ADMIN_SDK_CONFIG environment variable is not set. This is required for server-side operations.");
   }
+
+  // The service account is passed as a JSON string, so we need to parse it.
+  const serviceAccount = JSON.parse(serviceAccountConfig);
 
   if (admin.apps.length === 0) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
-    console.log("✅ Central Firebase Admin SDK initialized successfully.");
+    console.log("✅ [server/firebase/admin.js] Firebase Admin SDK initialized successfully.");
+  } else {
+    console.log("✅ [server/firebase/admin.js] Firebase Admin SDK was already initialized.");
   }
   
   db = getFirestore();
   auth = getAuth();
 
 } catch (error) {
-  initializationError = error.message;
-  console.error("❌ FATAL: Firebase admin initialization failed in admin.js:", initializationError);
+  if (error instanceof SyntaxError) {
+    initializationError = "FATAL: Failed to parse FIREBASE_ADMIN_SDK_CONFIG. Ensure it is a valid, unescaped JSON string.";
+  } else {
+    initializationError = error.message;
+  }
+  console.error("❌ [server/firebase/admin.js] Firebase admin initialization failed:", initializationError);
   db = null; 
   auth = null;
 }
 
-// Export db, auth, admin, and the error message
+// Export the initialized services and any error that occurred.
 export { db, auth, admin, initializationError };
