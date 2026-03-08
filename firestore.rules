@@ -10,8 +10,6 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Function to get the role from the user's own document.
-    // This can be called safely because of the rule on the `users` collection below.
     function getUserRole() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
@@ -21,7 +19,6 @@ service cloud.firestore {
     }
 
     function isProjectSupervisor(projectId) {
-      // This function assumes the rules for the 'projects' collection allow this 'get' operation.
       let projectData = get(/databases/$(database)/documents/projects/$(projectId)).data;
       return isUserAuthenticated() && request.auth.uid in projectData.supervisorIds;
     }
@@ -30,33 +27,39 @@ service cloud.firestore {
     // Collection Rules
     // ---
 
-    // Users: NEW, RESTRUCTURED RULES
+    // Users: REVISED FOR LOOKUPS
     match /users/{userId} {
-      // Any authenticated user can GET their OWN document.
-      // This is CRITICAL for the client-side code to check its own role without causing a loop.
-      allow get: if isUserAuthenticated() && request.auth.uid == userId;
-
-      // Only admins can LIST all users, UPDATE any user, or CREATE/DELETE users.
+      // Any authenticated user can GET any user document.
+      // This is necessary for components to look up user display names.
+      // LIST and WRITE operations remain restricted to admins.
+      allow get: if isUserAuthenticated();
       allow list, write: if isUserRole('admin');
     }
 
-    // Projects Collection
     match /projects/{projectId} {
-      // An admin can read any project. A supervisor can read projects they are assigned to.
-      // This now works because isUserRole() can safely get the user's role.
       allow read: if isUserRole('admin') || (isUserRole('supervisor') && request.auth.uid in resource.data.supervisorIds);
-      allow write: if isUserRole('admin'); // Only admins can create/update/delete projects.
+      allow write: if isUserRole('admin');
 
-      // Sub-collections within projects are restricted to admins for simplicity.
       match /items/{itemId} { allow read, write, delete: if isUserRole('admin'); }
       match /imports/{importId} { allow read, write, delete: if isUserRole('admin'); }
       match /agreements/{agreementId} { allow read, write, delete: if isUserRole('admin'); }
     }
 
-    // Remains Collection
+    // Remains Collection (REVISED FOR QUERYING)
     match /remains/{remainId} {
-      allow read: if isUserRole('admin') || isProjectSupervisor(resource.data.projectId);
-      allow write: if isUserRole('admin') || isProjectSupervisor(request.resource.data.projectId);
+        // GET: An admin can get any record. A supervisor can get records for their assigned projects.
+        allow get: if isUserRole('admin') || (isUserRole('supervisor') && isProjectSupervisor(resource.data.projectId));
+
+        // LIST: Admins can list everything. Supervisors can ONLY list records if they filter by a projectId they are assigned to.
+        allow list: if isUserRole('admin') || 
+                    (isUserRole('supervisor') && isProjectSupervisor(request.query.filters.projectId));
+
+        // CREATE: Admins or supervisors can add new records to projects they are assigned to.
+        allow create: if isUserRole('admin') || 
+                      (isUserRole('supervisor') && isProjectSupervisor(request.resource.data.projectId));
+
+        // UPDATE / DELETE: Only admins can modify or delete historical records for data integrity.
+        allow update, delete: if isUserRole('admin');
     }
 
     // Daily Expenses & Reports: Supervisors can create, Admins can manage.

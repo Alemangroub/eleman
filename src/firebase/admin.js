@@ -10,21 +10,25 @@ let initializationError = null;
 console.log("ℹ️ [server/firebase/admin.js] Attempting to initialize Firebase Admin SDK...");
 
 try {
-  // In a server environment like App Hosting, Node.js `process.env` is used to get runtime environment variables.
-  const serviceAccountConfig = process.env.FIREBASE_ADMIN_SDK_CONFIG;
+  // In an Astro environment, server-side environment variables are accessed via `import.meta.env`.
+  const serviceAccountConfig = import.meta.env.FIREBASE_ADMIN_SDK_CONFIG;
 
   if (!serviceAccountConfig) {
     throw new Error("FATAL: The FIREBASE_ADMIN_SDK_CONFIG environment variable is not set. This is required for server-side operations.");
   }
 
-  // The service account is passed as a JSON string, so we need to parse it.
   const serviceAccount = JSON.parse(serviceAccountConfig);
+  
+  // Explicitly provide the projectId to ensure the SDK connects to the correct project,
+  // especially in environments where the default project might not be correctly inferred.
+  const projectId = "elemancompany-2b00c";
 
   if (admin.apps.length === 0) {
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
+      credential: admin.credential.cert(serviceAccount),
+      projectId: projectId, // This ensures connection to the correct database region.
     });
-    console.log("✅ [server/firebase/admin.js] Firebase Admin SDK initialized successfully.");
+    console.log(`✅ [server/firebase/admin.js] Firebase Admin SDK initialized for project: ${projectId}`);
   } else {
     console.log("✅ [server/firebase/admin.js] Firebase Admin SDK was already initialized.");
   }
