@@ -205,16 +205,14 @@ import AdminLogin from '../../components/AdminLogin.astro';
 </style>
 
 <script>
-    import { auth, db } from '../../firebase/client';
-    import { onAuthStateChanged, signOut } from "firebase/auth";
-    import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-
-    document.addEventListener('DOMContentLoaded', () => {
+  import { checkAuth, logout } from '../../lib/auth.js';
+                document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
         const pageContent = document.getElementById('page-content');
 
-        onAuthStateChanged(auth, async (user) => {
+        (async () => {
+    const user = await checkAuth();
           if(authLoadingMessage) authLoadingMessage.style.display = 'none';
 
           if (user) {
@@ -227,13 +225,13 @@ import AdminLogin from '../../components/AdminLogin.astro';
                       if(loginContainer) loginContainer.style.display = 'none';
                       initializeApp();
                   } else {
-                      await signOut(auth);
+                      await logout();
                       if(loginContainer) loginContainer.style.display = 'block';
                       if(pageContent) pageContent.style.display = 'none';
                   }
               } catch (error) {
                   console.error('Auth Check Error:', error);
-                  await signOut(auth);
+                  await logout();
                   if(loginContainer) loginContainer.style.display = 'block';
                   if(pageContent) pageContent.style.display = 'none';
               }
@@ -241,8 +239,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
               if(pageContent) pageContent.style.display = 'none';
               if(loginContainer) loginContainer.style.display = 'block';
           }
-        });
-    });
+  })();
+
 
     async function initializeApp() {
         const loader = document.getElementById('loader');

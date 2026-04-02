@@ -1,6 +1,5 @@
 
-import { getAdminDb } from '../../firebase/server.js';
-import { FieldValue } from 'firebase-admin/firestore';
+import prisma from '../../lib/prisma';
 
 export async function POST({ request }) {
     if (request.headers.get("Content-Type") !== "application/json") {
@@ -8,30 +7,28 @@ export async function POST({ request }) {
     }
 
     try {
-        const adminDb = getAdminDb();
         const { projectId, supervisorId } = await request.json();
 
         if (!projectId || !supervisorId) {
             return new Response(JSON.stringify({ error: "Project ID and Supervisor ID are required" }), { status: 400 });
         }
 
-        const projectRef = adminDb.collection("projects").doc(projectId);
-
-        // Atomically remove the supervisor ID from the `supervisorIds` array.
-        await projectRef.update({
-            supervisorIds: FieldValue.arrayRemove(supervisorId)
+        // Atomically remove the supervisor assignment.
+        await prisma.projectSupervisor.delete({
+            where: {
+                projectId_userId: {
+                    projectId: projectId,
+                    userId: supervisorId
+                }
+            }
         });
 
         return new Response(JSON.stringify({ message: "Supervisor removed successfully" }), { status: 200 });
 
     } catch (error) {
         console.error("Error removing supervisor:", error);
-        let errorMessage = "An internal server error occurred.";
-         if (error.message.includes('Firebase Admin SDK is not available')) {
-            errorMessage = 'Firebase Admin SDK initialization failed on the server. Check environment variables.';
-        }
         return new Response(JSON.stringify({ 
-            error: errorMessage, 
+            error: "An internal server error occurred.", 
             details: error.message 
         }), { status: 500 });
     }

@@ -3,26 +3,30 @@
 export const prerender = false;
 import Layout from '../../../../layouts/Layout.astro';
 import AdminLogin from '../../../../components/AdminLogin.astro';
-import { db } from "../../../../firebase/admin";
+import prisma from "../../../../lib/prisma";
 
 const { id } = Astro.params;
+if (!id) {
+    return Astro.redirect('/404');
+}
+
 let project = null;
 let expenseReports = [];
 let feedback = { message: '', type: '' };
 
 // Mark notifications as read
-if (id) {
-    try {
-        const unreadReportsRef = db.collection('daily_expenses').where('projectId', '==', id).where('isRead', '==', false);
-        const unreadReportsSnapshot = await unreadReportsRef.get();
-        if (!unreadReportsSnapshot.empty) {
-            const batch = db.batch();
-            unreadReportsSnapshot.docs.forEach(doc => {
-                batch.update(doc.ref, { isRead: true });
-            });
-            await batch.commit();
+try {
+    await prisma.dailyExpense.updateMany({
+        where: {
+            projectId: id,
+            isRead: false
+        },
+        data: {
+            isRead: true
         }
-    } catch (e) { console.error("Error marking reports as read:", e); }
+    });
+} catch (e) {
+    console.error("Error marking reports as read:", e);
 }
 
 // Handle form submission for updating reports
@@ -39,21 +43,27 @@ if (Astro.request.method === 'POST') {
 
         for (const key of formData.keys()) {
             if (key.startsWith('items[') && key.endsWith('][name]')) {
-                const index = key.match(/\d+/)[0];
-                const name = formData.get(`items[${index}][name]`)?.toString();
-                const amount = parseFloat(formData.get(`items[${index}][amount]`)?.toString() || '0');
+                const indexValue = key.match(/\d+/);
+                if (indexValue) {
+                    const index = indexValue[0];
+                    const name = formData.get(`items[${index}][name]`)?.toString();
+                    const amount = parseFloat(formData.get(`items[${index}][amount]`)?.toString() || '0');
 
-                if (name && amount > 0) {
-                    newItems.push({ name, amount });
-                    totalAmount += amount;
+                    if (name && amount > 0) {
+                        newItems.push({ name, amount });
+                        totalAmount += amount;
+                    }
                 }
             }
         }
 
-        await db.collection('daily_expenses').doc(reportIdToUpdate).update({
-            notes: notes,
-            items: newItems,
-            totalAmount: totalAmount,
+        await prisma.dailyExpense.update({
+            where: { id: reportIdToUpdate },
+            data: {
+                notes: notes,
+                items: newItems,
+                totalAmount: totalAmount,
+            }
         });
 
         return Astro.redirect(`/crs/projects/${id}/expense-reports?feedback=updated`);
@@ -67,9 +77,12 @@ if (Astro.request.method === 'POST') {
 const reportIdToDelete = Astro.url.searchParams.get('delete');
 if (reportIdToDelete) {
     try {
-        await db.collection('daily_expenses').doc(reportIdToDelete).delete();
+        await prisma.dailyExpense.delete({
+            where: { id: reportIdToDelete }
+        });
         return Astro.redirect(`/crs/projects/${id}/expense-reports?feedback=deleted`);
     } catch (error) {
+        console.error("Error deleting report:", error);
         return Astro.redirect(`/crs/projects/${id}/expense-reports?feedback=error`);
     }
 }
@@ -81,31 +94,38 @@ if (feedbackParam === 'updated') feedback = { message: 'تم تحديث التق
 if (feedbackParam === 'error') feedback = { message: 'حدث خطأ أثناء الحذف.', type: 'error' };
 if (feedbackParam === 'update_error') feedback = { message: 'حدث خطأ أثناء التحديث.', type: 'error' };
 
-const formatTimestamp = (timestamp) => {
-    if (!timestamp || !timestamp.toDate) return 'تاريخ غير متوفر';
-    return timestamp.toDate().toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+const formatDate = (date) => {
+    if (!date) return 'تاريخ غير متوفر';
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 };
 
 try {
-    const projectDoc = await db.collection('projects').doc(id).get();
-    if (!projectDoc.exists) return Astro.redirect('/404');
+    const projectDoc = await prisma.project.findUnique({
+        where: { id: id }
+    });
     
-    project = { id: projectDoc.id, ...projectDoc.data() };
-    const expenseReportsSnapshot = await db.collection('daily_expenses').where('projectId', '==', id).get();
+    if (!projectDoc) return Astro.redirect('/404');
     
-    expenseReports = expenseReportsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        let expenseItems = Array.isArray(data.items) ? data.items : [];
+    project = { id: projectDoc.id, projectName: projectDoc.projectName };
+    
+    const reports = await prisma.dailyExpense.findMany({
+        where: { projectId: id },
+        orderBy: { createdAt: 'desc' }
+    });
+    
+    expenseReports = reports.map(report => {
+        let expenseItems = Array.isArray(report.items) ? report.items : [];
         const calculatedTotal = expenseItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
 
         return { 
-            id: doc.id, 
-            ...data, 
+            id: report.id, 
+            ...report, 
             expenseItems: expenseItems,
             totalAmount: calculatedTotal, 
-            createdAtFormatted: formatTimestamp(data.createdAt) 
+            createdAtFormatted: formatDate(report.createdAt) 
         };
-    }).sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+    });
 
 } catch (error) {
     console.error("Error fetching data:", error);
@@ -226,12 +246,10 @@ try {
 </Layout>
 
 <script>
-    import { auth, db } from '../../../../firebase/client';
-    import { onAuthStateChanged, signOut } from "firebase/auth";
-    import { doc, getDoc } from "firebase/firestore";
-
-    document.addEventListener('DOMContentLoaded', () => {
-        onAuthStateChanged(auth, async (user) => {
+  import { checkAuth, logout } from '../../../../lib/auth.js';
+            document.addEventListener('DOMContentLoaded', () => {
+        (async () => {
+    const user = await checkAuth();
             const authLoadingMessage = document.getElementById('auth-loading-message');
             const loginContainer = document.getElementById('admin-login-container');
             const pageContent = document.getElementById('page-content');
@@ -240,20 +258,20 @@ try {
 
             if (user) {
                 try {
-                    const userDoc = await getDoc(doc(db, "users", user.uid));
-                    if (userDoc.exists() && userDoc.data().role === 'admin') {
+                    const checkAdminResp = await fetch('/api/projects');
+                    if (checkAdminResp.ok) {
                         if(pageContent) pageContent.style.display = 'block';
                         if(loginContainer) loginContainer.style.display = 'none';
                         document.getElementById('logout-button')?.addEventListener('click', async () => {
-                            await signOut(auth); window.location.href = '/crs';
+                            await logout(); window.location.href = '/crs';
                         });
                         initializeFilteringAndSummaries(); 
                     } else {
-                        await signOut(auth); window.location.href = '/crs';
+                        await logout(); window.location.href = '/crs';
                     }
                 } catch (error) {
                     console.error('Auth Check Error:', error);
-                    await signOut(auth);
+                    await logout();
                     if(loginContainer) loginContainer.style.display = 'block';
                     if(pageContent) pageContent.style.display = 'none';
                 }
@@ -312,8 +330,8 @@ try {
             grandTotal += parseFloat(card.dataset.total) || 0;
             card.querySelectorAll('.expense-list li[data-name]').forEach(itemLi => {
                 uniqueItemNames.add(itemLi.dataset.name.trim());
-            });
-        });
+  })();
+
 
         grandTotalEl.textContent = grandTotal.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
         

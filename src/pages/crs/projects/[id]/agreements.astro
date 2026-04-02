@@ -2,8 +2,6 @@
 ---
 import Layout from '../../../../layouts/Layout.astro';
 import AdminLogin from '../../../../components/AdminLogin.astro';
-import { db } from "../../../../firebase/admin";
-
 export const prerender = false;
 
 const { id } = Astro.params;
@@ -197,11 +195,8 @@ try {
 </Layout>
 
 <script>
-    import { auth, db } from '../../../../firebase/client';
-    import { onAuthStateChanged, signOut } from "firebase/auth";
-    import { collection, doc, getDoc, addDoc, onSnapshot, updateDoc, deleteDoc, query, orderBy, Timestamp } from 'firebase/firestore';
-
-    let currentEditAgreementId = null;
+  import { checkAuth, logout } from '../../../../lib/auth.js';
+                let currentEditAgreementId = null;
     const pageContent = document.getElementById('page-content');
     const projectId = pageContent.dataset.projectId;
     let allAgreementsData = [];
@@ -215,7 +210,8 @@ try {
     document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
-        onAuthStateChanged(auth, async (user) => {
+        (async () => {
+    const user = await checkAuth();
             authLoadingMessage.style.display = 'none';
             if (user) {
                 try {
@@ -226,7 +222,7 @@ try {
                         initializePage();
                     } else { throw new Error('User is not an admin'); }
                 } catch (e) {
-                    signOut(auth);
+                    logout();
                     pageContent.style.display = 'none';
                     loginContainer.style.display = 'block';
                 }
@@ -234,8 +230,8 @@ try {
                 pageContent.style.display = 'none';
                 loginContainer.style.display = 'block';
             }
-        });
-    });
+  })();
+
 
     function initializePage() {
         if (!projectId || !document.querySelector('.agreements-list-container')) return;

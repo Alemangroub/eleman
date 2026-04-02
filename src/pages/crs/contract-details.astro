@@ -180,11 +180,8 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
 </style>
 
 <script>
-    import { auth, db } from '../../firebase/client';
-    import { onAuthStateChanged, signOut } from "firebase/auth";
-    import { doc, getDoc, collection, query, where, getDocs, writeBatch, Timestamp, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
-
-    let currentProjectId = null;
+  import { checkAuth, logout } from '../../lib/auth.js';
+            let currentProjectId = null;
     let currentCustomerName = null;
     let allInstallments = [];
 
@@ -225,26 +222,26 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
         const loginContainer = document.getElementById('admin-login-container');
         const pageContent = document.getElementById('page-content');
 
-        onAuthStateChanged(auth, async (user) => {
+        (async () => {
+    const user = await checkAuth();
           if(authLoadingMessage) authLoadingMessage.style.display = 'none';
 
           if (user) {
               try {
-                  const userDocRef = doc(db, "users", user.uid);
-                  const userDoc = await getDoc(userDocRef);
-
-                  if (userDoc.exists() && userDoc.data().role === 'admin') {
+                  const projectsResponse = await fetch('/api/projects'); // Quick check
+                  
+                  if (projectsResponse.ok) {
                       if(pageContent) pageContent.style.display = 'block';
                       if(loginContainer) loginContainer.style.display = 'none';
                       initializeApp();
                   } else {
-                      await signOut(auth);
+                      await logout();
                       if(loginContainer) loginContainer.style.display = 'block';
                       if(pageContent) pageContent.style.display = 'none';
                   }
               } catch (error) {
                   console.error('Auth Check Error:', error);
-                  await signOut(auth);
+                  await logout();
                   if(loginContainer) loginContainer.style.display = 'block';
                   if(pageContent) pageContent.style.display = 'none';
               }
@@ -252,8 +249,8 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
               if(pageContent) pageContent.style.display = 'none';
               if(loginContainer) loginContainer.style.display = 'block';
           }
-        });
-    });
+  })();
+
 
     async function initializeApp() {
         const loader = document.getElementById('loader');
@@ -265,9 +262,6 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
         currentProjectId = urlParams.get('projectId');
         currentCustomerName = urlParams.get('customerName');
 
-        document.getElementById('back-link').href = `/crs/project-installments?projectId=${currentProjectId}`;
-        document.getElementById('edit-contract-btn').href = `/crs/edit-contract?projectId=${currentProjectId}&customerName=${encodeURIComponent(currentCustomerName)}`;
-
         if (!currentProjectId || !currentCustomerName) {
             loader.style.display = 'none';
             errorMessage.textContent = 'بيانات المشروع أو العميل غير متوفرة.';
@@ -275,14 +269,17 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
             return;
         }
 
+        document.getElementById('back-link').href = `/crs/project-installments?projectId=${currentProjectId}`;
+        document.getElementById('edit-contract-btn').href = `/crs/edit-contract?projectId=${currentProjectId}&customerName=${encodeURIComponent(currentCustomerName)}`;
+
         loader.style.display = 'block';
         content.style.display = 'none';
 
         try {
-            const q = query(collection(db, 'installments'), where('projectId', '==', currentProjectId), where('customerName', '==', currentCustomerName));
-            const querySnapshot = await getDocs(q);
+            const response = await fetch(`/api/installments?projectId=${currentProjectId}&customerName=${encodeURIComponent(currentCustomerName)}`);
+            const data = await response.json();
 
-            if (querySnapshot.empty) {
+            if (!response.ok || data.length === 0) {
                 loader.style.display = 'none';
                 errorMessage.textContent = 'لم يتم العثور على أقساط لهذا العقد. قد يكون تم حذفه بالكامل.';
                 errorDisplay.style.display = 'block';
@@ -291,8 +288,9 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
                 return;
             }
 
-            allInstallments = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            allInstallments.sort((a, b) => a.dueDate.toDate() - b.dueDate.toDate());
+            allInstallments = data;
+            // Sorting is handled by backend but double check
+            allInstallments.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
             
             renderContractInfo(allInstallments[0]);
             renderInstallmentsTable(allInstallments);
@@ -398,19 +396,28 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
                 const deletedAmount = installmentToDelete.installmentAmount;
                 const newTotalAmount = installmentToDelete.totalAmount - deletedAmount;
 
-                const batch = writeBatch(db);
-
-                const installmentRef = doc(db, 'installments', installmentId);
-                batch.delete(installmentRef);
-
-                allInstallments.forEach(inst => {
-                    if (inst.id !== installmentId) {
-                        const otherInstallmentRef = doc(db, 'installments', inst.id);
-                        batch.update(otherInstallmentRef, { totalAmount: newTotalAmount });
-                    }
+                // 1. Delete the specific installment
+                const deleteResponse = await fetch('/api/installments/bulk-delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: [installmentId] })
                 });
 
-                await batch.commit();
+                if (!deleteResponse.ok) throw new Error("Failed to delete installment");
+
+                // 2. Update all other installments for this customer
+                const updateResponse = await fetch('/api/installments/bulk-update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        projectId: currentProjectId,
+                        customerName: currentCustomerName,
+                        totalAmount: newTotalAmount
+                    })
+                });
+
+                if (!updateResponse.ok) throw new Error("Failed to update total amount");
+
                 initializeApp();
 
             } catch (error) {
@@ -422,53 +429,63 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     }
 
     async function handlePartialPayment(button) {
-    const installmentId = button.dataset.id;
-    const installment = allInstallments.find(inst => inst.id === installmentId);
+        const installmentId = button.dataset.id;
+        const installment = allInstallments.find(inst => inst.id === installmentId);
 
-    if (!installment) return;
+        if (!installment) return;
 
-    const paidAmount = await window.showPartialPaymentModal(installmentId, installment.installmentAmount);
+        const paidAmount = await window.showPartialPaymentModal(installmentId, installment.installmentAmount);
 
-    if (paidAmount && paidAmount > 0 && paidAmount < installment.installmentAmount) {
-        const remainingAmount = installment.installmentAmount - paidAmount;
+        if (paidAmount && paidAmount > 0 && paidAmount < installment.installmentAmount) {
+            const remainingAmount = installment.installmentAmount - paidAmount;
 
-        const confirmationMessage = `سيتم تقسيم القسط إلى: \n- قسط مدفوع بقيمة: ${formatCurrency(paidAmount)} \n- قسط جديد مستحق بقيمة: ${formatCurrency(remainingAmount)}. هل أنت متأكد؟`;
+            const confirmationMessage = `سيتم تقسيم القسط إلى: \n- قسط مدفوع بقيمة: ${formatCurrency(paidAmount)} \n- قسط جديد مستحق بقيمة: ${formatCurrency(remainingAmount)}. هل أنت متأكد؟`;
 
-        const confirmed = await window.showConfirmationModal(confirmationMessage);
+            const confirmed = await window.showConfirmationModal(confirmationMessage);
 
-        if (confirmed) {
-            try {
-                const batch = writeBatch(db);
+            if (confirmed) {
+                try {
+                    // 1. Update original installment to be 'paid' with specific amount
+                    const updateResp = await fetch('/api/installments/update', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: installmentId,
+                            installmentAmount: paidAmount,
+                            status: 'paid',
+                            paymentDate: new Date()
+                        })
+                    });
+                    if (!updateResp.ok) throw new Error("Failed to update original installment");
 
-                const originalInstallmentRef = doc(db, 'installments', installmentId);
-                batch.update(originalInstallmentRef, {
-                    installmentAmount: paidAmount,
-                    status: 'paid',
-                    paymentDate: Timestamp.now()
-                });
+                    // 2. Create new installment for remaining balance
+                    const createResp = await fetch('/api/installments/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            projectId: installment.projectId,
+                            customerName: installment.customerName,
+                            customerPhone: installment.customerPhone,
+                            unitType: installment.unitType,
+                            unitLocation: installment.unitLocation,
+                            totalAmount: installment.totalAmount,
+                            installmentAmount: remainingAmount,
+                            dueDate: installment.dueDate,
+                            installmentName: `بقية - ${installment.installmentName || 'القسط'}`,
+                            status: 'pending'
+                        })
+                    });
+                    if (!createResp.ok) throw new Error("Failed to create new installment");
 
-                const { id, ...installmentData } = installment;
+                    initializeApp();
 
-                const newInstallmentRef = doc(collection(db, 'installments'));
-                batch.set(newInstallmentRef, {
-                    ...installmentData,
-                    installmentAmount: remainingAmount,
-                    installmentName: `بقية - ${installment.installmentName || 'القسط'}`,
-                    status: 'pending',
-                    paymentDate: null,
-                });
-
-                await batch.commit();
-                initializeApp();
-
-            } catch (error) {
-                console.error("Error during partial payment: ", error);
-                alert("حدث خطأ أثناء عملية السداد الجزئي.");
+                } catch (error) {
+                    console.error("Error during partial payment: ", error);
+                    alert("حدث خطأ أثناء عملية السداد الجزئي.");
+                }
             }
         }
     }
-}
-
 
     async function handleStatusChange(selectElement) {
         const id = selectElement.dataset.id;
@@ -483,11 +500,21 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
         const confirmed = await window.showConfirmationModal(confirmationMessage);
 
         if (confirmed) {
-            const installmentRef = doc(db, 'installments', id);
-            const updateData = { status: newStatus, paymentDate: newStatus === 'paid' ? Timestamp.now() : null };
             try {
-                await updateDoc(installmentRef, updateData);
-                initializeApp();
+                const response = await fetch('/api/installments/update', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        id: id, 
+                        status: newStatus, 
+                        paymentDate: newStatus === 'paid' ? new Date() : null 
+                    })
+                });
+                if (response.ok) {
+                    initializeApp();
+                } else {
+                    throw new Error("Failed to update status");
+                }
             } catch (error) {
                 console.error("Error updating status: ", error);
                 selectElement.value = oldStatus;
@@ -550,22 +577,31 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
                 const amountDifference = newAmount - oldInstallment.installmentAmount;
                 const newTotalAmount = oldInstallment.totalAmount + amountDifference;
 
-                const batch = writeBatch(db);
-
-                allInstallments.forEach(inst => {
-                    const installmentRef = doc(db, 'installments', inst.id);
-                    if (inst.id === installmentId) {
-                        batch.update(installmentRef, {
-                            installmentAmount: newAmount,
-                            dueDate: Timestamp.fromDate(new Date(newDate)),
-                            totalAmount: newTotalAmount
-                        });
-                    } else {
-                        batch.update(installmentRef, { totalAmount: newTotalAmount });
-                    }
+                // 1. Update the specific installment
+                const updateResp = await fetch('/api/installments/update', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: installmentId,
+                        installmentAmount: newAmount,
+                        dueDate: new Date(newDate),
+                        totalAmount: newTotalAmount
+                    })
                 });
+                if (!updateResp.ok) throw new Error("Failed to update installment");
 
-                await batch.commit();
+                // 2. Update all other installments for this customer
+                const bulkResp = await fetch('/api/installments/bulk-update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        projectId: currentProjectId,
+                        customerName: currentCustomerName,
+                        totalAmount: newTotalAmount
+                    })
+                });
+                if (!bulkResp.ok) throw new Error("Failed to bulk update totals");
+
                 initializeApp();
 
             } catch (error) {
@@ -578,40 +614,58 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     }
 
     async function handleDeleteContract() {
-    const confirmationMessage = `سيتم حذف العقد بالكامل بما في ذلك جميع الأقساط المرتبطة به. هل أنت متأكد من هذا الإجراء؟ لا يمكن التراجع عنه.`;
-    
-    const confirmed = await window.showConfirmationModal(confirmationMessage);
+        const confirmationMessage = `سيتم حذف العقد بالكامل بما في ذلك جميع الأقساط المرتبطة به. هل أنت متأكد من هذا الإجراء؟ لا يمكن التراجع عنه.`;
+        
+        const confirmed = await window.showConfirmationModal(confirmationMessage);
 
-    if (confirmed) {
-        const deleteBtn = document.getElementById('delete-contract-btn');
-        deleteBtn.disabled = true;
-        deleteBtn.textContent = 'جارٍ الحذف...';
+        if (confirmed) {
+            const deleteBtn = document.getElementById('delete-contract-btn');
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = 'جارٍ الحذف...';
 
-        try {
-            const batch = writeBatch(db);
-            allInstallments.forEach(inst => {
-                const installmentRef = doc(db, 'installments', inst.id);
-                batch.delete(installmentRef);
-            });
+            try {
+                const response = await fetch('/api/installments/bulk-delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        projectId: currentProjectId, 
+                        customerName: currentCustomerName 
+                    })
+                });
 
-            await batch.commit();
-            
-            alert('تم حذف العقد بنجاح.');
-            window.location.href = `/crs/project-installments?projectId=${currentProjectId}`;
+                if (response.ok) {
+                    alert('تم حذف العقد بنجاح.');
+                    window.location.href = `/crs/project-installments?projectId=${currentProjectId}`;
+                } else {
+                    throw new Error("Failed to delete contract");
+                }
 
-        } catch (error) {
-            console.error("Error deleting contract: ", error);
-            alert('حدث خطأ أثناء حذف العقد.');
-            deleteBtn.disabled = false;
-            deleteBtn.textContent = 'حذف العقد';
+            } catch (error) {
+                console.error("Error deleting contract: ", error);
+                alert('حدث خطأ أثناء حذف العقد.');
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = 'حذف العقد';
+            }
         }
     }
-}
 
     const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
-    const formatDate = (timestamp, format = 'long') => {
-        if (!timestamp) return '-';
-        const date = timestamp.toDate();
+    const formatDate = (dateValue, format = 'long') => {
+        if (!dateValue) return '-';
+        
+        let date;
+        if (typeof dateValue === 'string') {
+            date = new Date(dateValue);
+        } else if (dateValue instanceof Date) {
+            date = dateValue;
+        } else if (dateValue.toDate && typeof dateValue.toDate === 'function') {
+            date = dateValue.toDate(); // Fallback for any remaining Firestore objects
+        } else {
+            date = new Date(dateValue);
+        }
+
+        if (isNaN(date.getTime())) return '-';
+
         if (format === 'yyyy-mm-dd') {
             return date.toISOString().split('T')[0];
         }
@@ -684,11 +738,13 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
                 <td data-label="${headers.dueDate}" data-field="dueDate" data-original-value="${dateForInput}">${formatDate(inst.dueDate)}</td>
                 <td data-label="${headers.status}">${statusSelect}</td>
                 <td data-label="${headers.paymentDate}">${formatDate(inst.paymentDate)}</td>
-                <td data-label="${headers.name}">${inst.installmentName}</td>
+                <td data-label="${headers.name}">${inst.installmentName || ''}</td>
                 <td data-label="${headers.actions}" class="actions-cell">${actionsCellContent}</td>
             `;
             tableBody.appendChild(row);
         });
     }
+
+</script>
 
 </script>

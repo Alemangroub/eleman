@@ -114,11 +114,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
 </style>
 
 <script>
-    import { auth, db } from '../../firebase/client';
-    import { onAuthStateChanged } from "firebase/auth";
-    import { doc, getDoc, collection, query, where, getDocs, writeBatch, updateDoc } from 'firebase/firestore';
-
-    let currentProjectId = null;
+  import { checkAuth, logout } from '../../lib/auth.js';
+                let currentProjectId = null;
     let originalCustomerName = null;
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -126,7 +123,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
         const loginContainer = document.getElementById('admin-login-container');
         const pageContent = document.getElementById('page-content');
 
-        onAuthStateChanged(auth, async (user) => {
+        (async () => {
+    const user = await checkAuth();
             authLoadingMessage.style.display = 'none';
             if (user) {
                 pageContent.style.display = 'block';
@@ -136,8 +134,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
                 loginContainer.style.display = 'block';
                 pageContent.style.display = 'none';
             }
-        });
-    });
+  })();
+
 
     async function initializeForm() {
         const loader = document.getElementById('loader');

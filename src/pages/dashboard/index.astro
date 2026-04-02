@@ -26,12 +26,8 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <script>
-  import { auth, db, storage } from '../../firebase/client';
-  import { onAuthStateChanged, signOut } from "firebase/auth";
-  import { collection, getDocs, query, where, getDoc, doc, addDoc, serverTimestamp } from "firebase/firestore";
-  import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-
-  function initializeDashboard() {
+  import { checkAuth, logout } from '../../lib/auth.js';
+          function initializeDashboard() {
     let currentSupervisor = { uid: null, name: '' };
 
     const loadingMessage = document.getElementById('auth-loading-message');
@@ -164,7 +160,8 @@ import Layout from '../../layouts/Layout.astro';
     });
     
     // --- Auth Logic ---
-    onAuthStateChanged(auth, async (user) => {
+    (async () => {
+    const user = await checkAuth();
       if (user) {
           const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists() && userDoc.data().role === 'supervisor') {
@@ -189,8 +186,8 @@ import Layout from '../../layouts/Layout.astro';
                     () => {}, (error) => reject(error), 
                     () => getDownloadURL(uploadTask.snapshot.ref).then(resolve)
                 );
-            });
-        });
+  })();
+
         return Promise.all(uploadPromises);
     }
 
@@ -317,7 +314,7 @@ import Layout from '../../layouts/Layout.astro';
     }
 
     if (logoutButton) logoutButton.addEventListener('click', async () => {
-        try { await signOut(auth); window.location.href = '/crs'; } 
+        try { await logout(); window.location.href = '/crs'; } 
         catch (error) { console.error("Logout Error:", error); }
     });
   }

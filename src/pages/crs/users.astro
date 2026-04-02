@@ -174,82 +174,63 @@ import AdminLogin from '../../components/AdminLogin.astro';
 </style>
 
 <script>
-  import { app, auth, firebaseConfig } from '../../firebase/client';
-  import { onAuthStateChanged, signOut, createUserWithEmailAndPassword, getAuth } from "firebase/auth";
-  import { initializeApp, deleteApp } from 'firebase/app';
-  import { getFirestore, collection, setDoc, onSnapshot, doc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore';
+  import { checkAuth, logout } from '../../lib/auth.js';
+  let adminUser = null;
+  let usersCache = {};
 
-  const db = getFirestore(app);
-  let adminUser = null; // Module-level variable to hold the admin user state
-  let usersCache = {}; // Cache for user data to populate edit form
-
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
       const authLoadingMessage = document.getElementById('auth-loading-message');
       const loginContainer = document.getElementById('admin-login-container');
       const pageContent = document.getElementById('page-content');
-
-      onAuthStateChanged(auth, async (user) => {
-          if (authLoadingMessage) authLoadingMessage.style.display = 'none';
-
-          if (user) {
-              try {
-                  const userDocRef = doc(db, "users", user.uid);
-                  const userDoc = await getDoc(userDocRef);
-                  
-                  if (userDoc.exists() && userDoc.data().role === 'admin') {
-                      adminUser = user; // Set the admin user state
-                      
-                      if (pageContent) pageContent.style.display = 'block';
-                      if (loginContainer) loginContainer.style.display = 'none';
-
-                      const logoutButton = document.getElementById('logout-button');
-                      if (logoutButton) {
-                          logoutButton.addEventListener('click', async () => {
-                              await signOut(auth);
-                              adminUser = null; // Clear state on logout
-                              window.location.href = '/crs';
-                          });
-                      }
-                      
-                      initializePage(); // Initialize event listeners
-
-                  } else {
-                      // User is not an admin or doc doesn't exist
-                      await signOut(auth);
-                      adminUser = null;
-                      if (loginContainer) loginContainer.style.display = 'block';
-                      if (pageContent) pageContent.style.display = 'none';
-                  }
-              } catch (error) {
-                  console.error('Auth Check Error:', error);
-                  await signOut(auth);
-                  adminUser = null;
-                  if (loginContainer) loginContainer.style.display = 'block';
-                  if (pageContent) pageContent.style.display = 'none';
-              }
-          } else {
-              // No user is logged in
-              adminUser = null;
-              if (pageContent) pageContent.style.display = 'none';
-              if (loginContainer) loginContainer.style.display = 'block';
-          }
-      });
+      const user = await checkAuth();
+      if (authLoadingMessage) authLoadingMessage.style.display = 'none';
+      if (user && user.role === 'admin') {
+          adminUser = user;
+          if (pageContent) pageContent.style.display = 'block';
+          if (loginContainer) loginContainer.style.display = 'none';
+          const logoutButton = document.getElementById('logout-button');
+          if (logoutButton) logoutButton.addEventListener('click', async () => { await logout(); });
+          initializePage();
+      } else {
+          if (pageContent) pageContent.style.display = 'none';
+          if (loginContainer) loginContainer.style.display = 'block';
+      }
   });
+
+  async function fetchAndRenderUsers() {
+    const usersList = document.getElementById('users-list');
+    const noUsersMessage = document.getElementById('no-users-message');
+    try {
+      const response = await fetch('/api/users/list');
+      const users = await response.json();
+      usersCache = {};
+      const filteredUsers = users.filter(u => u.id !== adminUser?.userId);
+      filteredUsers.forEach(u => { usersCache[u.id] = u; });
+      if (filteredUsers.length === 0) {
+        noUsersMessage.textContent = 'لا يوجد مستخدمون حاليًا.';
+        noUsersMessage.style.display = 'block';
+        usersList.innerHTML = '';
+      } else {
+        noUsersMessage.style.display = 'none';
+        usersList.innerHTML = filteredUsers.map(user => {
+          const userInitial = user.name ? user.name.charAt(0).toUpperCase() : '?';
+          const role = user.role || 'N/A';
+          const roleText = role === 'admin' ? 'مسؤول' : role === 'supervisor' ? 'مشرف' : 'غير محدد';
+          return `<div class="user-card" data-id="${user.id}"><div class="user-card-header"><div class="user-avatar">${userInitial}</div><div class="user-info"><h3 class="user-name">${user.name}</h3><p class="user-email">${user.email || '-'}</p></div></div><div class="user-card-body"><p>الصلاحية: <span class="role-badge ${role}">${roleText}</span></p></div><div class="user-card-footer"><button class="btn btn-warning edit-btn"><span>تعديل</span></button><button class="btn btn-danger delete-btn"><span>حذف</span></button></div></div>`;
+        }).join('');
+      }
+    } catch (error) { console.error("Error fetching users:", error); }
+  }
 
   function initializePage() {
     const addUserForm = document.getElementById('add-user-form');
     const addUserBtn = document.getElementById('add-user-btn');
     const feedbackMessage = document.getElementById('add-user-feedback');
     const usersList = document.getElementById('users-list');
-    const noUsersMessage = document.getElementById('no-users-message');
-
-    // Delete Modal Elements
     const deleteModal = document.getElementById('delete-confirm-modal');
     const modalConfirmBtn = document.getElementById('modal-confirm-btn');
     const modalCancelBtn = document.getElementById('modal-cancel-btn');
     let userIdToDelete = null;
-
-    // Edit Modal Elements
     const editModal = document.getElementById('edit-user-modal');
     const editForm = document.getElementById('edit-user-form');
     const editCancelBtn = document.getElementById('edit-modal-cancel-btn');
@@ -259,218 +240,72 @@ import AdminLogin from '../../components/AdminLogin.astro';
     addUserForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       addUserBtn.disabled = true;
-      feedbackMessage.textContent = 'جاري إنشاء الحساب وتخزين البيانات...';
+      feedbackMessage.textContent = 'جاري إنشاء الحساب...';
       feedbackMessage.className = 'feedback-message';
-
       const name = document.getElementById('user-name').value;
       const email = document.getElementById('user-email').value;
       const password = document.getElementById('user-password').value;
       const role = document.getElementById('user-role').value;
-      
-      const appName = `secondary-app-${Date.now()}`;
-      const secondaryApp = initializeApp(firebaseConfig, appName);
-      const secondaryAuth = getAuth(secondaryApp);
-
       try {
-        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-        const newUserUid = userCredential.user.uid;
-        await setDoc(doc(db, "users", newUserUid), { uid: newUserUid, name, email, role, createdAt: new Date() });
-        feedbackMessage.textContent = 'تم إنشاء حساب المستخدم بنجاح!';
-        feedbackMessage.classList.add('success');
-        addUserForm.reset();
-      } catch (error) {
-        console.error("Error creating user:", error);
-        let errorMessage = 'فشل إنشاء المستخدم.';
-        if (error.code === 'auth/email-already-in-use') errorMessage = 'هذا البريد الإلكتروني مستخدم بالفعل.';
-        else if (error.code === 'auth/weak-password') errorMessage = 'كلمة السر ضعيفة جدًا.';
-        feedbackMessage.textContent = errorMessage;
-        feedbackMessage.classList.add('error');
-      } finally {
-        addUserBtn.disabled = false;
-        await deleteApp(secondaryApp);
-        setTimeout(() => { feedbackMessage.textContent = ''; }, 5000);
-      }
+        const res = await fetch('/api/users/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, password, role }) });
+        const result = await res.json();
+        if (res.ok) { feedbackMessage.textContent = 'تم إنشاء حساب المستخدم بنجاح!'; feedbackMessage.classList.add('success'); addUserForm.reset(); fetchAndRenderUsers(); }
+        else { feedbackMessage.textContent = result.error || 'فشل إنشاء المستخدم.'; feedbackMessage.classList.add('error'); }
+      } catch (err) { feedbackMessage.textContent = 'حدث خطأ في الاتصال.'; feedbackMessage.classList.add('error'); }
+      finally { addUserBtn.disabled = false; setTimeout(() => { feedbackMessage.textContent = ''; }, 5000); }
     });
 
-    const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
-    onSnapshot(usersQuery, (snapshot) => {
-      const adminUid = adminUser ? adminUser.uid : null;
-      const userDocs = snapshot.docs.filter(doc => doc.id !== adminUid);
-      
-      usersCache = {}; // Clear and rebuild cache
-      userDocs.forEach(doc => {
-        usersCache[doc.id] = doc.data();
-      });
-
-      if (userDocs.length === 0) {
-        noUsersMessage.textContent = 'لا يوجد مستخدمون حاليًا.';
-        noUsersMessage.style.display = 'block';
-        usersList.innerHTML = '';
-      } else {
-        noUsersMessage.style.display = 'none';
-        usersList.innerHTML = userDocs.map(doc => {
-          const user = doc.data();
-          const userInitial = user.name ? user.name.charAt(0).toUpperCase() : '?';
-          const creationDate = user.createdAt?.toDate ? user.createdAt.toDate().toLocaleDateString('ar-EG') : 'غير معروف';
-          const role = user.role || 'N/A';
-          const roleText = role === 'admin' ? 'مسؤول' : role === 'supervisor' ? 'مشرف' : 'غير محدد';
-
-          return `
-            <div class="user-card" data-id="${user.uid}">
-              <div class="user-card-header">
-                <div class="user-avatar">${userInitial}</div>
-                <div class="user-info"><h3 class="user-name">${user.name}</h3><p class="user-email">${user.email}</p></div>
-              </div>
-              <div class="user-card-body">
-                <p>تاريخ الإنشاء: <strong>${creationDate}</strong></p>
-                <p>الصلاحية: <span class="role-badge ${role}">${roleText}</span></p>
-              </div>
-              <div class="user-card-footer">
-                <button class="btn btn-warning edit-btn">
-                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.172 2.708-9.5 9.5a.5.5 0 0 0 0 .707l.543.543a.5.5 0 0 0 .707 0l9.5-9.5a.5.5 0 0 0 0-.707l-.543-.543a.5.5 0 0 0-.707 0z"/><path d="M10.5 1.793 2.5 9.793 1 15l5.207-1.5L14.207 5.5zm-3.586 3.586L5 7.207 10.793 1.414 12.586 3.207z"/></svg>
-                  <span>تعديل</span>
-                </button>
-                <button class="btn btn-danger delete-btn">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
-                  <span>حذف</span>
-                </button>
-              </div>
-            </div>`;
-        }).join('');
-      }
-    });
+    fetchAndRenderUsers();
 
     usersList.addEventListener('click', (e) => {
       const deleteBtn = e.target.closest('.delete-btn');
-      if (deleteBtn) {
-        const item = deleteBtn.closest('.user-card');
-        userIdToDelete = item.dataset.id;
-        deleteModal.style.display = 'flex';
-      }
-
+      if (deleteBtn) { userIdToDelete = deleteBtn.closest('.user-card').dataset.id; deleteModal.style.display = 'flex'; }
       const editBtn = e.target.closest('.edit-btn');
       if (editBtn) {
-        const item = editBtn.closest('.user-card');
-        const userId = item.dataset.id;
+        const userId = editBtn.closest('.user-card').dataset.id;
         const userData = usersCache[userId];
         if (userData) {
-            document.getElementById('edit-user-id').value = userId;
-            document.getElementById('edit-user-name').value = userData.name;
-            document.getElementById('edit-user-email').value = userData.email;
-            document.getElementById('edit-user-role').value = userData.role;
-            document.getElementById('edit-user-password').value = ''; // Clear password field
-            editFeedback.textContent = '';
-            editModal.style.display = 'flex';
+          document.getElementById('edit-user-id').value = userId;
+          document.getElementById('edit-user-name').value = userData.name;
+          document.getElementById('edit-user-email').value = userData.email || '';
+          document.getElementById('edit-user-role').value = userData.role;
+          document.getElementById('edit-user-password').value = '';
+          editFeedback.textContent = '';
+          editModal.style.display = 'flex';
         }
       }
     });
 
-    // Close Edit Modal
-    editCancelBtn.addEventListener('click', () => {
-      editModal.style.display = 'none';
-    });
-
-    // Close Delete Modal
-    modalCancelBtn.addEventListener('click', () => {
-      deleteModal.style.display = 'none';
-      userIdToDelete = null;
-    });
+    editCancelBtn.addEventListener('click', () => { editModal.style.display = 'none'; });
+    modalCancelBtn.addEventListener('click', () => { deleteModal.style.display = 'none'; userIdToDelete = null; });
 
     modalConfirmBtn.addEventListener('click', async () => {
-        if (!userIdToDelete || !adminUser) {
-            alert('خطأ في التحقق من الصلاحية. يرجى تحديث الصفحة والمحاولة مرة أخرى.');
-            return;
-        }
-
-        modalConfirmBtn.disabled = true;
-        modalConfirmBtn.textContent = 'جاري الحذف...';
-
-        try {
-            const idToken = await adminUser.getIdToken(true);
-
-            const response = await fetch('/api/delete-user', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`
-                },
-                body: JSON.stringify({ uid: userIdToDelete })
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                alert('تم حذف المستخدم بنجاح!'); 
-            } else {
-                console.error("Error deleting user:", result.error);
-                alert(`فشل حذف المستخدم: ${result.error}`);
-            }
-
-        } catch (error) {
-            console.error("API call failed: ", error);
-            alert(`حدث خطأ أثناء الاتصال بالخادم: ${error.message}`);
-        } finally {
-            deleteModal.style.display = 'none';
-            modalConfirmBtn.disabled = false;
-            modalConfirmBtn.textContent = 'تأكيد الحذف';
-            userIdToDelete = null;
-        }
+      if (!userIdToDelete) return;
+      modalConfirmBtn.disabled = true; modalConfirmBtn.textContent = 'جاري الحذف...';
+      try {
+        const res = await fetch('/api/users/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: userIdToDelete }) });
+        if (res.ok) { alert('تم حذف المستخدم بنجاح!'); fetchAndRenderUsers(); }
+        else { const r = await res.json(); alert('فشل: ' + r.error); }
+      } catch (err) { alert('خطأ: ' + err.message); }
+      finally { deleteModal.style.display = 'none'; modalConfirmBtn.disabled = false; modalConfirmBtn.textContent = 'تأكيد الحذف'; userIdToDelete = null; }
     });
 
-    // Handle Edit Form Submission
     editForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!adminUser) {
-            alert('Authentication error. Please refresh and try again.');
-            return;
-        }
-
-        editSaveBtn.disabled = true;
-        editFeedback.textContent = 'جاري حفظ التعديلات...';
-        editFeedback.className = 'feedback-message';
-
-        const uid = document.getElementById('edit-user-id').value;
-        const name = document.getElementById('edit-user-name').value;
-        const email = document.getElementById('edit-user-email').value;
-        const role = document.getElementById('edit-user-role').value;
-        const password = document.getElementById('edit-user-password').value;
-
-        const payload = { uid, name, email, role };
-        if (password) {
-            payload.password = password;
-        }
-
-        try {
-            const idToken = await adminUser.getIdToken(true);
-            const response = await fetch('/api/update-user', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`,
-                },
-                body: JSON.stringify(payload),
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                editFeedback.textContent = 'تم تحديث بيانات المستخدم بنجاح!';
-                editFeedback.classList.add('success');
-                setTimeout(() => {
-                    editModal.style.display = 'none';
-                }, 2000);
-            } else {
-                throw new Error(result.error || 'Failed to update user.');
-            }
-        } catch (error) {
-            console.error('Error updating user:', error);
-            editFeedback.textContent = `فشل تحديث المستخدم: ${error.message}`;
-            editFeedback.classList.add('error');
-        } finally {
-            editSaveBtn.disabled = false;
-            setTimeout(() => { editFeedback.textContent = ''; }, 6000);
-        }
+      e.preventDefault();
+      editSaveBtn.disabled = true; editFeedback.textContent = 'جاري حفظ التعديلات...'; editFeedback.className = 'feedback-message';
+      const id = document.getElementById('edit-user-id').value;
+      const name = document.getElementById('edit-user-name').value;
+      const email = document.getElementById('edit-user-email').value;
+      const role = document.getElementById('edit-user-role').value;
+      const password = document.getElementById('edit-user-password').value;
+      const payload = { id, name, email, role };
+      if (password) payload.password = password;
+      try {
+        const res = await fetch('/api/users/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (res.ok) { editFeedback.textContent = 'تم تحديث بيانات المستخدم بنجاح!'; editFeedback.classList.add('success'); fetchAndRenderUsers(); setTimeout(() => { editModal.style.display = 'none'; }, 2000); }
+        else { const r = await res.json(); throw new Error(r.error); }
+      } catch (err) { editFeedback.textContent = 'فشل: ' + err.message; editFeedback.classList.add('error'); }
+      finally { editSaveBtn.disabled = false; setTimeout(() => { editFeedback.textContent = ''; }, 6000); }
     });
   }
-
 </script>

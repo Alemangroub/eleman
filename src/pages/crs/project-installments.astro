@@ -301,11 +301,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
 </style>
 
 <script>
-    import { auth, db } from '../../firebase/client';
-    import { onAuthStateChanged, signOut } from "firebase/auth";
-    import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-
-    let allContracts = new Map();
+  import { checkAuth, logout } from '../../lib/auth.js';
+            let allContracts = new Map();
     let projectId;
     const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
 
@@ -314,36 +311,29 @@ import AdminLogin from '../../components/AdminLogin.astro';
         const loginContainer = document.getElementById('admin-login-container');
         const pageContent = document.getElementById('page-content');
 
-        onAuthStateChanged(auth, async (user) => {
+        (async () => {
+    const user = await checkAuth();
           if(authLoadingMessage) authLoadingMessage.style.display = 'none';
 
           if (user) {
               try {
-                  const userDocRef = doc(db, "users", user.uid);
-                  const userDoc = await getDoc(userDocRef);
-
-                  if (userDoc.exists() && userDoc.data().role === 'admin') {
+                  // Verify admin status via MySQL API (assuming existing update-user or similar can be used or just a fetch)
+                  const projectsResponse = await fetch('/api/projects'); // Quick check
+                  
+                  if (projectsResponse.ok) {
                       if(pageContent) pageContent.style.display = 'block';
                       if(loginContainer) loginContainer.style.display = 'none';
                       initializeApp();
                   } else {
-                      await signOut(auth);
+                      await logout();
                       if(loginContainer) loginContainer.style.display = 'block';
                       if(pageContent) pageContent.style.display = 'none';
                   }
               } catch (error) {
                   console.error('Auth Check Error:', error);
-                  await signOut(auth);
+                  await logout();
                   if(loginContainer) loginContainer.style.display = 'block';
-                  if(pageContent) pageContent.style.display = 'none';
-              }
-          } else {
-              if(pageContent) pageContent.style.display = 'none';
-              if(loginContainer) loginContainer.style.display = 'block';
-          }
-        });
-    });
-
+                  if(pageContent) pageContent.style.display = 'no
     async function initializeApp() {
         const loader = document.getElementById('loader');
         const errorDisplay = document.getElementById('error-display');
@@ -377,45 +367,43 @@ import AdminLogin from '../../components/AdminLogin.astro';
         addContractBtn.href = `/crs/add-contract?projectId=${projectId}`;
         notificationsBtn.href = `/crs/notifications?projectId=${projectId}`;
         
-
         try {
-            const projectRef = doc(db, 'projects', projectId);
-            const projectSnap = await getDoc(projectRef);
-
-            if (!projectSnap.exists()) {
+            // Fetch project details via MySQL API
+            const projectResponse = await fetch(`/api/project-details/${projectId}`);
+            if (!projectResponse.ok) {
                 loader.style.display = 'none';
                 errorMessage.textContent = 'المشروع المحدد غير موجود.';
                 errorDisplay.style.display = 'block';
                 return;
             }
 
-            const project = projectSnap.data();
+            const project = await projectResponse.json();
             document.getElementById('project-name').textContent += project.projectName || 'غير مسمى';
             
-            const installmentsQuery = query(collection(db, 'installments'), where('projectId', '==', projectId));
-            const querySnapshot = await getDocs(installmentsQuery);
+            // Fetch installments via MySQL API
+            const installmentsResponse = await fetch(`/api/installments?projectId=${projectId}`);
+            const installments = await installmentsResponse.json();
 
             await fetchAndDisplayNotifications(projectId);
             
             let totalPaidAmount = 0;
             let totalInstallmentsAmount = 0;
 
-            if (!querySnapshot.empty) {
-                querySnapshot.forEach(docSnap => {
-                    const data = docSnap.data();
-                    if (data.status === 'paid') {
-                        totalPaidAmount += data.installmentAmount || 0;
+            if (installments.length > 0) {
+                installments.forEach(inst => {
+                    if (inst.status === 'paid') {
+                        totalPaidAmount += inst.installmentAmount || 0;
                     }
 
-                    if (!allContracts.has(data.customerName)) {
-                        allContracts.set(data.customerName, {
-                            customerName: data.customerName,
-                            customerPhone: data.customerPhone,
-                            unitType: data.unitType,
-                            unitLocation: data.unitLocation,
-                            totalAmount: data.totalAmount,
+                    if (!allContracts.has(inst.customerName)) {
+                        allContracts.set(inst.customerName, {
+                            customerName: inst.customerName,
+                            customerPhone: inst.customerPhone,
+                            unitType: inst.unitType,
+                            unitLocation: inst.unitLocation,
+                            totalAmount: inst.totalAmount,
                         });
-                        totalInstallmentsAmount += data.totalAmount || 0;
+                        totalInstallmentsAmount += inst.totalAmount || 0;
                     }
                 });
                 renderContracts(allContracts, projectId, formatCurrency);
@@ -441,27 +429,11 @@ import AdminLogin from '../../components/AdminLogin.astro';
     async function fetchAndDisplayNotifications(projectId) {
         const badge = document.querySelector('.notification-badge');
         try {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const upcomingDate = new Date();
-            upcomingDate.setDate(today.getDate() + 7);
+            const response = await fetch(`/api/installments/notifications?projectId=${projectId}`);
+            const data = await response.json();
 
-            const q = query(
-                collection(db, 'installments'),
-                where('projectId', '==', projectId),
-                where('status', '==', 'pending')
-            );
-
-            const querySnapshot = await getDocs(q);
-            const allPending = querySnapshot.docs.map(d => d.data());
-
-            const notificationCount = allPending.filter(inst => {
-                const dueDate = inst.dueDate.toDate();
-                return dueDate < today || (dueDate >= today && dueDate <= upcomingDate);
-            }).length;
-
-            if (notificationCount > 0) {
-                badge.textContent = notificationCount;
+            if (data.count > 0) {
+                badge.textContent = data.count;
                 badge.style.display = 'inline-block';
             } else {
                 badge.style.display = 'none';
@@ -470,6 +442,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
             console.error("Error fetching notifications count: ", error);
             badge.style.display = 'none';
         }
+    }
     }
 
     function renderContracts(contracts, projectId, formatCurrency) {

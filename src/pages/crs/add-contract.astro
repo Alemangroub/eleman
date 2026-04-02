@@ -152,18 +152,16 @@ import AdminLogin from '../../components/AdminLogin.astro';
 </style>
 
 <script>
-    import { auth, db } from '../../firebase/client';
-    import { onAuthStateChanged, signOut } from "firebase/auth";
-    import { doc, getDoc, collection, writeBatch, Timestamp, getDocs, query, where } from 'firebase/firestore';
-
-    let currentProjectId = null;
+  import { checkAuth, logout } from '../../lib/auth.js';
+                let currentProjectId = null;
 
     document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
         const pageContent = document.getElementById('page-content');
 
-        onAuthStateChanged(auth, async (user) => {
+        (async () => {
+    const user = await checkAuth();
           if(authLoadingMessage) authLoadingMessage.style.display = 'none';
 
           if (user) {
@@ -176,13 +174,13 @@ import AdminLogin from '../../components/AdminLogin.astro';
                       if(loginContainer) loginContainer.style.display = 'none';
                       initializeForm();
                   } else {
-                      await signOut(auth);
+                      await logout();
                       if(loginContainer) loginContainer.style.display = 'block';
                       if(pageContent) pageContent.style.display = 'none';
                   }
               } catch (error) {
                   console.error('Auth Check Error:', error);
-                  await signOut(auth);
+                  await logout();
                   if(loginContainer) loginContainer.style.display = 'block';
                   if(pageContent) pageContent.style.display = 'none';
               }
@@ -190,8 +188,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
               if(pageContent) pageContent.style.display = 'none';
               if(loginContainer) loginContainer.style.display = 'block';
           }
-        });
-    });
+  })();
+
 
     function initializeForm() {
         const urlParams = new URLSearchParams(window.location.search);

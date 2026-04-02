@@ -1,33 +1,36 @@
 
-import { getAdminDb } from '../../firebase/server.js';
-import { FieldValue } from 'firebase-admin/firestore';
+import prisma from '../../lib/prisma';
 
 export async function POST({ request }) {
     try {
-        const adminDb = getAdminDb();
         const { projectId, supervisorId } = await request.json();
 
         if (!projectId || !supervisorId) {
             return new Response(JSON.stringify({ error: "Incomplete data provided. Missing projectId or supervisorId." }), { status: 400 });
         }
 
-        const projectRef = adminDb.collection("projects").doc(projectId);
-        
-        // Atomically add the new supervisor ID to the `supervisorIds` array.
-        await projectRef.update({
-            supervisorIds: FieldValue.arrayUnion(supervisorId)
+        // Ensure the supervisor exists and is assigned to the project.
+        // Using upsert to avoid errors if already assigned.
+        await prisma.projectSupervisor.upsert({
+            where: {
+                projectId_userId: {
+                    projectId: projectId,
+                    userId: supervisorId
+                }
+            },
+            update: {},
+            create: {
+                projectId: projectId,
+                userId: supervisorId
+            }
         });
 
         return new Response(JSON.stringify({ message: "Supervisor assigned successfully!" }), { status: 200 });
 
     } catch (error) {
         console.error("API Error during supervisor assignment:", error);
-         let errorMessage = "An internal error occurred during the assignment process.";
-         if (error.message.includes('Firebase Admin SDK is not available')) {
-            errorMessage = 'Firebase Admin SDK initialization failed on the server. Check environment variables.';
-        }
         return new Response(JSON.stringify({ 
-            error: errorMessage, 
+            error: "An internal error occurred during the assignment process.", 
             details: error.message 
         }), { status: 500 });
     }

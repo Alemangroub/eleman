@@ -1,11 +1,7 @@
 
+import prisma from "../../../lib/prisma.js";
+
 export const prerender = false;
-
-import { getAdminDb } from "../../../firebase/server.js";
-
-// This is an API route in Astro, designed to run securely on the server.
-// It receives a project ID, fetches its details from Firestore using the Admin SDK,
-// and returns the data as JSON. This is the secure way to expose sensitive data to the client.
 
 export async function GET({ params }) {
     const { id } = params;
@@ -15,33 +11,40 @@ export async function GET({ params }) {
     }
 
     try {
-        const adminDb = getAdminDb();
-        const projectDoc = await adminDb.collection('projects').doc(id).get();
+        const project = await prisma.project.findUnique({
+            where: { id: id },
+            include: {
+                supervisors: {
+                    include: {
+                        user: true
+                    }
+                },
+                dailyExpenses: {
+                    where: { isRead: false }
+                },
+                dailyReports: {
+                    where: { isRead: false }
+                },
+                leftovers: {
+                    where: { isRead: false }
+                }
+            }
+        });
 
-        if (!projectDoc.exists) {
+        if (!project) {
             return new Response(JSON.stringify({ error: "Project not found" }), { status: 404 });
         }
 
-        const projectData = projectDoc.data();
-
-        // Fetch related data concurrently for better performance.
-        const [supervisorsSnap, expensesSnap, dailyReportsSnap, leftoversSnap] = await Promise.all([
-            Promise.all((projectData.supervisorIds || []).map(sid => adminDb.collection('users').doc(sid).get())),
-            adminDb.collection('daily_expenses').where('projectId', '==', id).where('isRead', '==', false).get(),
-            adminDb.collection('daily_reports').where('projectId', '==', id).where('isRead', '==', false).get(),
-            adminDb.collection('leftovers_reports').where('projectId', '==', id).where('isRead', '==', false).get()
-        ]);
-
-        const supervisorNames = supervisorsSnap.map(doc => doc.exists ? doc.data().name : 'مشرف محذوف');
+        const supervisorNames = project.supervisors.map(ps => ps.user.name);
 
         const projectDetails = { 
-            id: projectDoc.id, 
-            projectName: projectData.projectName || 'اسم غير متوفر',
-            projectAddress: projectData.projectAddress || 'عنوان غير محدد',
+            id: project.id, 
+            projectName: project.projectName || 'اسم غير متوفر',
+            projectAddress: project.projectAddress || 'عنوان غير محدد',
             supervisors: supervisorNames,
-            unreadExpenseReports: expensesSnap.size,
-            unreadDailyReports: dailyReportsSnap.size,
-            unreadLeftoversReports: leftoversSnap.size,
+            unreadExpenseReports: project.dailyExpenses.length,
+            unreadDailyReports: project.dailyReports.length,
+            unreadLeftoversReports: project.leftovers.length,
         };
 
         return new Response(JSON.stringify(projectDetails), { 
@@ -51,10 +54,6 @@ export async function GET({ params }) {
 
     } catch (error) {
         console.error("API Route Error fetching project details:", error);
-        let errorMessage = "Internal Server Error";
-        if (error.message.includes('Firebase Admin SDK is not available')) {
-            errorMessage = 'Firebase Admin SDK initialization failed on the server. Check environment variables.';
-        }
-        return new Response(JSON.stringify({ error: errorMessage, details: error.message }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Internal Server Error", details: error.message }), { status: 500 });
     }
 }

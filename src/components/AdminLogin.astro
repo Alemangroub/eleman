@@ -15,9 +15,6 @@
 </div>
 
 <script>
-  import { auth } from '../firebase/client';
-  import { signInWithEmailAndPassword } from "firebase/auth";
-
   const loginForm = document.getElementById("login-form")! as HTMLFormElement;
   const emailInput = document.getElementById("email")! as HTMLInputElement;
   const passwordInput = document.getElementById("password")! as HTMLInputElement;
@@ -32,11 +29,24 @@
     loginButton.textContent = 'جاري تسجيل الدخول...';
 
     try {
-      await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
-      // On successful login, the onAuthStateChanged in admin.astro will handle the view change.
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailInput.value, password: passwordInput.value })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        window.location.reload();
+      } else {
+        errorMessage.textContent = data.error || "البريد الإلكتروني أو كلمة المرور غير صالحة.";
+        loginButton.disabled = false;
+        loginButton.textContent = 'تسجيل الدخول';
+      }
     } catch (error) {
       console.error("Login Error:", error);
-      errorMessage.textContent = "البريد الإلكتروني أو كلمة المرور غير صالحة.";
+      errorMessage.textContent = "حدث خطأ في الاتصال بالسيرفر.";
       loginButton.disabled = false;
       loginButton.textContent = 'تسجيل الدخول';
     }

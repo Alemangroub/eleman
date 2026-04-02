@@ -2,43 +2,52 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import AdminLogin from '../../../components/AdminLogin.astro';
-import { db } from "../../../firebase/admin";
+import prisma from "../../../lib/prisma";
 
 export const prerender = false;
 
 const { id } = Astro.params;
+if (!id) {
+    return Astro.redirect('/404');
+}
+
 let project = null;
 let unreadExpenseReports = 0;
 let unreadDailyReports = 0;
 
 try {
-    const projectDoc = await db.collection('projects').doc(id).get();
-
-    if (projectDoc.exists) {
-        const projectData = projectDoc.data();
-
-        let supervisorNames = [];
-        if (Array.isArray(projectData.supervisorIds) && projectData.supervisorIds.length > 0) {
-            const supervisorDocs = await Promise.all(projectData.supervisorIds.map(sid => db.collection('users').doc(sid).get()));
-            supervisorNames = supervisorDocs.map(doc => doc.exists ? doc.data().name : 'مشرف محذوف');
+    const projectDoc = await prisma.project.findUnique({
+        where: { id: id },
+        include: {
+            supervisors: {
+                include: {
+                    user: true
+                }
+            }
         }
+    });
 
-        const expenseReportsSnapshot = await db.collection('daily_expenses')
-            .where('projectId', '==', id)
-            .where('isRead', '==', false)
-            .get();
-        unreadExpenseReports = expenseReportsSnapshot.size;
+    if (projectDoc) {
+        const supervisorNames = projectDoc.supervisors.map(s => s.user.name || 'مشرف بدون اسم');
 
-        const dailyReportsSnapshot = await db.collection('daily_reports')
-            .where('projectId', '==', id)
-            .where('isRead', '==', false)
-            .get();
-        unreadDailyReports = dailyReportsSnapshot.size;
+        unreadExpenseReports = await prisma.dailyExpense.count({
+            where: {
+                projectId: id,
+                isRead: false
+            }
+        });
+
+        unreadDailyReports = await prisma.dailyReport.count({
+            where: {
+                projectId: id,
+                isRead: false
+            }
+        });
         
         project = { 
             id: projectDoc.id, 
-            projectName: projectData.projectName || 'اسم غير متوفر',
-            projectAddress: projectData.projectAddress || 'عنوان غير محدد',
+            projectName: projectDoc.projectName || 'اسم غير متوفر',
+            projectAddress: projectDoc.projectAddress || 'عنوان غير محدد',
             supervisors: supervisorNames,
         };
 
@@ -86,7 +95,7 @@ try {
                         </div>
                         <div class="info-item">
                              <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-users" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="9" cy="7" r="4" /><path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /><path d="M21 21v-2a4 4 0 0 0 -3 -3.85" /></svg>
-                            <div><strong>المشرفون:</strong><span>{project.supervisors ? project.supervisors.join(', ') : 'لم يتم التعيين'}</span></div>
+                            <div><strong>المشرفون:</strong><span>{project.supervisors && project.supervisors.length > 0 ? project.supervisors.join(', ') : 'لم يتم التعيين'}</span></div>
                         </div>
                     </section>
 
@@ -190,45 +199,41 @@ try {
             )}
         </div>
     </main>
-</Layout>
 
 <script>
-    import { auth, db } from '../../../firebase/client';
-    import { onAuthStateChanged, signOut } from "firebase/auth";
-    import { doc, getDoc } from "firebase/firestore";
-
-    document.addEventListener('DOMContentLoaded', () => {
+  import { checkAuth, logout } from '../../../lib/auth.js';
+            document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
         const pageContent = document.getElementById('page-content');
 
-        onAuthStateChanged(auth, async (user) => {
+        (async () => {
+    const user = await checkAuth();
             if(authLoadingMessage) authLoadingMessage.style.display = 'none';
 
             if (user) {
                 try {
-                    const userDocRef = doc(db, "users", user.uid);
-                    const userDoc = await getDoc(userDocRef);
-
-                    if (userDoc.exists() && userDoc.data().role === 'admin') {
+                    const checkAdminResp = await fetch('/api/projects');
+                    
+                    if (checkAdminResp.ok) {
                         if(pageContent) pageContent.style.display = 'block';
                         if(loginContainer) loginContainer.style.display = 'none';
 
                         const logoutButton = document.getElementById('logout-button');
                         if (logoutButton) {
                             logoutButton.addEventListener('click', async () => {
-                                await signOut(auth);
+                                await logout();
                                 window.location.href = '/crs';
                             });
                         }
 
                     } else {
-                        await signOut(auth);
+                        await logout();
                         window.location.href = '/crs';
                     }
                 } catch (error) {
                     console.error('Auth Check Error:', error);
-                    await signOut(auth);
+                    await logout();
                     if(loginContainer) loginContainer.style.display = 'block';
                     if(pageContent) pageContent.style.display = 'none';
                 }
@@ -236,8 +241,8 @@ try {
                 if(pageContent) pageContent.style.display = 'none';
                 if(loginContainer) loginContainer.style.display = 'block';
             }
-        });
-    });
+  })();
+
 </script>
 
 <style>

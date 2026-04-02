@@ -1,0 +1,12 @@
+
+> out-out@0.0.1 dev
+> astro dev
+
+[2m٠٠:٠٤:٥٤[22m [34m[@astrojs/node][39m Enabling sessions with filesystem storage
+Invalid route src/pages/api/users/[id — brackets are unbalanced
+  [1mStack trace:[22m
+[2m    at validateSegment (file:///C:/Users/ENJAZ/.gemini/antigravity/scratch/eleman/node_modules/astro/dist/core/routing/manifest/segment.js:7:11)
+    at walk (file:///C:/Users/ENJAZ/.gemini/antigravity/scratch/eleman/node_modules/astro/dist/core/routing/manifest/create.js:147:9)
+    at createFileBasedRoutes (file:///C:/Users/ENJAZ/.gemini/antigravity/scratch/eleman/node_modules/astro/dist/core/routing/manifest/create.js:177:5)
+    at createContainer (file:///C:/Users/ENJAZ/.gemini/antigravity/scratch/eleman/node_modules/astro/dist/core/dev/container.js:37:28)
+    at async dev (file:///C:/Users/ENJAZ/.gemini/antigravity/scratch/eleman/node_modules/astro/dist/core/dev/dev.js:23:19)[22m

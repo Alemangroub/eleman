@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id    String @id @default(uuid())
+  name  String
+  role     String // admin, supervisor
+  email    String? @unique
+  password String?
+  projects ProjectSupervisor[]
+}
+
+model Project {
+  id             String @id @default(uuid())
+  projectName    String
+  projectAddress String?
+  archived       Boolean @default(false)
+  createdAt      DateTime @default(now())
+  items          Item[]
+  installments   Installment[]
+  supervisors    ProjectSupervisor[]
+  expenseReports ExpenseReport[]
+  dailyExpenses  DailyExpense[]
+  dailyReports   DailyReport[]
+  leftovers      LeftoversReport[]
+  remainsLogs    RemainsLog[]
+  projectImports ProjectImport[]
+}
+
+model ProjectSupervisor {
+  project    Project @relation(fields: [projectId], references: [id])
+  projectId  String
+  user       User    @relation(fields: [userId], references: [id])
+  userId     String
+
+  @@id([projectId, userId])
+}
+
+model Item {
+  id          String   @id @default(uuid())
+  project     Project  @relation(fields: [projectId], references: [id])
+  projectId   String
+  name        String
+  personName  String
+  quantity    Float
+  unitPrice   Float
+  totalPrice  Float
+  createdAt   DateTime @default(now())
+}
+
+model Installment {
+  id                String   @id @default(uuid())
+  project           Project  @relation(fields: [projectId], references: [id])
+  projectId         String
+  customerName      String
+  customerPhone     String?
+  unitType          String?
+  unitLocation      String?
+  installmentAmount Float
+  totalAmount       Float
+  dueDate           DateTime
+  status            String   // pending, paid
+  paidDate          DateTime?
+}
+
+model ExpenseReport {
+  id          String   @id @default(uuid())
+  project     Project  @relation(fields: [projectId], references: [id])
+  projectId   String
+  date        DateTime @default(now())
+  totalAmount Float
+  items       Json
+}
+
+model DailyExpense {
+  id             String   @id @default(uuid())
+  project        Project  @relation(fields: [projectId], references: [id])
+  projectId      String
+  supervisorName String?
+  notes          String?  @db.Text
+  totalAmount    Float    @default(0)
+  items          Json     // [{name, amount}]
+  imageUrls      Json?    // [string]
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+}
+
+model DailyReport {
+  id             String   @id @default(uuid())
+  project        Project  @relation(fields: [projectId], references: [id])
+  projectId      String
+  supervisorName String?
+  content        String?  @db.Text
+  notes          String?  @db.Text
+  imageUrls      Json?    // [string]
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+}
+
+model LeftoversReport {
+  id             String   @id @default(uuid())
+  project        Project  @relation(fields: [projectId], references: [id])
+  projectId      String
+  supervisorName String?
+  items          Json?    // [{itemName, quantity}]
+  imageUrls      Json?    // [string]
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+}
+
+model RemainsLog {
+  id             String   @id @default(uuid())
+  project        Project  @relation(fields: [projectId], references: [id])
+  projectId      String
+  material       String   // iron, cement, other
+  subType        String?  // e.g., "حديد 3 لينه"
+  quantity       Float
+  notes          String?  @db.Text
+  supervisorId   String?
+  supervisorName String?
+  createdAt      DateTime @default(now())
+}
+
+model ProjectImport {
+  id        String   @id @default(uuid())
+  project   Project  @relation(fields: [projectId], references: [id])
+  projectId String
+  name      String   // Item category or custom name
+  quantity  Float
+  unitPrice Float
+  price     Float
+  supplier  String?
+  date      DateTime
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+}

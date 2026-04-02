@@ -32,62 +32,34 @@ import AdminLogin from '../components/AdminLogin.astro';
 </Layout>
 
 <script>
-  import { auth, db } from '../firebase/client';
-  import { onAuthStateChanged, signOut } from "firebase/auth";
-  import { doc, getDoc } from "firebase/firestore";
+  import { checkAuth, logout } from '../lib/auth.js';
 
   const authLoadingMessage = document.getElementById('auth-loading-message')!;
   const loginContainer = document.getElementById('admin-login-container')!;
   const dashboardContainer = document.getElementById('admin-dashboard-container')!;
   const logoutButton = document.getElementById('logout-button')!;
 
-  onAuthStateChanged(auth, async (user) => {
+  (async () => {
+    const user = await checkAuth();
     authLoadingMessage.style.display = 'none';
 
     if (user) {
-      try {
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-
-        if (userDoc.exists()) {
-            const userData = userDoc.data();
-            // ROLE-BASED REDIRECTION
-            if (userData.role === 'admin') {
-                // User is an admin, show the admin dashboard.
-                dashboardContainer.style.display = 'block';
-                loginContainer.style.display = 'none';
-            } else if (userData.role === 'supervisor') {
-                // User is a supervisor, redirect to their dashboard.
-                window.location.href = '/dashboard';
-            } else {
-                // User has no valid role, log them out.
-                throw new Error('Invalid user role.');
-            }
-        } else {
-            // User is authenticated but has no record in 'users' collection.
-            throw new Error('User data not found in database.');
-        }
-      } catch (error) {
-        console.error('Auth CheckError:', error.message);
-        await signOut(auth);
-        // Keep login form visible after error and logout
-        dashboardContainer.style.display = 'none';
+      if (user.role === 'admin') {
+        dashboardContainer.style.display = 'block';
+        loginContainer.style.display = 'none';
+      } else if (user.role === 'supervisor') {
+        window.location.href = '/dashboard';
+      } else {
         loginContainer.style.display = 'block';
       }
     } else {
-      // User is LOGGED OUT
       dashboardContainer.style.display = 'none';
       loginContainer.style.display = 'block';
     }
-  });
+  })();
 
   logoutButton.addEventListener('click', async () => {
-      try {
-          await signOut(auth);
-      } catch (error) {
-          console.error("Logout Error:", error);
-          alert("فشل تسجيل الخروج. يرجى المحاولة مرة أخرى.");
-      }
+    await logout();
   });
 </script>
 

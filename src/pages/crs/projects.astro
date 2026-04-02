@@ -451,57 +451,36 @@ import AdminLogin from '../../components/AdminLogin.astro';
 </style>
 
 <script>
-  import { auth, db } from '../../firebase/client';
-  import { onAuthStateChanged, signOut } from "firebase/auth";
-  import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
+  import { checkAuth, logout } from '../../lib/auth.js';
 
   let allProjects = [];
   let allSupervisors = [];
   const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
       const authLoadingMessage = document.getElementById('auth-loading-message');
       const loginContainer = document.getElementById('admin-login-container');
       const pageContent = document.getElementById('page-content');
 
-      onAuthStateChanged(auth, async (user) => {
-          if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+      const user = await checkAuth();
+      if(authLoadingMessage) authLoadingMessage.style.display = 'none';
 
-          if (user) {
-              try {
-                  const userDocRef = doc(db, "users", user.uid);
-                  const userDoc = await getDoc(userDocRef);
+      if (user) {
+          if(pageContent) pageContent.style.display = 'block';
+          if(loginContainer) loginContainer.style.display = 'none';
 
-                  if (userDoc.exists() && userDoc.data().role === 'admin') {
-                      if(pageContent) pageContent.style.display = 'block';
-                      if(loginContainer) loginContainer.style.display = 'none';
-
-                      const logoutButton = document.getElementById('logout-button');
-                      if (logoutButton) {
-                          logoutButton.addEventListener('click', async () => {
-                              await signOut(auth);
-                              window.location.href = '/crs';
-                          });
-                      }
-                      
-                      initializePage();
-
-                  } else {
-                      await signOut(auth);
-                      if(loginContainer) loginContainer.style.display = 'block';
-                      if(pageContent) pageContent.style.display = 'none';
-                  }
-              } catch (error) {
-                  console.error('Auth Check Error:', error);
-                  await signOut(auth);
-                  if(loginContainer) loginContainer.style.display = 'block';
-                  if(pageContent) pageContent.style.display = 'none';
-              }
-          } else {
-              if(pageContent) pageContent.style.display = 'none';
-              if(loginContainer) loginContainer.style.display = 'block';
+          const logoutButton = document.getElementById('logout-button');
+          if (logoutButton) {
+              logoutButton.addEventListener('click', async () => {
+                  await logout();
+              });
           }
-      });
+          
+          initializePage();
+      } else {
+          if(pageContent) pageContent.style.display = 'none';
+          if(loginContainer) loginContainer.style.display = 'block';
+      }
   });
 
   function renderProjects(projects) {
@@ -517,16 +496,15 @@ import AdminLogin from '../../components/AdminLogin.astro';
       }
 
       if (projectsList) {
-          projectsList.innerHTML = projects.map(doc => {
-              const project = doc.data();
+          projectsList.innerHTML = projects.map(project => {
               const supervisors = project.supervisors ? project.supervisors.map(s => s.name).join(', ') : '-';
               return `
-                <tr data-id="${doc.id}" data-project='${JSON.stringify(project).replace(/'/g, "&apos;")}'>
+                <tr data-id="${project.id}" data-project='${JSON.stringify(project).replace(/'/g, "&apos;")}'>
                   <td data-label="اسم المشروع" class="project-name-cell">${project.projectName || '-'}</td>
                   <td data-label="العنوان">${project.projectAddress || '-'}</td>
-                  <td data-label="المشرفون">${supervisors}</td>
+                  <td data-label="المشرفون">${supervisors.length > 0 ? supervisors : '-'}</td>
                   <td data-label="الإجراءات" class="btn-action-cell">
-                    <a href="/crs/project-installments?projectId=${doc.id}" class="btn btn-installments-custom">الأقساط</a>
+                    <a href="/crs/project-installments?projectId=${project.id}" class="btn btn-installments-custom">الأقساط</a>
                     <button class="btn btn-edit-custom">تعديل</button>
                     <button class="btn btn-archive-custom">أرشفة</button>
                   </td>
@@ -546,67 +524,25 @@ import AdminLogin from '../../components/AdminLogin.astro';
     notificationContent.innerHTML = '<p>جاري تحميل التنبيهات...</p>';
 
     try {
-        const projectsQuery = query(collection(db, 'projects'));
-        const projectsSnapshot = await getDocs(projectsQuery);
-        const projectsMap = new Map();
-        projectsSnapshot.forEach(doc => {
-            projectsMap.set(doc.id, { name: doc.data().projectName, archived: doc.data().archived });
-        });
+        const response = await fetch('/api/installments/notifications');
+        const data = await response.json();
 
-        const MS_PER_DAY = 1000 * 60 * 60 * 24;
-        const startOfToday = new Date();
-        startOfToday.setHours(0, 0, 0, 0);
-
-        const q = query(collection(db, 'installments'), where('status', '==', 'pending'));
-        const querySnapshot = await getDocs(q);
-
-        const allPending = querySnapshot.docs.map(d => {
-            const data = d.data();
-            const projectInfo = projectsMap.get(data.projectId);
-            return {
-                ...data,
-                projectName: projectInfo ? projectInfo.name : 'مشروع غير معروف',
-                projectArchived: projectInfo ? projectInfo.archived : true
-            };
-        }).filter(inst => !inst.projectArchived);
-
-        const overdue = [];
-        const upcoming = [];
-
-        allPending.forEach(inst => {
-            const dueDate = inst.dueDate.toDate();
-            dueDate.setHours(0, 0, 0, 0);
-            const diffDays = Math.round((dueDate - startOfToday) / MS_PER_DAY);
-
-            if (diffDays < 0) {
-                overdue.push({ ...inst, days: Math.abs(diffDays) });
-            } else if (diffDays >= 0 && diffDays <= 7) {
-                upcoming.push({ ...inst, days: diffDays });
-            }
-        });
-        
-        overdue.sort((a, b) => b.days - a.days); // Show most overdue first
-        upcoming.sort((a, b) => a.days - b.days); // Show nearest first
-
-        const notificationCount = overdue.length + upcoming.length;
-        if (notificationCount > 0) {
-            badge.textContent = notificationCount;
+        if (data.count > 0) {
+            badge.textContent = data.count;
             badge.style.display = 'inline-flex';
         } else {
             badge.style.display = 'none';
         }
 
         let contentHTML = '';
-        if (overdue.length > 0) {
+        if (data.overdue.length > 0) {
             contentHTML += '<h4>أقساط مستحقة</h4>';
-            overdue.forEach(inst => {
+            data.overdue.forEach(inst => {
                 let dayWord;
                 if (inst.days === 1) dayWord = 'يوم';
                 else if (inst.days === 2) dayWord = 'يومين';
                 else if (inst.days >= 3 && inst.days <= 10) dayWord = 'أيام';
                 else dayWord = 'يومًا';
-
-                const statusText = `متأخر ${inst.days} ${dayWord}`;
 
                 contentHTML += `
                   <a href="/crs/contract-details?projectId=${inst.projectId}&customerName=${encodeURIComponent(inst.customerName)}" class="installment-notification-item-link">
@@ -617,8 +553,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
                         <strong>موبايل:</strong> ${inst.customerPhone || 'غير مسجل'}<br>
                         <strong>رقم الدور:</strong> ${inst.unitLocation || 'غير محدد'}<br>
                         <strong>المبلغ:</strong> ${formatCurrency(inst.installmentAmount)}<br>
-                        <strong>تاريخ الاستحقاق:</strong> ${inst.dueDate.toDate().toLocaleDateString('ar-EG')}<br>
-                        <strong>الحالة:</strong> <span class="status-overdue">${statusText}</span>
+                        <strong>تاريخ الاستحقاق:</strong> ${new Date(inst.dueDate).toLocaleDateString('ar-EG')}<br>
+                        <strong>الحالة:</strong> <span class="status-overdue">متأخر ${inst.days} ${dayWord}</span>
                       </div>
                     </div>
                   </a>
@@ -626,9 +562,9 @@ import AdminLogin from '../../components/AdminLogin.astro';
             });
         }
 
-        if (upcoming.length > 0) {
+        if (data.upcoming.length > 0) {
             contentHTML += '<h4 class="upcoming-title">أقساط تستحق خلال 7 أيام</h4>';
-            upcoming.forEach(inst => {
+            data.upcoming.forEach(inst => {
                 let statusText;
                 if (inst.days === 0) statusText = 'مستحق اليوم';
                 else if (inst.days === 1) statusText = 'مستحق غداً';
@@ -646,7 +582,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
                         <strong>موبايل:</strong> ${inst.customerPhone || 'غير مسجل'}<br>
                         <strong>رقم الدور:</strong> ${inst.unitLocation || 'غير محدد'}<br>
                         <strong>المبلغ:</strong> ${formatCurrency(inst.installmentAmount)}<br>
-                        <strong>تاريخ الاستحقاق:</strong> ${inst.dueDate.toDate().toLocaleDateString('ar-EG')}<br>
+                        <strong>تاريخ الاستحقاق:</strong> ${new Date(inst.dueDate).toLocaleDateString('ar-EG')}<br>
                         <strong>الحالة:</strong> <span class="status-upcoming">${statusText}</span>
                       </div>
                     </div>
@@ -655,7 +591,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
             });
         }
 
-        if (notificationCount === 0) {
+        if (data.count === 0) {
             contentHTML = '<p>لا توجد تنبيهات حالية.</p>';
         }
 
@@ -669,7 +605,6 @@ import AdminLogin from '../../components/AdminLogin.astro';
   }
 
   function initializePage() {
-    // --- DOM ELEMENTS ---
     const searchInput = document.getElementById('search-input');
     const projectsList = document.getElementById('projects-list');
     
@@ -709,27 +644,36 @@ import AdminLogin from '../../components/AdminLogin.astro';
         });
     }
 
-    // --- DATA FETCHING & RENDERING ---
-    async function fetchSupervisors() {
-      const q = query(collection(db, "users"), where("role", "==", "supervisor"));
-      const querySnapshot = await getDocs(q);
-      allSupervisors = querySnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+    // --- DATA FETCHING ---
+    async function fetchProjects() {
+        try {
+            const response = await fetch('/api/projects');
+            if (response.ok) {
+                allProjects = await response.json();
+                renderProjects(allProjects);
+            }
+        } catch (e) { console.error("Error fetching projects:", e); }
     }
 
-    const projectsQuery = query(
-        collection(db, 'projects'), 
-        orderBy('createdAt', 'desc')
-    );
-    onSnapshot(projectsQuery, (snapshot) => {
-      allProjects = snapshot.docs.filter(doc => !doc.data().archived);
-      renderProjects(allProjects);
-    });
+    async function fetchSupervisors() {
+        try {
+            const response = await fetch('/api/users/supervisors');
+            if (response.ok) {
+                allSupervisors = await response.json();
+                updateAddSupervisorDropdown();
+            }
+        } catch (e) { console.error("Error fetching supervisors:", e); }
+    }
+
+    // Initial load
+    fetchProjects();
+    fetchSupervisors();
+    fetchInstallmentNotifications();
 
     // --- SEARCH LOGIC ---
     searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase().trim();
-        const filteredProjects = allProjects.filter(doc => {
-            const project = doc.data();
+        const filteredProjects = allProjects.filter(project => {
             return project.projectName && project.projectName.toLowerCase().includes(searchTerm);
         });
         renderProjects(filteredProjects);
@@ -775,11 +719,16 @@ import AdminLogin from '../../components/AdminLogin.astro';
     confirmArchiveBtn.addEventListener('click', async () => {
       if (projectIdToArchive) {
         try {
-          const projectRef = doc(db, 'projects', projectIdToArchive);
-          await updateDoc(projectRef, { archived: true });
-          window.location.href = '/crs/archived-projects';
+          const response = await fetch('/api/projects/update', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: projectIdToArchive, archived: true })
+          });
+          if (response.ok) {
+              window.location.href = '/crs/archived-projects';
+          } else { throw new Error("Failed to archive"); }
         } catch (error) { 
-            console.error("Error archiving document: ", error); 
+            console.error("Error archiving project: ", error); 
             alert('حدث خطأ أثناء أرشفة المشروع.');
         }
         hideArchiveModal();
@@ -801,17 +750,27 @@ import AdminLogin from '../../components/AdminLogin.astro';
     }
 
     function createSupervisorItemHTML(id, name) {
-        return `<div class="supervisor-item" data-id="${id}">
-                  <span>${name}</span>
-                  <button type="button" class="btn-delete-supervisor">حذف</button>
-                </div>`;
+      return `
+        <div class="supervisor-item" data-id="${id}" data-name="${name}">
+          <span>${name}</span>
+          <button type="button" class="btn-delete-supervisor" data-id="${id}">حذف</button>
+        </div>
+      `;
     }
+
+    currentSupervisorsList.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-delete-supervisor')) {
+            e.target.closest('.supervisor-item').remove();
+            updateAddSupervisorDropdown();
+        }
+    });
 
     function updateAddSupervisorDropdown() {
       const currentIds = Array.from(currentSupervisorsList.children).map(item => item.dataset.id);
       const availableSupervisors = allSupervisors.filter(s => !currentIds.includes(s.id));
       addSupervisorSelect.innerHTML = '<option value="">اختر مشرفًا...</option>' + 
                                      availableSupervisors.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+      addSupervisorBtn.disabled = availableSupervisors.length === 0;
     }
 
     addSupervisorBtn.addEventListener('click', () => {
@@ -824,13 +783,6 @@ import AdminLogin from '../../components/AdminLogin.astro';
         }
     });
 
-    currentSupervisorsList.addEventListener('click', (e) => {
-        if (e.target.classList.contains('btn-delete-supervisor')) {
-            e.target.closest('.supervisor-item').remove();
-            updateAddSupervisorDropdown();
-        }
-    });
-
     function hideEditModal() { hideModal(editModal); projectIdToEdit = null; editForm.reset(); currentSupervisorsList.innerHTML = ''; }
     cancelEditBtn.addEventListener('click', hideEditModal);
     editModal.addEventListener('click', (e) => { if (e.target === editModal) hideEditModal(); });
@@ -839,29 +791,33 @@ import AdminLogin from '../../components/AdminLogin.astro';
       e.preventDefault();
       if (!projectIdToEdit) return;
 
-      const finalSupervisorItems = Array.from(currentSupervisorsList.children);
-      const finalSupervisors = finalSupervisorItems.map(item => {
-          const id = item.dataset.id;
-          const name = allSupervisors.find(s => s.id === id).name;
-          return { id, name };
-      });
-
-      const updatedData = {
-        projectName: projectNameInput.value,
-        projectAddress: projectAddressInput.value,
-        supervisors: finalSupervisors,
-        supervisorIds: finalSupervisors.map(s => s.id)
-      };
+      const finalSupervisorIds = Array.from(currentSupervisorsList.children).map(item => item.dataset.id);
 
       try {
-        const projectRef = doc(db, 'projects', projectIdToEdit);
-        await updateDoc(projectRef, updatedData);
-      } catch (error) { console.error("Error updating project: ", error); alert('Failed to save changes.'); }
-
-      hideEditModal();
+        const response = await fetch('/api/projects/update', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: projectIdToEdit,
+                projectName: projectNameInput.value,
+                projectAddress: projectAddressInput.value,
+                supervisorIds: finalSupervisorIds
+            })
+        });
+        if (response.ok) {
+            hideEditModal();
+            fetchProjects();
+        } else {
+            throw new Error("Failed to update project");
+        }
+      } catch (error) { 
+          console.error("Error updating project: ", error); 
+          alert('Failed to save changes.'); 
+      }
     });
 
     // --- INITIALIZATION ---
+    fetchProjects();
     fetchSupervisors();
     fetchInstallmentNotifications();
   }

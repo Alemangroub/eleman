@@ -1,21 +1,26 @@
-
 ---
 import Layout from '../../../../layouts/Layout.astro';
 import AdminLogin from '../../../../components/AdminLogin.astro';
-import { db } from "../../../../firebase/admin";
+import prisma from "../../../../lib/prisma";
 
 export const prerender = false;
 
 const { id } = Astro.params;
+if (!id) {
+    return Astro.redirect('/404');
+}
+
 let project = null;
 
 try {
-    const projectDoc = await db.collection('projects').doc(id).get();
-    if (projectDoc.exists) {
-        const projectData = projectDoc.data();
+    const projectDoc = await prisma.project.findUnique({
+        where: { id: id }
+    });
+    
+    if (projectDoc) {
         project = { 
             id: projectDoc.id, 
-            projectName: projectData.projectName || 'اسم غير متوفر',
+            projectName: projectDoc.projectName || 'اسم غير متوفر',
         };
     } else {
         return Astro.redirect('/404');
@@ -195,10 +200,8 @@ try {
 </Layout>
 
 <script>
-    import { auth, db } from '../../../../firebase/client';
-    import { onAuthStateChanged, signOut } from "firebase/auth";
-    import { collection, doc, getDoc, addDoc, onSnapshot, updateDoc, deleteDoc, query, orderBy, Timestamp } from 'firebase/firestore';
-    import * as XLSX from 'xlsx';
+  import { checkAuth, logout } from '../../../../lib/auth.js';
+            import * as XLSX from 'xlsx';
 
     const pageContent = document.getElementById('page-content');
     const projectId = pageContent.dataset.projectId;
@@ -212,30 +215,38 @@ try {
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
 
-        onAuthStateChanged(auth, async (user) => {
-            authLoadingMessage.style.display = 'none';
+        (async () => {
+    const user = await checkAuth();
+            if (authLoadingMessage) authLoadingMessage.style.display = 'none';
             if (user) {
-                const userDoc = await getDoc(doc(db, "users", user.uid));
-                if (userDoc.exists() && userDoc.data().role === 'admin') {
-                    pageContent.style.display = 'block';
-                    loginContainer.style.display = 'none';
-                    initializePage();
-                } else {
-                    signOut(auth);
-                    pageContent.style.display = 'none';
-                    loginContainer.style.display = 'block';
+                try {
+                    const checkAdminResp = await fetch('/api/projects');
+                    if (checkAdminResp.ok) {
+                        if (pageContent) pageContent.style.display = 'block';
+                        if (loginContainer) loginContainer.style.display = 'none';
+                        initializePage();
+                    } else {
+                        await logout();
+                        if (pageContent) pageContent.style.display = 'none';
+                        if (loginContainer) loginContainer.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Auth Check Error:', error);
+                    await logout();
+                    if (pageContent) pageContent.style.display = 'none';
+                    if (loginContainer) loginContainer.style.display = 'block';
                 }
             } else {
-                pageContent.style.display = 'none';
-                loginContainer.style.display = 'block';
+                if (pageContent) pageContent.style.display = 'none';
+                if (loginContainer) loginContainer.style.display = 'block';
             }
-        });
-    });
+  })();
+
 
     function initializePage() {
         if (!projectId) return;
         setupEventListeners();
-        listenForImports();
+        fetchImports();
     }
 
     const addImportBtn = document.getElementById('add-import-btn');
@@ -307,26 +318,44 @@ try {
                 }
 
                 const importData = {
+                    projectId,
                     name: itemNameValue,
                     quantity: parseFloat(quantityInput.value),
                     unitPrice: parseFloat(unitPriceInput.value),
                     price: parseFloat(totalPriceInput.value),
                     supplier: document.getElementById('item-supplier').value,
-                    date: Timestamp.fromDate(new Date(document.getElementById('import-date').value)),
+                    date: document.getElementById('import-date').value,
                     notes: document.getElementById('item-notes').value,
                 };
 
-                const importsColRef = collection(db, 'projects', projectId, 'imports');
-                if (currentEditImportId) {
-                    await updateDoc(doc(importsColRef, currentEditImportId), importData);
-                } else {
-                    await addDoc(importsColRef, {
-                        ...importData,
-                        createdAt: Timestamp.now()
-                    });
+                try {
+                    let response;
+                    if (currentEditImportId) {
+                        response = await fetch(`/api/imports/${currentEditImportId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(importData)
+                        });
+                    } else {
+                        response = await fetch(`/api/imports`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(importData)
+                        });
+                    }
+
+                    if (response.ok) {
+                        hideModal(importModal);
+                        importForm.reset();
+                        fetchImports(); // Refresh list
+                    } else {
+                        const err = await response.json();
+                        alert("خطأ: " + (err.error || "تعذر الحفظ"));
+                    }
+                } catch (error) {
+                    console.error("Save Error:", error);
+                    alert("حدث خطأ أثناء الاتصال بالخادم");
                 }
-                hideModal(importModal);
-                importForm.reset();
             });
         }
 
@@ -356,10 +385,21 @@ try {
         if (confirmDeleteBtn) {
             confirmDeleteBtn.addEventListener('click', async () => {
                 if (importIdToDelete) {
-                    const importRef = doc(db, 'projects', projectId, 'imports', importIdToDelete);
-                    await deleteDoc(importRef);
-                    hideModal(deleteModal);
-                    importIdToDelete = null;
+                    try {
+                        const response = await fetch(`/api/imports/${importIdToDelete}`, {
+                            method: 'DELETE'
+                        });
+                        if (response.ok) {
+                            hideModal(deleteModal);
+                            importIdToDelete = null;
+                            fetchImports(); // Refresh list
+                        } else {
+                            alert("خطأ في الحذف");
+                        }
+                    } catch (error) {
+                        console.error("Delete Error:", error);
+                        alert("حدث خطأ أثناء الاتصال بالخادم");
+                    }
                 }
             });
         }
@@ -557,27 +597,27 @@ try {
         }
     }
 
-    function listenForImports() {
+    async function fetchImports() {
         if (!projectId) return;
-        const importsQuery = query(collection(db, 'projects', projectId, 'imports'), orderBy('date', 'desc'));
-        
-        onSnapshot(importsQuery, (snapshot) => {
-            allImportsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            
-            calculateAndDisplayGrandTotal();
-
-            if (snapshot.empty) {
-                importsList.innerHTML = '';
-            } else {
-                importsList.innerHTML = allImportsData.map(data => renderImportRow(data.id, data)).join('');
+        try {
+            const response = await fetch(`/api/imports?projectId=${projectId}`);
+            if (response.ok) {
+                allImportsData = await response.json();
+                calculateAndDisplayGrandTotal();
+                if (allImportsData.length === 0) {
+                    importsList.innerHTML = '';
+                } else {
+                    importsList.innerHTML = allImportsData.map(data => renderImportRow(data.id, data)).join('');
+                }
+                applyFilter();
             }
-            
-            applyFilter();
-        });
+        } catch (error) {
+            console.error("Fetch Error:", error);
+        }
     }
 
     function renderImportRow(id, data) {
-        const date = data.date.toDate();
+        const date = new Date(data.date);
         const timezoneOffset = date.getTimezoneOffset() * 60000;
         const correctedDate = new Date(date.getTime() - timezoneOffset);
         const dateForInput = correctedDate.toISOString().split('T')[0];

@@ -1,6 +1,5 @@
 
-// Import both getAdminDb and Timestamp from our central server setup file.
-import { getAdminDb, Timestamp } from '../../firebase/server.js';
+import prisma from '../../lib/prisma';
 
 export async function POST({ request }) {
     if (request.headers.get("Content-Type") !== "application/json") {
@@ -8,7 +7,6 @@ export async function POST({ request }) {
     }
 
     try {
-        const adminDb = getAdminDb();
         const { projectId, itemId, ...updates } = await request.json();
 
         if (!projectId || !itemId) {
@@ -18,10 +16,6 @@ export async function POST({ request }) {
             return new Response(JSON.stringify({ error: 'يرجى ملء جميع الحقول المطلوبة.' }), { status: 400 });
         }
 
-        const itemRef = adminDb.collection('projects').doc(projectId).collection('items').doc(itemId);
-
-        const dataToUpdate = { ...updates };
-
         const quantity = parseFloat(updates.quantity);
         const unitPrice = parseFloat(updates.unitPrice);
 
@@ -29,19 +23,26 @@ export async function POST({ request }) {
              return new Response(JSON.stringify({ error: 'الكمية وسعر الوحدة يجب أن تكون أرقامًا.' }), { status: 400 });
         }
 
-        dataToUpdate.quantity = quantity;
-        dataToUpdate.unitPrice = unitPrice;
-        dataToUpdate.totalPrice = quantity * unitPrice;
-        // Use the Timestamp object we imported from server.js
-        dataToUpdate.createdAt = Timestamp.fromDate(new Date(updates.createdAt));
+        const totalPrice = quantity * unitPrice;
+        const createdAt = new Date(updates.createdAt);
 
-        await itemRef.update(dataToUpdate);
+        const updatedItem = await prisma.item.update({
+            where: { id: itemId },
+            data: {
+                name: updates.name,
+                personName: updates.personName,
+                quantity: quantity,
+                unitPrice: unitPrice,
+                totalPrice: totalPrice,
+                createdAt: createdAt
+            }
+        });
 
-        const updatedDoc = await itemRef.get();
-        const finalData = updatedDoc.data();
-        
-        finalData.createdAt = finalData.createdAt.toDate().toLocaleDateString('en-CA'); 
-        finalData.id = updatedDoc.id;
+        // Format date back to string to match previous expected format
+        const finalData = {
+            ...updatedItem,
+            createdAt: updatedItem.createdAt.toLocaleDateString('en-CA')
+        };
 
         return new Response(JSON.stringify({ 
             success: true, 
@@ -52,9 +53,6 @@ export async function POST({ request }) {
     } catch (error) {
         console.error("Error updating item:", error);
         let errorMessage = "حدث خطأ أثناء تحديث البند في قاعدة البيانات.";
-        if (error.message.includes('Firebase Admin SDK is not available')) {
-            errorMessage = 'Firebase Admin SDK initialization failed on the server. Check environment variables.';
-        }
         return new Response(JSON.stringify({ error: errorMessage, details: error.message }), { status: 500 });
     }
 }
