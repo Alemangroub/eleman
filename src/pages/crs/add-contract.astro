@@ -1,4 +1,3 @@
-
 ---
 import Layout from '../../layouts/Layout.astro';
 import AdminLogin from '../../components/AdminLogin.astro';
@@ -42,7 +41,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
                         <input type="text" id="other-unit-type" name="otherUnitType">
                     </div>
                     <div class="form-group">
-                        <label for="unit-location">رقم الدور</label>
+                        <label for="unit-location">رقم الدور / الموقع</label>
                         <input type="text" id="unit-location" name="unitLocation" required>
                     </div>
                     <div class="form-group">
@@ -95,7 +94,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         --border-color: #e0e0e0;
         --shadow: 0 4px 12px rgba(0,0,0,0.06);
     }
-    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
+    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; text-align: center; }
     main#page-content { padding: 2rem 1rem; background-color: var(--light-bg); min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
     
     .form-container { 
@@ -106,19 +105,18 @@ import AdminLogin from '../../components/AdminLogin.astro';
         border-radius: 12px; 
         box-shadow: var(--shadow); 
     }
-    h1 { color: var(--primary-color); margin-bottom: 0.5rem; }
-    #form-subheader { color: var(--secondary-color); margin-bottom: 2rem; font-size: 1.1rem; }
+    h1 { color: var(--primary-color); margin-bottom: 0.5rem; text-align: right; }
+    #form-subheader { color: var(--secondary-color); margin-bottom: 2rem; font-size: 1.1rem; text-align: right; }
 
     .simple-form-grid { display: grid; grid-template-columns: 1fr; gap: 1.2rem; }
     @media (min-width: 768px) {
         .simple-form-grid { grid-template-columns: 1fr 1fr; }
-        /* Ensure 'other' unit type field spans full width when visible */
         #other-unit-type-group {
             grid-column: 1 / -1; 
         }
     }
 
-    .form-group { display: flex; flex-direction: column; }
+    .form-group { display: flex; flex-direction: column; text-align: right; }
 
     label { font-weight: 600; margin-bottom: 0.5rem; color: #34495e; }
     input, select { width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; font-family: inherit; box-sizing: border-box; transition: border-color 0.3s, box-shadow 0.3s; }
@@ -129,6 +127,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         margin-top: 2rem;
         padding-top: 1.5rem;
         border-top: 1px solid var(--border-color);
+        text-align: right;
     }
     .installments-container h3 { margin-bottom: 1rem; color: var(--primary-color); }
     .installment-row {
@@ -153,215 +152,213 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
 <script>
   import { checkAuth, logout } from '../../lib/auth.js';
-                let currentProjectId = null;
+  
+  let currentProjectId = null;
 
-    document.addEventListener('DOMContentLoaded', () => {
-        const authLoadingMessage = document.getElementById('auth-loading-message');
-        const loginContainer = document.getElementById('admin-login-container');
-        const pageContent = document.getElementById('page-content');
+  document.addEventListener('DOMContentLoaded', async () => {
+      const authLoadingMessage = document.getElementById('auth-loading-message');
+      const loginContainer = document.getElementById('admin-login-container');
+      const pageContent = document.getElementById('page-content');
 
-        (async () => {
-    const user = await checkAuth();
-          if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+      const user = await checkAuth();
+      if(authLoadingMessage) authLoadingMessage.style.display = 'none';
 
-          if (user) {
-              try {
-                  const userDocRef = doc(db, "users", user.uid);
-                  const userDoc = await getDoc(userDocRef);
-
-                  if (userDoc.exists() && userDoc.data().role === 'admin') {
-                      if(pageContent) pageContent.style.display = 'block';
-                      if(loginContainer) loginContainer.style.display = 'none';
-                      initializeForm();
-                  } else {
-                      await logout();
-                      if(loginContainer) loginContainer.style.display = 'block';
-                      if(pageContent) pageContent.style.display = 'none';
-                  }
-              } catch (error) {
-                  console.error('Auth Check Error:', error);
-                  await logout();
-                  if(loginContainer) loginContainer.style.display = 'block';
-                  if(pageContent) pageContent.style.display = 'none';
-              }
-          } else {
-              if(pageContent) pageContent.style.display = 'none';
-              if(loginContainer) loginContainer.style.display = 'block';
+      if (user && user.role === 'admin') {
+          if(pageContent) pageContent.style.display = 'block';
+          if(loginContainer) loginContainer.style.display = 'none';
+          
+          initializeForm();
+          
+          const logoutButton = document.getElementById('logout-button');
+          if (logoutButton) {
+              logoutButton.addEventListener('click', async () => { await logout(); });
           }
-  })();
+      } else {
+          if(pageContent) pageContent.style.display = 'none';
+          if(loginContainer) loginContainer.style.display = 'block';
+      }
+  });
 
+  function initializeForm() {
+      const urlParams = new URLSearchParams(window.location.search);
+      currentProjectId = urlParams.get('projectId');
 
-    function initializeForm() {
-        const urlParams = new URLSearchParams(window.location.search);
-        currentProjectId = urlParams.get('projectId');
+      if (!currentProjectId) {
+          const content = document.getElementById('page-content');
+          if(content) content.innerHTML = '<p style="text-align:center; padding:5rem;">خطأ: لم يتم تحديد المشروع.</p>';
+          return;
+      }
 
-        if (!currentProjectId) {
-            document.getElementById('page-content').innerHTML = '<p>خطأ: لم يتم تحديد المشروع.</p>';
-            return;
-        }
+      const cancelBtn = document.getElementById('cancel-btn') as HTMLAnchorElement;
+      if(cancelBtn) cancelBtn.href = `/crs/project-installments?projectId=${currentProjectId}`;
+      
+      const form = document.getElementById('add-contract-form');
+      if(form) form.addEventListener('submit', handleFormSubmit);
 
-        document.getElementById('cancel-btn').href = `/crs/project-installments?projectId=${currentProjectId}`;
-        document.getElementById('add-contract-form').addEventListener('submit', handleFormSubmit);
+      document.getElementById('total-amount')?.addEventListener('input', updateRemainingAmount);
+      document.getElementById('down-payment')?.addEventListener('input', updateRemainingAmount);
+      document.getElementById('number-of-installments')?.addEventListener('change', generateInstallmentFields);
+      document.getElementById('unit-type')?.addEventListener('change', handleUnitTypeChange);
+      
+      updateRemainingAmount();
+  }
 
-        document.getElementById('total-amount').addEventListener('input', updateRemainingAmount);
-        document.getElementById('down-payment').addEventListener('input', updateRemainingAmount);
-        document.getElementById('number-of-installments').addEventListener('change', generateInstallmentFields);
+  function handleUnitTypeChange() {
+      const unitTypeSelect = document.getElementById('unit-type') as HTMLSelectElement;
+      const otherUnitTypeGroup = document.getElementById('other-unit-type-group');
+      const otherUnitTypeInput = document.getElementById('other-unit-type') as HTMLInputElement;
 
-        // New: Event listener for the unit type dropdown
-        document.getElementById('unit-type').addEventListener('change', handleUnitTypeChange);
-        
-        updateRemainingAmount();
-        handleUnitTypeChange(); // Call once on init to set initial state
-    }
+      if (unitTypeSelect.value === 'other') {
+          if(otherUnitTypeGroup) otherUnitTypeGroup.style.display = 'block';
+          if(otherUnitTypeInput) otherUnitTypeInput.required = true;
+      } else {
+          if(otherUnitTypeGroup) otherUnitTypeGroup.style.display = 'none';
+          if(otherUnitTypeInput) {
+              otherUnitTypeInput.required = false;
+              otherUnitTypeInput.value = '';
+          }
+      }
+  }
 
-    function handleUnitTypeChange() {
-        const unitTypeSelect = document.getElementById('unit-type');
-        const otherUnitTypeGroup = document.getElementById('other-unit-type-group');
-        const otherUnitTypeInput = document.getElementById('other-unit-type');
+  function updateRemainingAmount() {
+      const totalAmountInput = document.getElementById('total-amount') as HTMLInputElement;
+      const downPaymentInput = document.getElementById('down-payment') as HTMLInputElement;
+      const remainingAmountInput = document.getElementById('remaining-amount') as HTMLInputElement;
+      
+      const total = parseInt(totalAmountInput.value.replace(/[^0-9]/g, '')) || 0;
+      const downPayment = parseInt(downPaymentInput.value.replace(/[^0-9]/g, '')) || 0;
+      const remaining = total - downPayment;
+      if(remainingAmountInput) remainingAmountInput.value = remaining.toLocaleString() + ' ج.م';
+  }
 
-        if (unitTypeSelect.value === 'other') {
-            otherUnitTypeGroup.style.display = 'block';
-            otherUnitTypeInput.required = true;
-        } else {
-            otherUnitTypeGroup.style.display = 'none';
-            otherUnitTypeInput.required = false;
-            otherUnitTypeInput.value = ''; // Clear the value when hidden
-        }
-    }
+  function generateInstallmentFields() {
+      const numberOfInstallmentsInput = document.getElementById('number-of-installments') as HTMLSelectElement;
+      const container = document.getElementById('dynamic-installments-container');
+      const numberOfInstallments = parseInt(numberOfInstallmentsInput.value);
+      
+      if(!container) return;
+      container.innerHTML = ''; 
 
-    function updateRemainingAmount() {
-        const totalAmountInput = document.getElementById('total-amount');
-        const downPaymentInput = document.getElementById('down-payment');
-        const remainingAmountInput = document.getElementById('remaining-amount');
-        const total = parseInt(totalAmountInput.value.replace(/[^0-9]/g, '')) || 0;
-        const downPayment = parseInt(downPaymentInput.value.replace(/[^0-9]/g, '')) || 0;
-        const remaining = total - downPayment;
-        remainingAmountInput.value = remaining;
-    }
+      if (!numberOfInstallments) return;
 
-    function generateInstallmentFields() {
-        const numberOfInstallmentsInput = document.getElementById('number-of-installments');
-        const container = document.getElementById('dynamic-installments-container');
-        const numberOfInstallments = parseInt(numberOfInstallmentsInput.value);
-        
-        container.innerHTML = ''; 
+      const header = document.createElement('h3');
+      header.textContent = 'تفاصيل الأقساط';
+      container.appendChild(header);
 
-        if (!numberOfInstallments) return;
+      for (let i = 0; i < numberOfInstallments; i++) {
+          const row = document.createElement('div');
+          row.className = 'installment-row';
 
-        const header = document.createElement('h3');
-        header.textContent = 'تفاصيل الأقساط';
-        container.appendChild(header);
+          const nameLabel = document.createElement('label');
+          nameLabel.textContent = `القسط ${i + 1}`;
+          nameLabel.style.fontWeight = 'bold';
 
-        for (let i = 0; i < numberOfInstallments; i++) {
-            const row = document.createElement('div');
-            row.className = 'installment-row';
+          const amountGroup = document.createElement('div');
+          amountGroup.className = 'installment-input-group';
+          const amountLabel = document.createElement('label');
+          amountLabel.textContent = 'المبلغ';
+          const amountInput = document.createElement('input');
+          amountInput.type = 'text';
+          amountInput.inputMode = 'numeric';
+          amountInput.name = `installment_amount_${i}`;
+          amountInput.placeholder = 'ادخل المبلغ';
+          amountInput.required = true;
+          amountGroup.appendChild(amountLabel);
+          amountGroup.appendChild(amountInput);
 
-            const nameLabel = document.createElement('label');
-            nameLabel.textContent = `القسط ${i + 1}`;
-            nameLabel.style.fontWeight = 'bold';
+          const dateGroup = document.createElement('div');
+          dateGroup.className = 'installment-input-group';
+          const dateLabel = document.createElement('label');
+          dateLabel.textContent = 'تاريخ الاستحقاق';
+          const dateInput = document.createElement('input');
+          dateInput.type = 'date';
+          dateInput.name = `installment_date_${i}`;
+          dateInput.required = true;
+          dateGroup.appendChild(dateLabel);
+          dateGroup.appendChild(dateInput);
 
-            const amountGroup = document.createElement('div');
-            amountGroup.className = 'installment-input-group';
-            const amountLabel = document.createElement('label');
-            amountLabel.textContent = 'المبلغ';
-            const amountInput = document.createElement('input');
-            amountInput.type = 'text';
-            amountInput.inputMode = 'numeric';
-            amountInput.name = `installment_amount_${i}`;
-            amountInput.placeholder = 'ادخل المبلغ';
-            amountInput.required = true;
-            amountGroup.appendChild(amountLabel);
-            amountGroup.appendChild(amountInput);
+          row.appendChild(nameLabel);
+          row.appendChild(amountGroup);
+          row.appendChild(dateGroup);
+          container.appendChild(row);
+      }
+  }
 
-            const dateGroup = document.createElement('div');
-            dateGroup.className = 'installment-input-group';
-            const dateLabel = document.createElement('label');
-            dateLabel.textContent = 'تاريخ الاستحقاق';
-            const dateInput = document.createElement('input');
-            dateInput.type = 'date';
-            dateInput.name = `installment_date_${i}`;
-            dateInput.required = true;
-            dateGroup.appendChild(dateLabel);
-            dateGroup.appendChild(dateInput);
+  async function handleFormSubmit(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'جارٍ إنشاء العقد...';
 
-            row.appendChild(nameLabel);
-            row.appendChild(amountGroup);
-            row.appendChild(dateGroup);
-            container.appendChild(row);
-        }
-    }
+      const formData = new FormData(e.target as HTMLFormElement);
+      const numberOfInstallments = parseInt(formData.get('numberOfInstallments') as string);
 
-    async function handleFormSubmit(e) {
-        e.preventDefault();
-        const submitBtn = document.getElementById('submit-btn');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'جارٍ إنشاء العقد...';
+      let unitType = formData.get('unitType') as string;
+      if (unitType === 'other') {
+          unitType = (formData.get('otherUnitType') as string).trim();
+          if (!unitType) {
+               alert('الرجاء إدخال نوع الوحدة في الحقل المخصص.');
+               submitBtn.disabled = false;
+               submitBtn.textContent = 'إنشاء العقد';
+               return;
+          }
+      }
 
-        const formData = new FormData(e.target);
-        const numberOfInstallments = parseInt(formData.get('numberOfInstallments'));
+      const commonData = {
+          projectId: currentProjectId,
+          customerName: formData.get('customerName'),
+          customerPhone: formData.get('customerPhone'),
+          totalAmount: parseInt((formData.get('totalAmount') as string).replace(/[^0-9]/g, '')) || 0,
+          unitType: unitType,
+          unitLocation: formData.get('unitLocation'),
+      };
 
-        // --- Determine Unit Type ---
-        let unitType = formData.get('unitType');
-        if (unitType === 'other') {
-            unitType = formData.get('otherUnitType').trim();
-            if (!unitType) {
-                 alert('الرجاء إدخال نوع الوحدة في الحقل المخصص.');
-                 submitBtn.disabled = false;
-                 submitBtn.textContent = 'إنشاء العقد';
-                 return;
-            }
-        }
+      const installments = [];
+      const downPayment = parseInt((formData.get('downPayment') as string).replace(/[^0-9]/g, '')) || 0;
 
-        // --- Firestore Operations ---
-        const contractData = {
-            projectId: currentProjectId,
-            customerName: formData.get('customerName'),
-            customerPhone: formData.get('customerPhone').trim(),
-            totalAmount: parseInt(formData.get('totalAmount').replace(/[^0-9]/g, '')) || 0,
-            unitType: unitType, // Use the determined unit type
-            unitLocation: formData.get('unitLocation'),
-        };
-        const downPayment = parseInt(formData.get('downPayment').replace(/[^0-9]/g, '')) || 0;
+      if (downPayment > 0) {
+          installments.push({
+              ...commonData,
+              installmentAmount: downPayment,
+              installmentName: 'دفعة مقدمة',
+              status: 'paid',
+              paymentDate: new Date(),
+              dueDate: new Date(),
+          });
+      }
 
-        const batch = writeBatch(db);
+      for (let i = 0; i < numberOfInstallments; i++) {
+          const amount = parseInt((formData.get(`installment_amount_${i}`) as string).replace(/[^0-9]/g, '')) || 0;
+          const dueDate = formData.get(`installment_date_${i}`) as string;
 
-        if (downPayment > 0) {
-            const downPaymentRef = doc(collection(db, 'installments'));
-            batch.set(downPaymentRef, {
-                ...contractData,
-                installmentAmount: downPayment,
-                installmentName: 'دفعة مقدمة',
-                status: 'paid',
-                paymentDate: Timestamp.now(),
-                dueDate: Timestamp.now(),
-            });
-        }
+          installments.push({
+              ...commonData,
+              installmentAmount: amount,
+              installmentName: `القسط ${i + 1}`,
+              status: 'pending',
+              dueDate: dueDate,
+          });
+      }
 
-        for (let i = 0; i < numberOfInstallments; i++) {
-            const installmentRef = doc(collection(db, 'installments'));
-            const amountStr = formData.get(`installment_amount_${i}`).replace(/[^0-9]/g, '');
-            const amount = parseInt(amountStr) || 0;
-            const dueDate = new Date(formData.get(`installment_date_${i}`));
+      try {
+          const response = await fetch('/api/installments/bulk-create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ installments })
+          });
 
-            batch.set(installmentRef, {
-                ...contractData,
-                installmentAmount: amount,
-                installmentName: `القسط ${i + 1}`,
-                status: 'pending',
-                paymentDate: null,
-                dueDate: Timestamp.fromDate(dueDate),
-            });
-        }
-
-        try {
-            await batch.commit();
-            alert('تم إنشاء العقد والأقساط بنجاح!');
-            window.location.href = `/crs/project-installments?projectId=${currentProjectId}`;
-        } catch (error) {
-            console.error("Error creating contract: ", error);
-            alert('فشل إنشاء العقد. الرجاء المحاولة مرة أخرى.');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'إنشاء العقد';
-        }
-    }
+          const result = await response.json();
+          if (result.success) {
+              alert('تم إنشاء العقد والأقساط بنجاح!');
+              window.location.href = `/crs/project-installments?projectId=${currentProjectId}`;
+          } else {
+              throw new Error(result.error || "Failed to save contract");
+          }
+      } catch (error) {
+          console.error("Error creating contract: ", error);
+          alert('فشل إنشاء العقد. الرجاء المحاولة مرة أخرى.');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'إنشاء العقد';
+      }
+  }
 </script>

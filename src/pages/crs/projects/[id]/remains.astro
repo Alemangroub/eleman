@@ -562,7 +562,6 @@ try {
     let currentFilters = { iron: 'all', other: 'all' };
     let docIdToDelete = null;
 
-    // This object will hold the live totals for all materials.
     let liveTotals = {
         iron: { '3': 0, '4': 0, '5': 0, stirrups6: 0, stirrups8: 0 },
         cement: 0,
@@ -577,41 +576,33 @@ try {
         other: ["قطعة", "لتر"] 
     };
 
-    // --- DYNAMIC LABEL CHANGE HANDLER ---
     function handleIronTypeChange(event) {
         const selectedValue = event.target.value;
         const form = event.target.closest('form');
         const quantityLabel = form.querySelector('.quantity-label');
         if (quantityLabel) {
-            if (selectedValue.includes('كانات')) {
-                quantityLabel.textContent = 'عدد الكانات';
-            } else {
-                quantityLabel.textContent = 'عدد الأسياخ';
-            }
+            quantityLabel.textContent = selectedValue.includes('كانات') ? 'عدد الكانات' : 'عدد الأسياخ';
         }
     }
 
-    // --- GENERIC MATERIAL SECTION SETUP --- //
     async function setupMaterialSection(material, projectId, user, userRole) {
         const card = document.getElementById(`${material}-card`);
         if (!card) return;
 
-        const toggleButtons = card.querySelectorAll('.toggle-btn');
-        toggleButtons.forEach(button => {
+        card.querySelectorAll('.toggle-btn').forEach(button => {
             button.addEventListener('click', (e) => {
                 card.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
                 (e.target as HTMLElement).classList.add('active');
                 const formId = (e.target as HTMLElement).dataset.form;
                 card.querySelectorAll('.material-form').forEach(form => {
-                    (form as HTMLElement).style.display = (form as HTMLElement).id === formId ? 'flex' : 'none';
-  })();
-
+                    (form as HTMLElement).style.display = form.id === formId ? 'flex' : 'none';
+                });
+            });
         });
 
         if (material === 'iron') {
             card.querySelectorAll('select[name="subType"]').forEach(select => {
                 select.addEventListener('change', (e) => handleIronTypeChange(e));
-                 // Trigger it once on load to set the initial correct label
                 handleIronTypeChange({ target: select });
             });
         }
@@ -620,26 +611,24 @@ try {
 
         if (userRole === 'admin') {
             card.addEventListener('click', handleAdminActions);
-            const showAllBtn = document.getElementById(`show-all-${material}`);
-            if(showAllBtn) showAllBtn.addEventListener('click', () => {
-                 if(material === 'cement') renderSimpleLog(material, true);
+            document.getElementById(`show-all-${material}`)?.addEventListener('click', () => {
+                if(material === 'cement') renderSimpleLog(material, true);
                 else renderDetailedLog(material, true);
             });
 
-            const filterButtons = card.querySelectorAll(`.filter-btn[data-material="${material}"]`);
-            filterButtons.forEach(btn => {
+            card.querySelectorAll(`.filter-btn[data-material="${material}"]`).forEach(btn => {
                 btn.addEventListener('click', () => {
-                    filterButtons.forEach(b => b.classList.remove('active'));
-                    (btn as HTMLElement).classList.add('active');
+                    card.querySelectorAll(`.filter-btn[data-material="${material}"]`).forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
                     currentFilters[material] = (btn as HTMLElement).dataset.filterValue;
                     renderDetailedLog(material);
-  })();
-
+                });
+            });
         }
 
         if (userRole === 'admin' || userRole === 'supervisor') {
-            const addForm = card.querySelector<HTMLFormElement>(`#add-${material}-form`);
-            const dispenseForm = card.querySelector<HTMLFormElement>(`#dispense-${material}-form`);
+            const addForm = card.querySelector(`#add-${material}-form`) as HTMLFormElement;
+            const dispenseForm = card.querySelector(`#dispense-${material}-form`) as HTMLFormElement;
             if(addForm) setupForm(addForm, false, projectId, user, material);
             if(dispenseForm) setupForm(dispenseForm, true, projectId, user, material);
         }
@@ -660,76 +649,42 @@ try {
     function processLogs(material, logs, userRole) {
         allLogs[material] = logs;
         
-        // Reset totals before recalculating
-        liveTotals.iron = { '3': 0, '4': 0, '5': 0, stirrups6: 0, stirrups8: 0 };
-        liveTotals.cement = 0;
-        liveTotals.other = { sapa: 0, liquids: 0, misc: 0 };
-
-        let movementTotals = { 
-            '3': {added: 0, dispensed: 0}, 
-            '4': {added: 0, dispensed: 0}, 
-            '5': {added: 0, dispensed: 0}, 
-            stirrups6: {added: 0, dispensed: 0}, 
-            stirrups8: {added: 0, dispensed: 0} 
-        };
         let simpleTotalAdded = 0;
         let simpleTotalDispensed = 0;
 
-        logs.forEach(data => {
-            const quantity = data.quantity;
-            const absQuantity = Math.abs(quantity);
-
-            if (material === 'iron') {
-                let subTypeKey = null;
-                if (data.subType === 'حديد 3 لينه') subTypeKey = '3';
-                else if (data.subType === 'حديد 4 لينه') subTypeKey = '4';
-                else if (data.subType === 'حديد 5 لينه') subTypeKey = '5';
-                else if (data.subType === 'حديد كانات 6 مللي') subTypeKey = 'stirrups6';
-                else if (data.subType === 'حديد كانات 8 مللي') subTypeKey = 'stirrups8';
-
-                if(subTypeKey) {
-                    liveTotals.iron[subTypeKey] += quantity;
-                    if (quantity > 0) {
-                        movementTotals[subTypeKey].added += absQuantity;
-                    } else {
-                        movementTotals[subTypeKey].dispensed += absQuantity;
-                    }
-                }
-            } else if (material === 'other') {
-                let typeKey = 'misc';
-                if (data.subType === 'مواد صبة') typeKey = 'sapa';
-                else if (data.subType === 'سوائل') typeKey = 'liquids';
-                liveTotals.other[typeKey] += quantity;
-            } else {
-                liveTotals.cement += quantity;
-            }
-
-            if(data.quantity > 0) simpleTotalAdded += absQuantity; else simpleTotalDispensed += absQuantity;
-        });
-
-        // Update UI
         if (material === 'iron') {
-            for (const key in liveTotals.iron) {
-                const totalEl = document.getElementById(`iron-total-${key}`);
-                if(totalEl) totalEl.textContent = liveTotals.iron[key];
-            }
-            for (const key in movementTotals) {
-                const addedEl = document.getElementById(`iron-added-${key}`);
-                const dispensedEl = document.getElementById(`iron-dispensed-${key}`);
-                if(addedEl) addedEl.textContent = movementTotals[key].added;
-                if(dispensedEl) dispensedEl.textContent = movementTotals[key].dispensed;
-            }
+            liveTotals.iron = { '3': 0, '4': 0, '5': 0, stirrups6: 0, stirrups8: 0 };
+            const mTotals = { '3': {a:0,d:0}, '4': {a:0,d:0}, '5': {a:0,d:0}, s6: {a:0,d:0}, s8: {a:0,d:0} };
+            logs.forEach(d => {
+                let k = d.subType === 'حديد 3 لينه' ? '3' : d.subType === 'حديد 4 لينه' ? '4' : d.subType === 'حديد 5 لينه' ? '5' : d.subType === 'حديد كانات 6 مللي' ? 's6' : 's8';
+                liveTotals.iron[k==='s6'?'stirrups6':k==='s8'?'stirrups8':k] += d.quantity;
+                if(d.quantity > 0) mTotals[k].a += d.quantity; else mTotals[k].d += Math.abs(d.quantity);
+            });
+            ['3','4','5','stirrups6','stirrups8'].forEach(k => {
+                const ik = k==='stirrups6'?'s6':k==='stirrups8'?'s8':k;
+                document.getElementById(`iron-total-${k}`).textContent = liveTotals.iron[k];
+                document.getElementById(`iron-added-${k}`).textContent = mTotals[ik].a;
+                document.getElementById(`iron-dispensed-${k}`).textContent = mTotals[ik].d;
+            });
         } else if (material === 'other') {
-             for (const key in liveTotals.other) {
-                const totalEl = document.getElementById(`other-total-${key}`);
-                if(totalEl) totalEl.textContent = liveTotals.other[key];
-            }
-             document.getElementById(`${material}-total-added`).textContent = simpleTotalAdded;
-             document.getElementById(`${material}-total-dispensed`).textContent = simpleTotalDispensed;
-        } else { // For simple materials like cement
-            document.getElementById(`${material}-total`).textContent = liveTotals.cement;
-            document.getElementById(`${material}-total-added`).textContent = simpleTotalAdded;
-            document.getElementById(`${material}-total-dispensed`).textContent = simpleTotalDispensed;
+            liveTotals.other = { sapa: 0, liquids: 0, misc: 0 };
+            logs.forEach(d => {
+                const k = d.subType === 'مواد صبة' ? 'sapa' : d.subType === 'سوائل' ? 'liquids' : 'misc';
+                liveTotals.other[k] += d.quantity;
+                if(d.quantity > 0) simpleTotalAdded += d.quantity; else simpleTotalDispensed += Math.abs(d.quantity);
+            });
+            ['sapa','liquids','misc'].forEach(k => document.getElementById(`other-total-${k}`).textContent = liveTotals.other[k]);
+            document.getElementById('other-total-added').textContent = simpleTotalAdded;
+            document.getElementById('other-total-dispensed').textContent = simpleTotalDispensed;
+        } else {
+            liveTotals.cement = 0;
+            logs.forEach(d => {
+                liveTotals.cement += d.quantity;
+                if(d.quantity > 0) simpleTotalAdded += d.quantity; else simpleTotalDispensed += Math.abs(d.quantity);
+            });
+            document.getElementById('cement-total').textContent = liveTotals.cement;
+            document.getElementById('cement-total-added').textContent = simpleTotalAdded;
+            document.getElementById('cement-total-dispensed').textContent = simpleTotalDispensed;
         }
 
         if (userRole === 'admin') {
@@ -738,555 +693,142 @@ try {
         }
     }
 
-        if (userRole === 'admin') {
-            card.addEventListener('click', handleAdminActions);
-            const showAllBtn = document.getElementById(`show-all-${material}`);
-            if(showAllBtn) showAllBtn.addEventListener('click', () => {
-                 if(material === 'cement') renderSimpleLog(material, true);
-                else renderDetailedLog(material, true);
-            });
-
-            const filterButtons = card.querySelectorAll(`.filter-btn[data-material="${material}"]`);
-            filterButtons.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    filterButtons.forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    currentFilters[material] = btn.dataset.filterValue;
-                    renderDetailedLog(material);
-  })();
-
-        }
-
-        if (userRole === 'admin' || userRole === 'supervisor') {
-            const addForm = card.querySelector(`#add-${material}-form`);
-            const dispenseForm = card.querySelector(`#dispense-${material}-form`);
-            if(addForm) setupForm(addForm, false, projectId, user, material);
-            if(dispenseForm) setupForm(dispenseForm, true, projectId, user, material);
-        }
+    function setupForm(form, isDispense, projectId, user, material) {
+        if (!form) return;
+        form.addEventListener('submit', (e) => handleFormSubmit(e, isDispense, projectId, user, material));
+        if (material === 'other') setupConditionalFields(form);
     }
 
     function setupConditionalFields(form) {
-        const subTypeSelect = form.querySelector('.subType-select');
-        const customSubTypeInput = form.querySelector('input[name="customSubType"]');
-        const unitSelect = form.querySelector('.unit-select');
-        const customUnitInput = form.querySelector('input[name="customUnit"]');
-
-        if (subTypeSelect && customSubTypeInput) {
-            subTypeSelect.addEventListener('change', (e) => {
-                (customSubTypeInput.parentElement as HTMLElement).style.display = (e.target as HTMLSelectElement).value === 'أخرى' ? 'block' : 'none';
-            });
-        }
-        if (unitSelect && customUnitInput) {
-             unitSelect.addEventListener('change', (e) => {
-                (customUnitInput.parentElement as HTMLElement).style.display = (e.target as HTMLSelectElement).value === 'أخرى' ? 'block' : 'none';
-            });
-        }
+        const subSel = form.querySelector('.subType-select') as HTMLSelectElement;
+        const subInp = form.querySelector('input[name="customSubType"]') as HTMLInputElement;
+        const unitSel = form.querySelector('.unit-select') as HTMLSelectElement;
+        const unitInp = form.querySelector('input[name="customUnit"]') as HTMLInputElement;
+        if(subSel && subInp) subSel.addEventListener('change', () => subInp.parentElement.style.display = subSel.value === 'أخرى' ? 'block' : 'none');
+        if(unitSel && unitInp) unitSel.addEventListener('change', () => unitInp.parentElement.style.display = unitSel.value === 'أخرى' ? 'block' : 'none');
     }
 
-    function setupForm(form, isDispense, projectId, user, material) {
-        if (form) {
-            form.addEventListener('submit', (e) => handleFormSubmit(e, isDispense, projectId, user, material));
-            if (material === 'other') {
-                setupConditionalFields(form);
-            }
-        }
-    }
-
-    // --- LOG RENDERING FUNCTIONS --- //
     function renderDetailedLog(material, showAll = false) {
         const container = document.getElementById(`${material}-log-container`);
-        const emptyMsg = document.getElementById(`${material}-log-empty`);
-        const showAllBtn = document.getElementById(`show-all-${material}`);
         const template = document.getElementById('detailed-log-card-template') as HTMLTemplateElement;
-
-        if (!container || !emptyMsg || !showAllBtn || !template) return;
-
-        let filteredEntries = allLogs[material];
-        const filterValue = currentFilters[material];
-        if (filterValue !== 'all') {
-            filteredEntries = filteredEntries.filter(e => {
-                 if (filterValue === 'أخرى') {
-                    // Show entries whose subType is NOT one of the standard ones.
-                    return !standardSubTypes[material].includes(e.subType);
-                 } else {
-                    return e.subType === filterValue;
-                 }
-            });
-        }
+        if (!container || !template) return;
+        let entries = allLogs[material];
+        const f = currentFilters[material];
+        if(f !== 'all') entries = entries.filter(e => f === 'أخرى' ? !standardSubTypes[material].includes(e.subType) : e.subType === f);
         
-        emptyMsg.style.display = filteredEntries.length === 0 ? 'block' : 'none';
-        showAllBtn.style.display = (filteredEntries.length > LOG_LIMIT && !showAll) ? 'block' : 'none';
-        const entriesToRender = showAll ? filteredEntries : filteredEntries.slice(0, LOG_LIMIT);
-        container.innerHTML = ''; 
-
-        entriesToRender.forEach(entry => {
-            const cardClone = template.content.cloneNode(true) as HTMLElement;
-            const isAddition = entry.quantity > 0;
-            const supervisorName = entry.supervisorName || supervisorMap[entry.supervisorId] || 'مشرف غير معروف';
-
-            const logCard = cardClone.querySelector('.log-card');
-            if (logCard) logCard.classList.add(isAddition ? 'log-card-add' : 'log-card-dispense');
-            
-            const actionTypeEl = cardClone.querySelector('.log-action-type');
-            if (actionTypeEl) actionTypeEl.textContent = isAddition ? 'إضافة' : 'صرف';
-            
-            const dateEl = cardClone.querySelector('.log-date');
-            if (dateEl) dateEl.textContent = entry.createdAt ? new Date(entry.createdAt).toLocaleString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '';
-            
-            const subTypeDisplay = (material === 'iron') ? (entry.subType || '').replace('حديد', '').trim() : (entry.subType || 'غير محدد');
-            const subTypeEl = cardClone.querySelector('[data-key="subType"]');
-            if (subTypeEl) subTypeEl.textContent = subTypeDisplay;
-
-            const quantityLabelDt = cardClone.querySelector('[data-key="quantity-label"]');
-            const isStirrup = entry.subType && entry.subType.includes('كانات');
-            if (quantityLabelDt) quantityLabelDt.textContent = isStirrup ? 'عدد الكانات' : 'عدد الأسياخ';
-            
-            const unit = isStirrup ? 'كانة' : 'سيخ';
-            const quantityEl = cardClone.querySelector('[data-key="quantity"]');
-            if (quantityEl) quantityEl.textContent = `${Math.abs(entry.quantity)} ${unit}`;
-
-            const supervisorEl = cardClone.querySelector('[data-key="supervisor"]');
-            if (supervisorEl) supervisorEl.textContent = supervisorName;
-            
-            const notesEl = cardClone.querySelector('[data-key="notes"]');
-            if (notesEl) notesEl.textContent = entry.notes || '-';
-            
-            if (userIsAdmin) {
-                const editBtn = cardClone.querySelector('.btn-edit') as HTMLElement;
-                const deleteBtn = cardClone.querySelector('.btn-delete') as HTMLElement;
-                if (editBtn) {
-                   editBtn.dataset.id = entry.id;
-                   editBtn.dataset.material = material;
-                }
-                if (deleteBtn) {
-                   deleteBtn.dataset.id = entry.id;
-                   deleteBtn.dataset.material = material;
-                }
-            } else {
-                cardClone.querySelector('.log-card-actions')?.remove();
-            }
-
-            container.appendChild(cardClone);
+        container.innerHTML = '';
+        entries.slice(0, showAll ? undefined : LOG_LIMIT).forEach(entry => {
+            const clone = template.content.cloneNode(true) as HTMLElement;
+            const isAdd = entry.quantity > 0;
+            const card = clone.querySelector('.log-card');
+            card.classList.add(isAdd ? 'log-card-add' : 'log-card-dispense');
+            clone.querySelector('.log-action-type').textContent = isAdd ? 'إضافة' : 'صرف';
+            clone.querySelector('.log-date').textContent = new Date(entry.createdAt).toLocaleString('ar-EG');
+            clone.querySelector('[data-key="subType"]').textContent = entry.subType;
+            clone.querySelector('[data-key="quantity"]').textContent = `${Math.abs(entry.quantity)} ${entry.subType.includes('كانات') ? 'كانة' : 'سيخ'}`;
+            clone.querySelector('[data-key="supervisor"]').textContent = entry.supervisorName || [entry.supervisorId] || 'غير معروف';
+            clone.querySelector('[data-key="notes"]').textContent = entry.notes || '-';
+            if(userIsAdmin) {
+                const eb = clone.querySelector('.btn-edit') as any; eb.dataset.id = entry.id; eb.dataset.material = material;
+                const db = clone.querySelector('.btn-delete') as any; db.dataset.id = entry.id; db.dataset.material = material;
+            } else clone.querySelector('.log-card-actions')?.remove();
+            container.appendChild(clone);
         });
     }
 
     function renderSimpleLog(material, showAll = false) {
         const container = document.getElementById(`${material}-log-container`);
-        const emptyMsg = document.getElementById(`${material}-log-empty`);
-        const showAllBtn = document.getElementById(`show-all-${material}`);
         const template = document.getElementById('simple-log-card-template') as HTMLTemplateElement;
-        if (!container || !emptyMsg || !showAllBtn || !template) return;
-
-        const entries = allLogs[material] || [];
-        emptyMsg.style.display = entries.length === 0 ? 'block' : 'none';
-        showAllBtn.style.display = (entries.length > LOG_LIMIT && !showAll) ? 'block' : 'none';
-
-        const entriesToRender = showAll ? entries : entries.slice(0, LOG_LIMIT);
-        container.innerHTML = ''; 
-
-        entriesToRender.forEach(entry => {
-            const cardClone = template.content.cloneNode(true) as HTMLElement;
-            const isAddition = entry.quantity > 0;
-            const supervisorName = entry.supervisorName || supervisorMap[entry.supervisorId] || 'مشرف غير معروف';
-
-            const logCard = cardClone.querySelector('.log-card');
-            if (logCard) logCard.classList.add(isAddition ? 'log-card-add' : 'log-card-dispense');
-
-            const actionTypeEl = cardClone.querySelector('.log-action-type');
-            if (actionTypeEl) actionTypeEl.textContent = isAddition ? 'إضافة' : 'صرف';
-
-            const dateEl = cardClone.querySelector('.log-date');
-            if (dateEl) dateEl.textContent = entry.createdAt ? new Date(entry.createdAt).toLocaleString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '';
-
-            const quantityEl = cardClone.querySelector('[data-key="quantity"]');
-            if (quantityEl) quantityEl.textContent = `${Math.abs(entry.quantity)} شكارة`;
-
-            const supervisorEl = cardClone.querySelector('[data-key="supervisor"]');
-            if (supervisorEl) supervisorEl.textContent = supervisorName;
-
-            const notesEl = cardClone.querySelector('[data-key="notes"]');
-            if (notesEl) notesEl.textContent = entry.notes || '-';
-
-            if (userIsAdmin) {
-                const editBtn = cardClone.querySelector('.btn-edit') as HTMLElement;
-                const deleteBtn = cardClone.querySelector('.btn-delete') as HTMLElement;
-                if (editBtn) {
-                   editBtn.dataset.id = entry.id;
-                   editBtn.dataset.material = material;
-                }
-                if (deleteBtn) {
-                   deleteBtn.dataset.id = entry.id;
-                   deleteBtn.dataset.material = material;
-                }
-            } else {
-                cardClone.querySelector('.log-card-actions')?.remove();
-            }
-            container.appendChild(cardClone);
+        if (!container || !template) return;
+        container.innerHTML = '';
+        allLogs[material].slice(0, showAll ? undefined : LOG_LIMIT).forEach(entry => {
+            const clone = template.content.cloneNode(true) as HTMLElement;
+            const isAdd = entry.quantity > 0;
+            clone.querySelector('.log-card').classList.add(isAdd ? 'log-card-add' : 'log-card-dispense');
+            clone.querySelector('.log-action-type').textContent = isAdd ? 'إضافة' : 'صرف';
+            clone.querySelector('.log-date').textContent = new Date(entry.createdAt).toLocaleString('ar-EG');
+            clone.querySelector('[data-key="quantity"]').textContent = `${Math.abs(entry.quantity)} شكارة`;
+            clone.querySelector('[data-key="supervisor"]').textContent = entry.supervisorName || [entry.supervisorId] || 'غير معروف';
+            clone.querySelector('[data-key="notes"]').textContent = entry.notes || '-';
+            if(userIsAdmin) {
+                const eb = clone.querySelector('.btn-edit') as any; eb.dataset.id = entry.id; eb.dataset.material = material;
+                const db = clone.querySelector('.btn-delete') as any; db.dataset.id = entry.id; db.dataset.material = material;
+            } else clone.querySelector('.log-card-actions')?.remove();
+            container.appendChild(clone);
         });
     }
 
-    // --- FORM SUBMISSION --- //
-    async function handleFormSubmit(e, isDispense, projectId, user, material) {
+    async function handleFormSubmit(e, isDisp, projId, user, mat) {
         e.preventDefault();
-        const form = e.target as HTMLFormElement;
-        const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
-        
-        const quantity = parseInt(form.quantity.value, 10);
-        if (isNaN(quantity) || quantity <= 0) {
-            alert('يرجى إدخال كمية صحيحة موجبة.');
-            return;
+        const f = e.target as any;
+        const q = parseInt(f.quantity.value);
+        if(isDisp) {
+            let stock = mat === 'iron' ? liveTotals.iron[f.subType.value.includes('3')?'3':f.subType.value.includes('4')?'4':f.subType.value.includes('5')?'5':f.subType.value.includes('6')?'stirrups6':'stirrups8'] : mat === 'cement' ? liveTotals.cement : liveTotals.other[f.subType.value === 'مواد صبة' ? 'sapa' : f.subType.value === 'سوائل' ? 'liquids' : 'misc'];
+            if(q > stock) return alert('الكمية غير متوفرة');
         }
-
-        if (isDispense) {
-            let currentStock = 0;
-            let subTypeKey;
-
-            if (material === 'iron') {
-                const subType = form.subType.value;
-                if (subType === 'حديد 3 لينه') subTypeKey = '3';
-                else if (subType === 'حديد 4 لينه') subTypeKey = '4';
-                else if (subType === 'حديد 5 لينه') subTypeKey = '5';
-                else if (subType === 'حديد كانات 6 مللي') subTypeKey = 'stirrups6';
-                else if (subType === 'حديد كانات 8 مللي') subTypeKey = 'stirrups8';
-                currentStock = liveTotals.iron[subTypeKey] || 0;
-            } else if (material === 'cement') {
-                currentStock = liveTotals.cement || 0;
-            } else if (material === 'other') {
-                const subType = form.subType.value;
-                if(subType === 'مواد صبة') subTypeKey = 'sapa';
-                else if (subType === 'سوائل') subTypeKey = 'liquids';
-                else subTypeKey = 'misc';
-                currentStock = liveTotals.other[subTypeKey] || 0;
-            }
-
-            if (quantity > currentStock) {
-                alert(`لا يمكن صرف كمية أكبر من الرصيد الحالي (${currentStock}).`);
-                return;
-            }
-        }
-
-        submitBtn.disabled = true; 
-        submitBtn.textContent = 'جارٍ الحفظ...';
-
+        const b = f.querySelector('button[type="submit"]');
+        b.disabled = true;
         try {
-            let supervisorName = user.email || 'مستخدم غير معروف'; 
-            try {
-                const userResp = await fetch(`/api/users/${user.uid}`);
-                if (userResp.ok) {
-                    const userData = await userResp.json();
-                    supervisorName = userData.name || supervisorName;
-                }
-            } catch (userDocError) {
-                console.error("Error fetching user data:", userDocError);
-            }
-
-            let data: any = {
-                projectId, material,
-                quantity: isDispense ? -quantity : quantity,
-                notes: (form.notes as any).value,
-                supervisorId: user.uid,
-                supervisorName: supervisorName
-            };
-            
-            if (standardSubTypes[material]) {
-                let subType = (form.subType as any).value;
-                if (subType === 'أخرى') {
-                    subType = (form.customSubType as any).value.trim();
-                    if (!subType) throw new Error('يرجى تحديد النوع المخصص.');
-                }
-                data.subType = subType;
-            }
-
-            if (material === 'other') {
-                let unit = (form.unit as any).value;
-                if (unit === 'أخرى') {
-                    unit = (form.customUnit as any).value.trim();
-                     if (!unit) throw new Error('يرجى تحديد الوحدة المخصصة.');
-                }
-                data.unit = unit;
-            }
-
-            const response = await fetch('/api/remains', {
+            const res = await fetch('/api/remains', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                body: JSON.stringify({
+                    projectId: projId, material: mat, quantity: isDisp ? -q : q,
+                    notes: f.notes.value, supervisorId: user.userId,
+                    subType: f.subType?.value === 'أخرى' ? f.customSubType.value : f.subType?.value,
+                    unit: f.unit?.value === 'أخرى' ? f.customUnit.value : f.unit?.value
+                })
             });
-
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || 'فشلت العملية');
-            }
-
-            form.reset();
-            form.querySelectorAll('.conditional-field').forEach(f => (f as HTMLElement).style.display = 'none');
-            alert('تمت العملية بنجاح!');
-            
-            // Re-fetch logs to update UI
-            await fetchLogs(material, projectId, userIsAdmin ? 'admin' : 'supervisor');
-            
-        } catch (error) {
-            console.error(`Error submitting ${material} form:`, error);
-            alert((error as Error).message || 'حدث خطأ أثناء الحفظ.');
-        } finally {
-            submitBtn.disabled = false;
-            const buttonText = form.id.includes('dispense') ? 'صرف' : 'إضافة';
-            submitBtn.textContent = buttonText;
-             if (material === 'iron') {
-                handleIronTypeChange({ target: form.querySelector('select[name="subType"]') });
-            }
-        }
+            if(!res.ok) throw new Error();
+            f.reset();
+            alert('تمت العملية');
+            await fetchLogs(mat, projId, userIsAdmin ? 'admin' : 'supervisor');
+        } catch(err) { alert('فشل الحفظ'); } finally { b.disabled = false; }
     }
 
-    // --- ADMIN ACTIONS (EDIT/DELETE) --- //
     function handleAdminActions(e) {
-        const target = (e.target as HTMLElement).closest('button.btn-action') as HTMLElement;
-        if (!target) return;
-        const docId = target.dataset.id;
-        const material = target.dataset.material;
-        if (target.classList.contains('btn-delete')) {
-            openDeleteConfirmation(docId);
-        } else if (target.classList.contains('btn-edit')) {
-            openEditModal(docId, material);
-        }
+        const t = e.target.closest('button.btn-action'); if(!t) return;
+        const id = t.dataset.id, m = t.dataset.material;
+        if(t.classList.contains('btn-delete')) {
+            docIdToDelete = id;
+            document.getElementById('delete-confirm-modal').style.display = 'flex';
+        } else openEditModal(id, m);
     }
 
-    function openDeleteConfirmation(docId) {
-        docIdToDelete = docId;
-        const modal = document.getElementById('delete-confirm-modal');
-        if (modal) modal.style.display = 'flex';
+    function openEditModal(id, m) {
+        const e = allLogs[m].find(l => l.id === id); if(!e) return;
+        const f = document.getElementById('edit-form') as any;
+        f.docId.value = id; f.material.value = m; f.quantity.value = Math.abs(e.quantity); f.notes.value = e.notes;
+        document.getElementById('edit-modal').style.display = 'flex';
     }
-
-    async function handleDelete() {
-        if (!docIdToDelete) return;
-        try {
-            const response = await fetch(`/api/remains/${docIdToDelete}`, { method: 'DELETE' });
-            if (!response.ok) throw new Error('فشلت عملية الحذف');
-            
-            alert('تم الحذف بنجاح!');
-            
-            // Re-fetch all logs to update the UI
-            const pageContent = document.getElementById('page-content');
-            const projectId = pageContent?.dataset.projectId;
-            if (projectId) {
-                await fetchLogs('iron', projectId, 'admin');
-                await fetchLogs('cement', projectId, 'admin');
-                await fetchLogs('other', projectId, 'admin');
-            }
-        } catch (error) {
-            console.error("Error deleting document: ", error);
-            alert('حدث خطأ أثناء الحذف.');
-        } finally {
-            closeDeleteConfirmation();
-        }
-    }
-
-     function closeDeleteConfirmation() {
-        docIdToDelete = null;
-        const modal = document.getElementById('delete-confirm-modal');
-        if (modal) modal.style.display = 'none';
-    }
-
-    function openEditModal(docId, material) {
-        const modal = document.getElementById('edit-modal');
-        const form = document.getElementById('edit-form') as HTMLFormElement;
-        const subTypeGroup = document.getElementById('edit-subtype-group');
-        const subTypeSelect = document.getElementById('edit-subtype') as HTMLSelectElement;
-        const customSubTypeInput = document.getElementById('edit-custom-subtype') as HTMLInputElement;
-        const unitGroup = document.getElementById('edit-unit-group');
-        const unitSelect = document.getElementById('edit-unit') as HTMLSelectElement;
-        const customUnitInput = document.getElementById('edit-custom-unit') as HTMLInputElement;
-        
-        if (!modal || !form || !subTypeGroup || !subTypeSelect || !customSubTypeInput || !unitGroup || !unitSelect || !customUnitInput) return;
-
-        form.reset();
-        [customSubTypeInput, customUnitInput].forEach(el => el.style.display = 'none');
-        (form.elements as any).docId.value = docId;
-        (form.elements as any).material.value = material;
-
-        const entry = allLogs[material]?.find(log => log.id === docId);
-        if (!entry) { return alert('خطأ: لم يتم العثور على السجل.'); }
-
-        // Handle SubType
-        if (standardSubTypes[material]) {
-            subTypeSelect.innerHTML = '';
-            const options = [...standardSubTypes[material], 'أخرى'];
-            options.forEach(type => {
-                const option = document.createElement('option');
-                option.value = type;
-                option.textContent = (material === 'iron') ? type.replace('حديد','').trim() : type;
-                subTypeSelect.appendChild(option);
-            });
-
-            if (standardSubTypes[material].includes(entry.subType)) {
-                subTypeSelect.value = entry.subType;
-            } else {
-                subTypeSelect.value = 'أخرى';
-                customSubTypeInput.value = entry.subType;
-                customSubTypeInput.style.display = 'block';
-            }
-            subTypeGroup.style.display = 'block';
-        } else {
-             subTypeGroup.style.display = 'none';
-        }
-
-        // Handle Unit (for 'other' material)
-        if (material === 'other') {
-             if (standardUnits.other.includes(entry.unit)) {
-                unitSelect.value = entry.unit;
-            } else {
-                unitSelect.value = 'أخرى';
-                customUnitInput.value = entry.unit;
-                customUnitInput.style.display = 'block';
-            }
-            unitGroup.style.display = 'block';
-        } else {
-            unitGroup.style.display = 'none';
-        }
-        
-        const quantityLabel = document.getElementById('edit-quantity-label');
-        if (quantityLabel) {
-            if (material === 'iron') {
-                quantityLabel.textContent = entry.subType && entry.subType.includes('كانات') ? 'عدد الكانات' : 'عدد الأسياخ';
-            } else {
-                quantityLabel.textContent = 'الكمية';
-            }
-        }
-
-        (form.elements as any).quantity.value = Math.abs(entry.quantity);
-        (form.elements as any).notes.value = entry.notes || '';
-        
-        modal.style.display = 'flex';
-    }
-
-    async function handleEditSubmit(e) {
-        e.preventDefault();
-        const form = e.target;
-        const { docId, material, quantity, notes, subType, customSubType, unit, customUnit } = form.elements;
-        const submitBtn = form.querySelector('button[type="submit"]');
-        submitBtn.disabled = true; submitBtn.textContent = 'جارٍ الحفظ...';
-        
-        try {
-            const newQuantity = parseInt(quantity.value, 10);
-            if(isNaN(newQuantity) || newQuantity < 0) throw new Error("الكمية يجب أن تكون رقمًا موجبًا.");
-            
-            const originalEntry = allLogs[material.value]?.find(log => log.id === docId.value);
-            if (!originalEntry) throw new Error("لم يتم العثور على السجل الأصلي.");
-
-            let updatedData: any = {
-                notes: notes.value,
-                quantity: originalEntry.quantity > 0 ? newQuantity : -newQuantity,
-            };
-
-            if (standardSubTypes[material.value]) {
-                let finalSubType = subType.value;
-                if (finalSubType === 'أخرى') {
-                    finalSubType = customSubType.value.trim();
-                    if (!finalSubType) throw new Error('يرجى تحديد النوع المخصص.');
-                }
-                updatedData.subType = finalSubType;
-            }
-
-            if (material.value === 'other') {
-                let finalUnit = unit.value;
-                if (finalUnit === 'أخرى') {
-                    finalUnit = customUnit.value.trim();
-                    if (!finalUnit) throw new Error('يرجى تحديد الوحدة المخصصة.');
-                }
-                updatedData.unit = finalUnit;
-            }
-            
-            const response = await fetch(`/api/remains/${docId.value}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updatedData)
-            });
-
-            if (!response.ok) throw new Error('فشل تحديث السجل');
-
-            alert('تم التعديل بنجاح!');
-            const modal = document.getElementById('edit-modal');
-            if (modal) modal.style.display = 'none';
-
-            // Re-fetch all logs
-            const pageContent = document.getElementById('page-content');
-            const projectId = pageContent?.dataset.projectId;
-            if (projectId) {
-                await fetchLogs('iron', projectId, 'admin');
-                await fetchLogs('cement', projectId, 'admin');
-                await fetchLogs('other', projectId, 'admin');
-            }
-        } catch(error) {
-            alert((error as Error).message || 'فشل تحديث السجل.');
-        } finally {
-            submitBtn.disabled = false; submitBtn.textContent = 'حفظ التعديلات';
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const editModal = document.getElementById('edit-modal');
-        if (editModal) {
-            editModal.querySelector('.modal-close')?.addEventListener('click', () => editModal.style.display = 'none');
-        }
-        const editForm = document.getElementById('edit-form');
-        if (editForm) {
-            editForm.addEventListener('submit', handleEditSubmit);
-            setupConditionalFields(editForm);
-        }
-
-        const deleteModal = document.getElementById('delete-confirm-modal');
-        if (deleteModal) {
-            deleteModal.querySelector('.modal-close')?.addEventListener('click', closeDeleteConfirmation);
-        }
-        document.getElementById('cancel-delete-btn')?.addEventListener('click', closeDeleteConfirmation);
-        document.getElementById('confirm-delete-btn')?.addEventListener('click', handleDelete);
-    });
-
-
-    // --- INITIALIZATION & HELPERS --- //
-    async function getSupervisorNames(ids) { 
-        const nameMap = {};
-        if (!ids || ids.length === 0) return nameMap;
-        
-        try {
-            const userPromises = ids.map(id => fetch(`/api/users/${id}`).then(res => res.ok ? res.json() : null));
-            const userDatas = await Promise.all(userPromises);
-            userDatas.forEach((userData, index) => {
-                const id = ids[index];
-                if (userData) {
-                    nameMap[id] = userData.name || 'اسم غير معروف';
-                } else {
-                    nameMap[id] = 'مشرف محذوف';
-                }
-            });
-        } catch (error) {
-            console.error("Error fetching supervisor names:", error);
-        }
-        return nameMap;
-     }
 
     async function initializeRemainsPage(user, userRole) {
-        const pageContent = document.getElementById('page-content');
-        if (!pageContent || pageContent.dataset.projectExists !== 'true') return;
+        const pc = document.getElementById('page-content');
+        if(!pc || pc.dataset.projectExists !== 'true') return;
         userIsAdmin = userRole === 'admin';
-
-        const projectId = pageContent.dataset.projectId;
-        const supervisorIds = JSON.parse(pageContent.dataset.supervisorIds || '[]');
-        supervisorMap = await getSupervisorNames(supervisorIds);
-        
-        await setupMaterialSection('iron', projectId, user, userRole);
-        await setupMaterialSection('cement', projectId, user, userRole);
-        await setupMaterialSection('other', projectId, user, userRole);
-
-        document.querySelectorAll('.material-form').forEach(form => {
-             if (form.id.startsWith('add-')) {
-                 (form as HTMLElement).style.display = 'flex'; 
-             } else {
-                 (form as HTMLElement).style.display = 'none';
-             }
-        });
+        const pid = pc.dataset.projectId;
+        await setupMaterialSection('iron', pid, user, userRole);
+        await setupMaterialSection('cement', pid, user, userRole);
+        await setupMaterialSection('other', pid, user, userRole);
     }
-    initializeAuthCheck(initializeRemainsPage);
 
+    document.getElementById('confirm-delete-btn')?.addEventListener('click', async () => {
+        await fetch(`/api/remains/${docIdToDelete}`, { method: 'DELETE' });
+        location.reload();
+    });
+
+    document.getElementById('edit-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const f = e.target as any;
+        await fetch(`/api/remains/${f.docId.value}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notes: f.notes.value, quantity: parseInt(f.quantity.value) })
+        });
+        location.reload();
+    });
+
+    initializeAuthCheck(initializeRemainsPage);
 </script>
 
 <style>

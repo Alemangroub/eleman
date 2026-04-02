@@ -1,6 +1,8 @@
 ---
 import Layout from '../../../../layouts/Layout.astro';
 import AdminLogin from '../../../../components/AdminLogin.astro';
+import prisma from '../../../../lib/prisma.ts';
+
 export const prerender = false;
 
 const { id } = Astro.params;
@@ -9,24 +11,28 @@ let items = [];
 let error = null;
 
 try {
-    const projectDoc = await db.collection('projects').doc(id).get();
-    if (projectDoc.exists) {
-        project = { id: projectDoc.id, name: projectDoc.data().projectName };
+    const projectData = await prisma.project.findUnique({
+        where: { id: id },
+        include: {
+            projectImports: {
+                orderBy: { createdAt: 'desc' }
+            }
+        }
+    });
 
-        const itemsSnapshot = await db.collection('projects').doc(id).collection('items').orderBy('createdAt', 'desc').get();
-        items = itemsSnapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                ...data,
-                createdAt: data.createdAt.toDate().toLocaleDateString('en-CA'),
-                specificName: data.specificName || null,
-                pricePerMeter: data.pricePerMeter || null,
-                area: data.area || null,
-                totalPrice: typeof data.totalPrice === 'number' ? data.totalPrice : 0
-            };
-        });
-
+    if (projectData) {
+        project = { id: projectData.id, name: projectData.projectName };
+        items = projectData.projectImports.map(item => ({
+            id: item.id,
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            price: item.price,
+            supplier: item.supplier,
+            date: item.date.toLocaleDateString('en-CA'),
+            notes: item.notes,
+            createdAt: item.createdAt.toLocaleDateString('en-CA')
+        }));
     } else {
         return Astro.redirect('/404');
     }
@@ -35,663 +41,175 @@ try {
     error = "حدث خطأ أثناء تحميل بيانات المشروع.";
 }
 
-const grandTotal = items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+const grandTotal = items.reduce((sum, item) => sum + (item.price || 0), 0);
 ---
+
 <Layout title={`بنود المشروع: ${project ? project.name : ''}`}>
     <div id="auth-loading-message" class="auth-container">
         <p>جارٍ التحقق من صلاحيات الدخول...</p>
     </div>
 
     <div id="admin-login-container" class="auth-container" style="display: none;">
-        <AdminLogin />
+      <AdminLogin />
     </div>
 
-    <main id="page-content" style="display: none;" data-project-id={id}>
+    <main id="page-content" style="display: none;">
         <div class="container">
-            <header class="page-header">
-                <div>
-                    <h1>بنود المشروع: {project ? project.name : '...'}</h1>
-                    <p class="page-subtitle">هنا يمكنك عرض وإدارة بنود المشروع.</p>
-                </div>
-                <div class="header-actions">
-                    <button id="toggle-form-btn" class="btn btn-primary">+ إضافة بند جديد</button>
-                    <a href={`/crs/projects/${id}`} class="back-link">&larr; العودة للتفاصيل</a>
-                    <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
-                </div>
-            </header>
-
-            {error && <p class="error-message" id="error-message-box">{error}</p>}
-
-            <div id="add-item-form-container" style="display: none;" class="form-container">
-                 <h2>نموذج إضافة بند جديد</h2>
-                <form id="add-item-form">
-                    <input type="hidden" id="name" name="name" />
-                    <div class="form-grid">
-                         <div class="form-group">
-                            <label for="itemDate">التاريخ</label>
-                            <input type="date" id="itemDate" name="itemDate" required>
-                        </div>
-                        <div class="form-group" id="specific-name-group" style="display: none;">
-                            <label for="specificName">الاسم</label>
-                            <input type="text" id="specificName" name="specificName" placeholder="ادخل الاسم المحدد">
-                        </div>
-                        <div class="form-group">
-                            <label for="main-category">الفئة الرئيسية (لتحديد اسم البند)</label>
-                            <select id="main-category" required>
-                                <option value="" disabled selected>-- اختر فئة --</option>
-                                <option value="المقاول">المقاول</option>
-                                <option value="بند العماله">بند العماله</option>
-                                <option value="بند الخرسانه">بند الخرسانه</option>
-                                <option value="بند المباني">بند المباني</option>
-                                <option value="بند الكهرباء">بند الكهرباء</option>
-                                <option value="بند السباكه">بند السباكه</option>
-                                <option value="بند المحاره">بند المحاره</option>
-                                <option value="بند الرخام">بند الرخام</option>
-                                <option value="بند الدهانات">بند الدهانات</option>
-                                <option value="بند تشطيبات الكهرباء">بند تشطيبات الكهرباء</option>
-                                <option value="بند المجلس">بند المجلس</option>
-                                <option value="بند الحفر">بند الحفر</option>
-                                <option value="بند الهدم">بند الهدم</option>
-                                <option value="اخرى">اخرى</option>
-                            </select>
-                        </div>
-                        <div class="form-group" id="sub-category-group" style="display: none;">
-                            <label for="sub-category">البند الفرعي</label>
-                            <select id="sub-category"></select>
-                        </div>
-                        <div class="form-group" id="other-name-group" style="display: none;">
-                            <label for="other-name">اسم البند (آخر)</label>
-                            <input type="text" id="other-name" name="other-name" placeholder="ادخل اسم البند الجديد">
-                        </div>
-                        
-                        <div class="form-group contractor-field" id="price-per-meter-group" style="display: none;">
-                            <label for="pricePerMeter">سعر المتر</label>
-                            <input type="number" id="pricePerMeter" name="pricePerMeter" step="0.01">
-                        </div>
-                        <div class="form-group contractor-field" id="area-group" style="display: none;">
-                            <label for="area">المساحة</label>
-                            <input type="number" id="area" name="area" step="0.01">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="totalPrice">الإجمالي</label>
-                            <input type="number" id="totalPrice" name="totalPrice" step="0.01" required>
-                        </div>
-
-                         <div class="form-group form-group-full-width">
-                            <label for="notes">ملاحظات</label>
-                            <textarea id="notes" name="notes" rows="3" placeholder="أضف ملاحظات..."></textarea>
-                        </div>
+            {project ? (
+                <>
+                <header class="page-header">
+                    <div>
+                        <h1>بنود المشروع: {project.name}</h1>
+                        <p>هنا يمكنك عرض وإدارة كافة بنود الواردات لهذا المشروع.</p>
                     </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">حفظ البند</button>
-                        <button type="button" id="cancel-btn" class="btn btn-secondary">إلغاء</button>
+                    <div class="header-actions">
+                        <a href={`/crs/projects/${id}`} class="btn btn-secondary">العودة لتفاصيل المشروع</a>
+                        <button id="logout-button" class="btn btn-logout">تسجيل الخروج</button>
                     </div>
-                </form>
-            </div>
+                </header>
 
-            <div class="content-area" id="items-content-area">
-                <div class="table-header">
-                    <div class="table-controls-left">
-                        <h2 class="table-title">قائمة البنود الحالية</h2>
-                        <div class="filter-container">
-                            <div class="form-group">
-                                <label for="main-category-filter">الفئة الرئيسية:</label>
-                                <select id="main-category-filter">
-                                    <option value="" disabled selected>-- اختر فئة --</option>
-                                    <option value="all">عرض الكل</option>
-                                </select>
-                            </div>
-                            <div class="form-group" id="sub-category-filter-group" style="display: none;">
-                                <label for="sub-category-filter">البند الفرعي:</label>
-                                <select id="sub-category-filter"></select>
-                            </div>
-                        </div>
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <h3>إجمالي القيمة</h3>
+                        <p>{grandTotal.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</p>
                     </div>
-                    <div class="table-controls-right totals-container">
-                        <div class="total-box">
-                            <span class="total-label">إجمالي البنود المفلترة:</span>
-                            <span id="filtered-total" class="total-value">0.00 ج.م</span>
-                        </div>
-                        <div class="total-box grand-total-box">
-                            <span class="total-label">إجمالي كل البنود:</span>
-                            <span id="grand-total" class="total-value">{grandTotal.toFixed(2)} ج.م</span>
-                        </div>
+                    <div class="summary-card">
+                        <h3>عدد البنود</h3>
+                        <p>{items.length}</p>
                     </div>
                 </div>
 
-                <div id="table-container" style="display: none;">
-                     {items.length > 0 ? (
-                        <div class="table-wrapper">
-                            <table class="items-table">
-                                <thead>
-                                    <tr>
-                                        <th>التاريخ</th>
-                                        <th class="col-specificName">الاسم</th>
-                                        <th>اسم البند</th>
-                                        <th class="col-pricePerMeter">سعر المتر</th>
-                                        <th class="col-area">المساحة</th>
-                                        <th>الإجمالي</th>
-                                        <th>ملاحظات</th>
-                                        <th>إجراءات</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="items-table-body">
-                                    {items.map(item => (
-                                        <tr class="item-row" data-item-id={item.id} data-item-name={item.name} data-project-id={project.id} id={`item-row-${item.id}`} data-total-price={item.totalPrice}>
-                                            <td data-label="التاريخ" data-field="createdAt">{item.createdAt}</td>
-                                            <td data-label="الاسم" data-field="specificName" class="col-specificName">{item.specificName || '-'}</td>
-                                            <td data-label="اسم البند" data-field="name">{item.name}</td>
-                                            <td data-label="سعر المتر" data-field="pricePerMeter" class="col-pricePerMeter">{item.pricePerMeter ? item.pricePerMeter.toFixed(2) : '-'}</td>
-                                            <td data-label="المساحة" data-field="area" class="col-area">{item.area ? item.area.toFixed(2) : '-'}</td>
-                                            <td data-label="الإجمالي" data-field="totalPrice">{item.totalPrice.toFixed(2)}</td>
-                                            <td data-label="ملاحظات" data-field="notes">{item.notes || '-'}</td>
-                                            <td data-label="إجراءات" class="actions-cell">
-                                                <div class="action-buttons-view">
-                                                    <button class="btn-action btn-edit">تعديل</button>
-                                                    <button class="btn-action btn-delete" data-project-id={id} data-item-id={item.id}>حذف</button>
-                                                    <button class="btn-action btn-print">طباعة</button>
-                                                </div>
-                                                <div class="action-buttons-edit" style="display: none;">
-                                                    <button class="btn-action btn-save">حفظ</button>
-                                                    <button class="btn-action btn-cancel">إلغاء</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : (
-                        <p class="no-items-message">لا توجد بنود حالياً في هذا المشروع.</p>
-                    )}
+                <div class="filter-controls">
+                     <input type="text" id="search-input" placeholder="ابحث باسم البند أو المورد..." class="search-input">
                 </div>
-                 <p id="initial-message" class="no-items-message">الرجاء اختيار فئة رئيسية من القائمة أعلاه لعرض البيانات.</p>
-            </div>
+
+                <div class="table-container">
+                    <table class="items-table">
+                        <thead>
+                            <tr>
+                                <th>البند</th>
+                                <th>الكمية</th>
+                                <th>سعر الوحدة</th>
+                                <th>الإجمالي</th>
+                                <th>المورد</th>
+                                <th>التاريخ</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-body">
+                            {items.map(item => (
+                                <tr data-id={item.id}>
+                                    <td>{item.name}</td>
+                                    <td>{item.quantity}</td>
+                                    <td>{(item.unitPrice || 0).toLocaleString()} ج.م</td>
+                                    <td>{(item.price || 0).toLocaleString()} ج.م</td>
+                                    <td>{item.supplier || '-'}</td>
+                                    <td>{item.date}</td>
+                                    <td>
+                                        <button class="btn-action btn-delete" data-id={item.id}>حذف</button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {items.length === 0 && <p class="no-data">لا توجد بيانات متاحة لهذا المشروع.</p>}
+                </div>
+                </>
+            ) : (
+                <div class="error-card">
+                    <h2>حدث خطأ</h2>
+                    <p>{error || "لم يتم العثور على المشروع."}</p>
+                    <a href="/crs/projects">العودة لقائمة المشاريع</a>
+                </div>
+            )}
         </div>
-
-        <div id="delete-confirm-modal" class="modal-overlay" style="display: none;">
-          <div class="modal-content">
-            <h4>تأكيد الحذف</h4>
-            <p>هل أنت متأكد من رغبتك في حذف هذا البند؟ لا يمكن التراجع عن هذا الإجراء.</p>
-            <div class="modal-actions">
-              <button id="delete-modal-cancel-btn" class="btn btn-secondary">إلغاء</button>
-              <button id="delete-modal-confirm-btn" class="btn btn-danger">تأكيد الحذف</button>
-            </div>
-          </div>
-        </div>
-
-        <div id="save-confirm-modal" class="modal-overlay" style="display: none;">
-            <div class="modal-content">
-              <h4>تأكيد الحفظ</h4>
-              <p>هل أنت متأكد من رغبتك في حفظ التعديلات؟</p>
-              <div class="modal-actions">
-                <button id="save-modal-cancel-btn" class="btn btn-secondary">إلغاء</button>
-                <button id="save-modal-confirm-btn" class="btn btn-primary">تأكيد الحفظ</button>
-              </div>
-            </div>
-          </div>
     </main>
+
+    <div id="delete-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3>تأكيد الحذف</h3>
+            <p>هل أنت متأكد من رغبتك في حذف هذا البند؟ لا يمكن التراجع عن هذه الخطوة.</p>
+            <div class="modal-actions">
+                <button id="cancel-delete" class="btn btn-secondary">إلغاء</button>
+                <button id="confirm-delete" class="btn btn-primary">تأكيد الحذف</button>
+            </div>
+        </div>
+    </div>
 </Layout>
 
 <script>
-  import { checkAuth, logout } from '../../../../lib/auth.js';
-                document.addEventListener('DOMContentLoaded', () => {
+    import { checkAuth, logout } from '../../../../lib/auth.js';
+
+    document.addEventListener('DOMContentLoaded', async () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
         const pageContent = document.getElementById('page-content');
         
-        const subCategories = { 'المقاول': ['حساب المقاول اليومي', 'لبشه عاديه', 'لبشه مسلحه'], 'بند العماله': ['بند المصروف اليومي','بند اجرة العمال'],'بند الخرسانه':['الاسمنت','الحديد','الزلط','الرمله'],'بند المباني':['رمله','اسمنت','طوب','تشوين','اجرة مباني'],'بند الكهرباء':['بند الاساسيات','بند اجرة التركيب'],'بند السباكه':['بند الاساسيات','بند اجرة التركيب'],'بند المحاره':['الاسمنت','الرمله','اجرة عمال','تشوين'],'بند الرخام':['تمن الرخام','تمن التركيب'],'بند الدهانات':['مونه','اجره'],'بند تشطيبات الكهرباء':['مونه','اجره'],'بند المجلس':['مصروف الرخصه','التصالح','المحاضر'],'بند الحفر':['اجرة العمال','المعدات'],'بند الهدم':['اجرة عمال','المعدات'] };
+        const user = await checkAuth();
+        if(authLoadingMessage) authLoadingMessage.style.display = 'none';
 
-        (async () => {
-    const user = await checkAuth();
-            if(authLoadingMessage) authLoadingMessage.style.display = 'none';
-            if (!user) {
-                if(pageContent) pageContent.style.display = 'none';
-                if(loginContainer) loginContainer.style.display = 'block';
-                return;
-            }
-             try {
-                const userDocRef = doc(db, "users", user.uid);
-                const userDoc = await getDoc(userDocRef);
-                if (userDoc.exists() && userDoc.data().role === 'admin') {
-                    if(pageContent) pageContent.style.display = 'block';
-                    if(loginContainer) loginContainer.style.display = 'none';
-                    setupPageInteractions();
-                } else {
-                    await logout();
-                    window.location.href = '/crs';
-                }
-            } catch (error) {
-                console.error('Auth Check Error:', error);
-                if(loginContainer) loginContainer.style.display = 'block';
-                if(pageContent) pageContent.style.display = 'none';
-            }
-        });
+        if (user && user.role === 'admin') {
+            if(pageContent) pageContent.style.display = 'block';
+            if(loginContainer) loginContainer.style.display = 'none';
 
-        function setupPageInteractions() {
-            const logoutButton = document.getElementById('logout-button');
-            if (logoutButton) {
-                logoutButton.addEventListener('click', async () => {
-                    await logout();
-                    window.location.href = '/crs';
-                });
-            }
-
-            const addItemForm = document.getElementById('add-item-form');
-            if (addItemForm) {
-                addItemForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    const submitButton = addItemForm.querySelector('button[type="submit"]');
-                    submitButton.disabled = true;
-                    submitButton.textContent = 'جارٍ الحفظ...';
-
-                    try {
-                        const projectId = document.getElementById('page-content').dataset.projectId;
-                        const name = document.getElementById('name').value;
-                        const totalPrice = parseFloat(document.getElementById('totalPrice').value);
-                        const itemDate = document.getElementById('itemDate').value;
-                        const notes = document.getElementById('notes').value;
-                        const specificName = document.getElementById('specificName').value;
-                        
-                        if (!name || isNaN(totalPrice) || !itemDate) {
-                            throw new Error('يرجى ملء جميع الحقول المطلوبة والتأكد من صحة البيانات.');
-                        }
-
-                        const itemData = {
-                            name,
-                            totalPrice,
-                            notes,
-                            createdAt: Timestamp.fromDate(new Date(itemDate))
-                        };
-
-                        if (document.getElementById('specific-name-group').style.display === 'block') {
-                            itemData.specificName = specificName;
-                        }
-
-                        if ([ 'لبشه عاديه', 'لبشه مسلحه' ].includes(name)) {
-                            const pricePerMeter = parseFloat(document.getElementById('pricePerMeter').value);
-                            const area = parseFloat(document.getElementById('area').value);
-                            if (!isNaN(pricePerMeter) && !isNaN(area)) {
-                                itemData.pricePerMeter = pricePerMeter;
-                                itemData.area = area;
-                            } else {
-                                throw new Error('سعر المتر والمساحة مطلوبان لهذا البند.');
-                            }
-                        }
-
-                        const itemsColRef = collection(db, 'projects', projectId, 'items');
-                        await addDoc(itemsColRef, itemData);
-                        
-                        window.location.reload();
-
-                    } catch (err) {
-                        console.error("Error adding item:", err);
-                        const errorBox = document.getElementById('error-message-box');
-                        if(errorBox) {
-                            errorBox.textContent = err.message;
-                            errorBox.style.display = 'block';
-                        }
-                        submitButton.disabled = false;
-                        submitButton.textContent = 'حفظ البند';
-                    }
-                });
-            }
-
-            const deleteModal = document.getElementById('delete-confirm-modal');
-            const saveModal = document.getElementById('save-confirm-modal');
-            let itemToDelete = null;
-            let itemToSave = null;
-            let currentEditRow = null;
-
-            const itemsTableBody = document.getElementById('items-table-body');
-            if (itemsTableBody) {
-                itemsTableBody.addEventListener('click', (e) => {
-                    const target = e.target.closest('.btn-action');
-                    if (!target) return;
-                    const row = target.closest('.item-row');
-                    if (!row) return;
-
-                    if (target.classList.contains('btn-delete')) handleDeleteClick(target);
-                    else if (target.classList.contains('btn-edit')) handleEditClick(row);
-                    else if (target.classList.contains('btn-cancel')) handleCancelClick(row);
-                    else if (target.classList.contains('btn-save')) handleSaveClick(row);
-                });
-            }
-
-            function handleDeleteClick(button) {
-                 itemToDelete = { projectId: button.dataset.projectId, itemId: button.dataset.itemId };
-                 if (deleteModal) deleteModal.style.display = 'flex';
-            }
-
-            function handleEditClick(row) {
-                if (currentEditRow && currentEditRow !== row) handleCancelClick(currentEditRow);
-                currentEditRow = row;
-                toggleEditState(row, true);
-            }
-
-            function handleCancelClick(row) {
-                toggleEditState(row, false);
-                currentEditRow = null;
-            }
-
-            function handleSaveClick(row) {
-                itemToSave = row;
-                if(saveModal) saveModal.style.display = 'flex';
-            }
-            
-            async function executeSave(row) {
-                const itemId = row.dataset.itemId;
-                const projectId = row.dataset.projectId;
-                const updates = {};
-                row.querySelectorAll('input, select').forEach(input => {
-                    updates[input.name] = input.type === 'checkbox' ? input.checked : input.value;
-                });
-
-                const itemName = row.dataset.itemName;
-                if ([ 'لبشه عاديه', 'لبشه مسلحه' ].includes(itemName)) {
-                    const pricePerMeter = parseFloat(updates.pricePerMeter);
-                    const area = parseFloat(updates.area);
-                    updates.totalPrice = (!isNaN(pricePerMeter) && !isNaN(area)) ? pricePerMeter * area : 0;
-                }
-
-                const itemRef = doc(db, 'projects', projectId, 'items', itemId);
-
-                try {
-                    await updateDoc(itemRef, updates);
-                    Object.keys(updates).forEach(field => {
-                        const cell = row.querySelector(`td[data-field="${field}"]`);
-                        if (cell) {
-                            let newValue = updates[field];
-                            if ([ 'pricePerMeter', 'area', 'totalPrice' ].includes(field)) {
-                                newValue = newValue ? parseFloat(newValue).toFixed(2) : '-';
-                            } else {
-                                newValue = newValue || '-';
-                            }
-                            cell.textContent = newValue;
-                            cell.dataset.originalValue = newValue;
-                        }
-                    });
-                    row.dataset.totalPrice = updates.totalPrice;
-                    toggleEditState(row, false);
-                    currentEditRow = null;
-                    updateFilteredTotal();
-                } catch (error) {
-                    console.error('Save Error:', error);
-                    alert(`خطأ: ${error.message}`);
-                    handleCancelClick(row);
-                }
-            }
-
-            function toggleEditState(row, isEditing) {
-                const viewButtons = row.querySelector('.action-buttons-view');
-                const editButtons = row.querySelector('.action-buttons-edit');
-                const itemName = row.dataset.itemName;
-
-                if (isEditing) {
-                    viewButtons.style.display = 'none';
-                    editButtons.style.display = 'flex';
-                    row.classList.add('editing');
-
-                    row.querySelectorAll('td[data-field]').forEach(cell => {
-                        const field = cell.dataset.field;
-                        const currentValue = cell.textContent.trim() === '-' ? '' : cell.textContent.trim();
-                        cell.dataset.originalValue = currentValue;
-                        let inputHtml = `<span>${currentValue || '-'}</span>`;
-                        const commonAttrs = `name="${field}" value="${currentValue}" class="form-control-inline"`;
-                        
-                        if (field === 'name') return; // Item name (sub-category) is not editable
-
-                        const isSpecialItem = [ 'لبشه عاديه', 'لبشه مسلحه' ].includes(itemName);
-                        const isContractorItem = subCategories['المقاول'].includes(itemName);
-
-                        switch(field) {
-                            case 'createdAt':
-                                inputHtml = `<input type="date" ${commonAttrs}>`;
-                                break;
-                            case 'specificName':
-                                if (isContractorItem) inputHtml = `<input type="text" ${commonAttrs}>`;
-                                break;
-                            case 'pricePerMeter':
-                            case 'area':
-                                if (isSpecialItem) inputHtml = `<input type="number" ${commonAttrs} step="0.01">`;
-                                break;
-                            case 'totalPrice':
-                                const readonly = isSpecialItem ? 'readonly' : '';
-                                inputHtml = `<input type="number" ${commonAttrs} step="0.01" ${readonly}>`;
-                                break;
-                            case 'notes':
-                                inputHtml = `<input type="text" ${commonAttrs}>`;
-                                break;
-                        }
-                        cell.innerHTML = inputHtml;
-                    });
-
-                    if ([ 'لبشه عاديه', 'لبشه مسلحه' ].includes(itemName)) {
-                        const priceInput = row.querySelector('input[name="pricePerMeter"]');
-                        const areaInput = row.querySelector('input[name="area"]');
-                        const totalInput = row.querySelector('input[name="totalPrice"]');
-                        const calculate = () => {
-                            const price = parseFloat(priceInput.value) || 0;
-                            const area = parseFloat(areaInput.value) || 0;
-                            totalInput.value = (price * area).toFixed(2);
-                        };
-                        if(priceInput) priceInput.addEventListener('input', calculate);
-                        if(areaInput) areaInput.addEventListener('input', calculate);
-                    }
-
-                } else {
-                    viewButtons.style.display = 'flex';
-                    editButtons.style.display = 'none';
-                    row.classList.remove('editing');
-                    row.querySelectorAll('td[data-field]').forEach(cell => {
-                        if (cell.querySelector('input, select')) {
-                           cell.textContent = cell.dataset.originalValue;
-                        }
-                    });
-                }
-            }
-            
-            const deleteModalCancelBtn = document.getElementById('delete-modal-cancel-btn');
-            const saveModalCancelBtn = document.getElementById('save-modal-cancel-btn');
-            const deleteModalConfirmBtn = document.getElementById('delete-modal-confirm-btn');
-            const saveModalConfirmBtn = document.getElementById('save-modal-confirm-btn');
-
-            if (deleteModalCancelBtn) deleteModalCancelBtn.addEventListener('click', () => { deleteModal.style.display = 'none'; itemToDelete = null; });
-            if (saveModalCancelBtn) saveModalCancelBtn.addEventListener('click', () => { saveModal.style.display = 'none'; itemToSave = null; });
-
-            if (deleteModalConfirmBtn) {
-                deleteModalConfirmBtn.addEventListener('click', async () => {
-                    if (!itemToDelete) return;
-                    deleteModalConfirmBtn.disabled = true; deleteModalConfirmBtn.textContent = 'جاري الحذف...';
-                    try {
-                        const itemRef = doc(db, 'projects', itemToDelete.projectId, 'items', itemToDelete.itemId);
-                        await deleteDoc(itemRef);
-                        document.getElementById(`item-row-${itemToDelete.itemId}`).remove();
-                        updateFilteredTotal();
-                    } catch (error) {
-                        console.error("Error deleting item: ", error); alert("حدث خطأ.");
-                    } finally {
-                        deleteModal.style.display = 'none'; itemToDelete = null;
-                        deleteModalConfirmBtn.disabled = false; deleteModalConfirmBtn.textContent = 'تأكيد الحذف';
-                    }
-                });
-            }
-
-            if (saveModalConfirmBtn) {
-                saveModalConfirmBtn.addEventListener('click', async () => {
-                    if (!itemToSave) return;
-                    saveModalConfirmBtn.disabled = true; saveModalConfirmBtn.textContent = 'جاري الحفظ...';
-                    await executeSave(itemToSave);
-                    saveModal.style.display = 'none'; itemToSave = null;
-                    saveModalConfirmBtn.disabled = false; saveModalConfirmBtn.textContent = 'تأكيد الحفظ';
-                });
-            }
-
-            const itemDateInput = document.getElementById('itemDate');
-            if(itemDateInput) itemDateInput.value = new Date().toLocaleDateString('en-CA');
-
-            const toggleBtn = document.getElementById('toggle-form-btn');
-            const cancelBtn = document.getElementById('cancel-btn');
-            const addItemFormContainer = document.getElementById('add-item-form-container');
-
-            if (toggleBtn) toggleBtn.addEventListener('click', () => { const isHidden = addItemFormContainer.style.display === 'none'; addItemFormContainer.style.display = isHidden ? 'block' : 'none'; toggleBtn.textContent = isHidden ? '- إلغاء الإضافة' : '+ إضافة بند جديد'; });
-            if (cancelBtn) cancelBtn.addEventListener('click', () => { addItemFormContainer.style.display = 'none'; toggleBtn.textContent = '+ إضافة بند جديد'; });
-
-            const mainCategorySelect=document.getElementById('main-category');
-            const subCategorySelect=document.getElementById('sub-category');
-            const hiddenNameInput=document.getElementById('name');
-            const otherNameGroup=document.getElementById('other-name-group');
-            const otherNameInput=document.getElementById('other-name');
-            const subCategoryGroup=document.getElementById('sub-category-group');
-            
-            const pricePerMeterGroup = document.getElementById('price-per-meter-group');
-            const areaGroup = document.getElementById('area-group');
-            const pricePerMeterInput = document.getElementById('pricePerMeter');
-            const areaInput = document.getElementById('area');
-            const totalPriceInput = document.getElementById('totalPrice');
-            const specificNameGroup = document.getElementById('specific-name-group');
-            const specificNameInput = document.getElementById('specificName');
-
-            function calculateTotal() {
-                const price = parseFloat(pricePerMeterInput.value) || 0;
-                const area = parseFloat(areaInput.value) || 0;
-                totalPriceInput.value = (price * area).toFixed(2);
-            }
-
-            function handleCategoryChange(){
-                const mainCategory = mainCategorySelect.value;
-                const selectedSubCategory = subCategorySelect.value;
-
-                if(mainCategory==='اخرى') hiddenNameInput.value=otherNameInput.value;
-                else if(subCategories[mainCategory] && subCategorySelect.value) hiddenNameInput.value=subCategorySelect.value;
-                else hiddenNameInput.value=mainCategory;
-
-                const showSpecificName = mainCategory === 'المقاول';
-                specificNameGroup.style.display = showSpecificName ? 'block' : 'none';
-                specificNameInput.required = showSpecificName;
-
-                const showConditionalFields = showSpecificName && (selectedSubCategory === 'لبشه عاديه' || selectedSubCategory === 'لبشه مسلحه');
-                pricePerMeterGroup.style.display = showConditionalFields ? 'block' : 'none';
-                areaGroup.style.display = showConditionalFields ? 'block' : 'none';
-                totalPriceInput.readOnly = showConditionalFields;
-                pricePerMeterInput.required = showConditionalFields;
-                areaInput.required = showConditionalFields;
-                
-                if (showConditionalFields) calculateTotal();
-                else if(document.activeElement !== totalPriceInput) totalPriceInput.value = '';
-            }
-
-            mainCategorySelect.addEventListener('change',()=>{
-                const selectedCategory = mainCategorySelect.value;
-                subCategorySelect.innerHTML='';
-                otherNameGroup.style.display='none';
-                otherNameInput.required=false;
-                subCategoryGroup.style.display='none';
-
-                if(subCategories[selectedCategory]){
-                    subCategorySelect.appendChild(new Option('-- اختر بند فرعي --', ''));
-                    subCategories[selectedCategory].forEach(sub=> subCategorySelect.appendChild(new Option(sub, sub)));
-                    subCategoryGroup.style.display='block';
-                } else if(selectedCategory==='اخرى'){
-                    otherNameGroup.style.display='block';
-                    otherNameInput.required=true;
-                }
-                handleCategoryChange();
-            });
-
-            subCategorySelect.addEventListener('change', handleCategoryChange);
-            otherNameInput.addEventListener('input', handleCategoryChange);
-            pricePerMeterInput.addEventListener('input', calculateTotal);
-            areaInput.addEventListener('input', calculateTotal);
-
-            handleCategoryChange();
-
-            // Filter Logic ...
-            const mainCategoryFilter = document.getElementById('main-category-filter');
-            const subCategoryFilterGroup = document.getElementById('sub-category-filter-group');
-            const subCategoryFilter = document.getElementById('sub-category-filter');
-            const tableContainer = document.getElementById('table-container');
-            const itemsTable = document.querySelector('.items-table');
-            const initialMessage = document.getElementById('initial-message');
-            const filteredTotalEl = document.getElementById('filtered-total');
-
-            function updateFilteredTotal() {
-                let filteredTotal = 0;
-                document.querySelectorAll('#items-table-body .item-row').forEach(row => {
-                    if (row.style.display !== 'none') filteredTotal += parseFloat(row.dataset.totalPrice) || 0;
-                });
-                if (filteredTotalEl) filteredTotalEl.textContent = `${filteredTotal.toFixed(2)} ج.م`;
-            }
-            
-            if(mainCategoryFilter) {
-                const allRows = Array.from(document.querySelectorAll('.item-row'));
-                const mainCategories = [...Object.keys(subCategories), 'اخرى'];
-                mainCategories.forEach(category => mainCategoryFilter.appendChild(new Option(category, category)));
-                
-                const allKnownSubItems = new Set(Object.values(subCategories).flat());
-
-                mainCategoryFilter.addEventListener('change', () => {
-                    const selectedMain = mainCategoryFilter.value;
-                    subCategoryFilter.innerHTML = '';
-                    
-                    if (itemsTable) {
-                        if (selectedMain === 'المقاول' || selectedMain === 'all') {
-                            itemsTable.classList.add('show-contractor-cols');
-                        } else {
-                            itemsTable.classList.remove('show-contractor-cols');
-                        }
-                    }
-
-                    if (!selectedMain || selectedMain === 'all') {
-                        tableContainer.style.display = selectedMain === 'all' ? 'block' : 'none';
-                        initialMessage.style.display = selectedMain === 'all' ? 'none' : 'block';
-                        subCategoryFilterGroup.style.display = 'none';
-                         if (selectedMain === 'all') {
-                            allRows.forEach(row => row.style.display = '');
-                        }
-                    } else {
-                        tableContainer.style.display = 'block';
-                        initialMessage.style.display = 'none';
-                        if (selectedMain === 'اخرى'){
-                            subCategoryFilterGroup.style.display = 'none';
-                            allRows.forEach(row => {
-                                const itemName = row.dataset.itemName;
-                                const isKnownItem = subCategories.hasOwnProperty(itemName) || allKnownSubItems.has(itemName);
-                                row.style.display = !isKnownItem ? '' : 'none';
-                            });
-                        } else if (subCategories[selectedMain]) {
-                            subCategoryFilter.appendChild(new Option(`جميع بنود ${selectedMain}`, 'all-subs'));
-                            subCategories[selectedMain].forEach(sub => subCategoryFilter.appendChild(new Option(sub, sub)));
-                            subCategoryFilterGroup.style.display = 'block';
-                        } 
-                    }
-                    subCategoryFilter.dispatchEvent(new Event('change'));
-                    updateFilteredTotal();
-                });
-
-                if (subCategoryFilter) {
-                    subCategoryFilter.addEventListener('change', () => {
-                        const selectedMain = mainCategoryFilter.value;
-                        const selectedSub = subCategoryFilter.value;
-                        if(!selectedMain || selectedMain === 'all' || selectedMain === 'اخرى') return;
-
-                        allRows.forEach(row => {
-                            const itemName = row.dataset.itemName;
-                            let show = (selectedSub === 'all-subs') 
-                                ? (subCategories[selectedMain] || []).includes(itemName) 
-                                : (itemName === selectedSub);
-                            row.style.display = show ? '' : 'none';
-                        });
-                        updateFilteredTotal();
-                    });
-                }
-                if (itemsTable) {
-                    itemsTable.classList.remove('show-contractor-cols');
-                }
-            }
+            setupPageHandlers();
+        } else {
+            if(pageContent) pageContent.style.display = 'none';
+            if(loginContainer) loginContainer.style.display = 'block';
         }
     });
+
+    function setupPageHandlers() {
+        const logoutButton = document.getElementById('logout-button');
+        logoutButton?.addEventListener('click', async () => {
+            await logout();
+        });
+
+        const searchInput = document.getElementById('search-input') as HTMLInputElement;
+        const itemsBody = document.getElementById('items-body');
+        const rows = itemsBody?.querySelectorAll('tr');
+
+        searchInput?.addEventListener('input', () => {
+            const query = searchInput.value.toLowerCase();
+            rows?.forEach(row => {
+                const text = row.textContent?.toLowerCase() || '';
+                (row as HTMLElement).style.display = text.includes(query) ? '' : 'none';
+            });
+        });
+
+        let itemToDelete = null;
+        const deleteModal = document.getElementById('delete-modal');
+        const confirmDelete = document.getElementById('confirm-delete');
+        const cancelDelete = document.getElementById('cancel-delete');
+
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                itemToDelete = (e.currentTarget as HTMLElement).dataset.id;
+                if(deleteModal) deleteModal.style.display = 'flex';
+            });
+        });
+
+        cancelDelete?.addEventListener('click', () => {
+            if(deleteModal) deleteModal.style.display = 'none';
+            itemToDelete = null;
+        });
+
+        confirmDelete?.addEventListener('click', async () => {
+            if (itemToDelete) {
+                try {
+                    const response = await fetch(`/api/imports/${itemToDelete}`, { method: 'DELETE' });
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('حدث خطأ أثناء الحذف.');
+                    }
+                } catch (error) {
+                    console.error('Delete error:', error);
+                    alert('خطأ في الاتصال بالسيرفر.');
+                }
+            }
+        });
+    }
 </script>
 
 <style>
@@ -700,120 +218,39 @@ const grandTotal = items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
         --secondary-color: #6c757d; 
         --success-color: #28a745; 
         --danger-color: #dc3545; 
-        --warning-color: #ffc107; 
-        --info-color: #17a2b8;
         --border-color: #dee2e6;
-        --background-color: #f4f6f9; 
         --white-color: #fff;
-        --shadow: 0 4px 15px rgba(0,0,0,0.07);
-        --table-header-bg: #e9ecef;
-        --table-hover-bg: #f8f9fa;
-        --table-stripe-bg: #fdfdfd;
     }
-    main { direction: rtl; font-family: 'Cairo', sans-serif; background-color: var(--background-color); min-height: 100vh; padding: 2rem 1rem; }
-    .container { max-width: 1400px; margin: 0 auto; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
-    h1 { font-size: 2.2rem; font-weight: 800; color: #333; }
-    .page-subtitle { color: var(--secondary-color); margin-top: 0.25rem; }
-    .header-actions { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
-    .back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; padding: 0.7rem 1.2rem; border-radius: 8px; transition: background-color 0.2s; text-align: center; }
-    .back-link:hover { background-color: #e9ecef; }
-    .btn { padding: 0.7rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem; text-decoration: none; text-align: center; border: none; transition: all 0.2s; }
+    main { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f4f6f9; min-height: 100vh; padding: 2rem 1rem; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.8rem; font-weight: 800; color: #333; margin: 0; }
+    .header-actions { display: flex; gap: 1rem; }
+    .btn { padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; border: none; transition: all 0.2s; }
     .btn-primary { background-color: var(--primary-color); color: var(--white-color); }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 86, 179, 0.25); }
-    .btn-secondary { background-color: var(--secondary-color); color: var(--white-color); }
-    .btn-logout { background-color: var(--danger-color); color: white;}
-    .btn-danger { background-color: var(--danger-color); color: var(--white-color); }
-
-    .error-message { padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 600; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .btn-secondary { background-color: var(--secondary-color); color: var(--white-color); font-decoration: none; display: inline-flex; align-items: center; justify-content: center; text-decoration: none;}
+    .btn-logout { background-color: var(--danger-color); color: white; }
     
-    .form-container { background: var(--white-color); padding: 2rem; border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 2rem; }
-    .form-container h2 { font-size: 1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;}
-    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; align-items: start; }
-    .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
-    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; transition: box-shadow 0.2s, border-color 0.2s; background-color: #fff; }
-    .form-group-full-width { grid-column: 1 / -1; }
-    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.2); }
-    .form-group input:disabled, input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
-    .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; }
-    
-    .content-area { background: var(--white-color); border-radius: 12px; padding: 1rem; box-shadow: var(--shadow); }
-    
-    .table-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 1.5rem; }
-    .table-controls-left { display: flex; flex-direction: column; gap: 1rem; flex-grow: 1; }
-    .table-title { font-size: 1.5rem; font-weight: 700; color: #333; margin: 0; }
-    .filter-container { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;}
-    
-    .totals-container { display: flex; gap: 1rem; flex-wrap: wrap; align-self: flex-start; }
-    .total-box { background-color: var(--table-header-bg); padding: 0.75rem 1.25rem; border-radius: 8px; text-align: right; border: 1px solid var(--border-color); flex-grow: 1; }
-    .total-box.grand-total-box { background-color: #e8f0fe; border-color: #a8c5ff; }
-    .total-label { display: block; color: var(--secondary-color); font-size: 0.9rem; margin-bottom: 0.25rem; font-weight: 500; }
-    .total-value { display: block; font-size: 1.4rem; font-weight: 700; }
-    .grand-total-box .total-value { color: #0b57d0; }
-    #filtered-total { color: #333; }
-    
-    .table-wrapper { overflow-x: auto; }
-    .items-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-    .items-table th, .items-table td { padding: 1.25rem 1rem; text-align: right; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-    .items-table thead th { background-color: var(--table-header-bg); font-weight: 800; color: #333; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; position: sticky; top: 0; z-index: 10; }
-    .items-table tbody tr:nth-child(even) { background-color: var(--table-stripe-bg); }
-    .items-table tbody tr:hover { background-color: var(--table-hover-bg); }
-    .no-items-message { text-align: center; padding: 2rem; font-size: 1.1rem; color: var(--secondary-color); }
-    
-    .items-table tr.editing td { padding-top: 0.75rem; padding-bottom: 0.75rem; }
-    .form-control-inline { width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; }
+    .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+    .summary-card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); text-align: center; }
+    .summary-card h3 { font-size: 1rem; color: #666; margin-bottom: 0.5rem; }
+    .summary-card p { font-size: 1.5rem; font-weight: 800; color: var(--primary-color); margin: 0; }
 
-    .actions-cell .action-buttons-view, .actions-cell .action-buttons-edit { display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
-    .btn-action { padding: 0.4rem 0.8rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; transition: transform 0.2s; border: none; color: var(--white-color); cursor: pointer; margin: 2px 0; }
-    .btn-action:hover { transform: translateY(-2px); }
-    .btn-edit { background-color: var(--warning-color); color: #333;}
-    .btn-delete { background-color: var(--danger-color);}
-    .btn-save { background-color: var(--success-color); }
-    .btn-cancel { background-color: var(--secondary-color); }
-    .btn-print { background-color: var(--info-color); }
+    .filter-controls { margin-bottom: 1.5rem; }
+    .search-input { width: 100%; max-width: 400px; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; }
 
-    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-    .modal-content { background: #fff; padding: 2.5rem; border-radius: 12px; width: 90%; max-width: 450px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-    .modal-content h4 { margin-top: 0; font-size: 1.5rem; color: #333; font-weight: 800; }
-    .modal-content p { margin-bottom: 1rem; color: #555; font-size: 1.1rem; }
-    .modal-actions { display: flex; justify-content: center; gap: 1rem; margin-top: 2rem; }
+    .table-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .items-table { width: 100%; border-collapse: collapse; }
+    .items-table th, .items-table td { padding: 1rem; text-align: right; border-bottom: 1px solid var(--border-color); }
+    .items-table th { background-color: #f8f9fa; color: #555; font-weight: 700; }
+    .no-data { padding: 2rem; text-align: center; color: #888; }
+
+    .btn-action { padding: 0.4rem 0.8rem; border-radius: 6px; border: none; color: white; cursor: pointer; font-size: 0.9rem; }
+    .btn-delete { background-color: var(--danger-color); }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-content { background: white; padding: 2rem; border-radius: 12px; max-width: 400px; text-align: center; direction: rtl; font-family: 'Cairo', sans-serif; }
+    .modal-actions { display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem; }
     
-    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
-    .auth-container p { font-size: 1.2rem; }
-
-    .items-table .col-specificName,
-    .items-table .col-pricePerMeter,
-    .items-table .col-area {
-        display: none;
-    }
-    .items-table.show-contractor-cols .col-specificName,
-    .items-table.show-contractor-cols .col-pricePerMeter,
-    .items-table.show-contractor-cols .col-area {
-        display: table-cell;
-    }
-
-    @media (max-width: 992px) {
-        main { padding: 1rem; }
-        .content-area { padding: 1rem; }
-        .page-header { flex-direction: column; align-items: stretch; text-align: center; }
-        .header-actions { flex-direction: column; align-items: stretch; width: 100%; }
-        .items-table thead { display: none; }
-        .items-table tr { display: block; margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 1rem; }
-        .items-table td { display: flex; justify-content: space-between; text-align: right; padding: 0.75rem 0.25rem; border-bottom: 1px solid #f0f0f0; }
-        .items-table td:last-child { border-bottom: none; padding-top: 1rem; justify-content: center; }
-        .items-table td::before { content: attr(data-label); font-weight: 700; color: var(--primary-color); padding-right: 10px; text-align: right; flex-basis: 40%; }
-        .actions-cell .action-buttons-view { justify-content: center; flex-wrap: wrap; }
-
-        .items-table.show-contractor-cols .col-specificName,
-        .items-table.show-contractor-cols .col-pricePerMeter,
-        .items-table.show-contractor-cols .col-area {
-            display: flex;
-        }
-
-        .items-table:not(.show-contractor-cols) td.col-specificName,
-        .items-table:not(.show-contractor-cols) td.col-pricePerMeter,
-        .items-table:not(.show-contractor-cols) td.col-area {
-            display: none;
-        }
-    }
+    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; text-align: center; font-family: 'Cairo', sans-serif;}
 </style>

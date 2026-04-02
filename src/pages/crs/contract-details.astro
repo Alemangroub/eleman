@@ -98,6 +98,311 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
 
 </Layout>
 
+<script>
+  import { checkAuth, logout } from '../../lib/auth.js';
+  
+  let currentProjectId = null;
+  let currentCustomerName = null;
+  let allInstallments = [];
+  
+  const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+  const formatDate = (dateValue, format = 'long') => {
+      if (!dateValue) return '-';
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) return '-';
+      if (format === 'yyyy-mm-dd') return date.toISOString().split('T')[0];
+      return date.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+  const unitTypeTranslations = { apartment: 'شقة', shop: 'محل', basement: 'بدروم', other: 'أخرى' };
+
+  document.addEventListener('DOMContentLoaded', async () => {
+      const authLoadingMessage = document.getElementById('auth-loading-message');
+      const loginContainer = document.getElementById('admin-login-container');
+      const pageContent = document.getElementById('page-content');
+
+      const user = await checkAuth();
+      if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+      if (user && user.role === 'admin') {
+          if(pageContent) pageContent.style.display = 'block';
+          if(loginContainer) loginContainer.style.display = 'none';
+          initializeApp();
+      } else {
+          if(pageContent) pageContent.style.display = 'none';
+          if(loginContainer) loginContainer.style.display = 'block';
+      }
+  });
+
+  async function initializeApp() {
+      const loader = document.getElementById('loader');
+      const content = document.getElementById('contract-details-content');
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      currentProjectId = urlParams.get('projectId');
+      currentCustomerName = urlParams.get('customerName');
+
+      if (!currentProjectId || !currentCustomerName) {
+          showError("بيانات المشروع أو العميل غير متوفرة.");
+          return;
+      }
+
+      (document.getElementById('back-link') as HTMLAnchorElement).href = `/crs/project-installments?projectId=${currentProjectId}`;
+      (document.getElementById('edit-contract-btn') as HTMLAnchorElement).href = `/crs/edit-contract?projectId=${currentProjectId}&customerName=${encodeURIComponent(currentCustomerName)}`;
+
+      try {
+          const response = await fetch(`/api/installments?projectId=${currentProjectId}&customerName=${encodeURIComponent(currentCustomerName)}`);
+          const data = await response.json();
+
+          if (!response.ok || data.length === 0) {
+              showError("لم يتم العثور على أقساط.");
+              return;
+          }
+
+          allInstallments = data;
+          renderContractInfo(allInstallments[0]);
+          renderInstallmentsTable(allInstallments);
+          calculateSummary(allInstallments, allInstallments[0].totalAmount);
+          
+          if(loader) loader.style.display = 'none';
+          if(content) content.style.display = 'block';
+
+          setupInteractions();
+      } catch (error) {
+          showError("حدث خطأ أثناء تحميل البيانات.");
+      }
+  }
+
+  function setupInteractions() {
+      document.getElementById('print-btn')?.addEventListener('click', () => window.print());
+      document.getElementById('export-pdf-btn')?.addEventListener('click', exportPDF);
+      document.getElementById('export-excel-btn')?.addEventListener('click', exportExcel);
+      document.getElementById('delete-contract-btn')?.addEventListener('click', handleDeleteContract);
+
+      const table = document.getElementById('installments-table');
+      table?.addEventListener('click', (e) => {
+          const target = e.target as HTMLElement;
+          const btn = target.closest('button');
+          if (!btn) return;
+
+          const action = btn.classList.contains('btn-edit') ? 'edit' : 
+                         btn.classList.contains('btn-save') ? 'save' : 
+                         btn.classList.contains('btn-partial') ? 'partial' : 
+                         btn.classList.contains('btn-delete-installment') ? 'delete' : null;
+
+          if (action === 'edit') enterEditMode(btn.closest('tr'), btn);
+          else if (action === 'save') saveInstallmentChanges(btn.closest('tr'), btn);
+          else if (action === 'partial') handlePartialPayment(btn);
+          else if (action === 'delete') handleDeleteInstallment(btn);
+      });
+
+      table?.addEventListener('change', (e) => {
+          const target = e.target as HTMLSelectElement;
+          if (target.classList.contains('status-select')) handleStatusChange(target);
+      });
+  }
+
+  function showError(msg) {
+      const loader = document.getElementById('loader');
+      const errorDisplay = document.getElementById('error-display');
+      const errorMessage = document.getElementById('error-message');
+      if(loader) loader.style.display = 'none';
+      if(errorMessage) errorMessage.textContent = msg;
+      if(errorDisplay) errorDisplay.style.display = 'block';
+  }
+
+  function renderContractInfo(data) {
+      document.getElementById('customer-name-header').textContent = `تفاصيل عقد: ${data.customerName}`;
+      document.getElementById('info-customer-name').textContent = data.customerName || '-';
+      document.getElementById('info-customer-phone').textContent = data.customerPhone || '-';
+      document.getElementById('info-unit-type').textContent = unitTypeTranslations[data.unitType] || data.unitType || '-';
+      document.getElementById('info-unit-location').textContent = data.unitLocation || '-';
+  }
+
+  function calculateSummary(installments, totalAmount) {
+      const totalPaid = installments
+          .filter(inst => inst.status === 'paid')
+          .reduce((sum, inst) => sum + (inst.installmentAmount || 0), 0);
+      const totalRemaining = totalAmount - totalPaid;
+      document.getElementById('total-amount').textContent = formatCurrency(totalAmount);
+      document.getElementById('total-paid').textContent = formatCurrency(totalPaid);
+      document.getElementById('total-remaining').textContent = formatCurrency(totalRemaining);
+  }
+
+  function renderInstallmentsTable(installments) {
+      const tableBody = document.querySelector('#installments-table tbody');
+      if(!tableBody) return;
+      tableBody.innerHTML = '';
+      
+      installments.forEach((inst, index) => {
+          const row = document.createElement('tr');
+          const isPaid = inst.status === 'paid';
+          row.className = isPaid ? 'status-paid' : 'status-pending';
+          
+          row.innerHTML = `
+              <td data-label="م.">${index + 1}</td>
+              <td data-label="مبلغ القسط" data-field="amount" data-original-value="${inst.installmentAmount}">${formatCurrency(inst.installmentAmount)}</td>
+              <td data-label="تاريخ الاستحقاق" data-field="dueDate" data-original-value="${formatDate(inst.dueDate, 'yyyy-mm-dd')}">${formatDate(inst.dueDate)}</td>
+              <td data-label="الحالة">
+                  <select class="status-select" data-id="${inst.id}" data-current-status="${inst.status}">
+                      <option value="pending" ${!isPaid ? 'selected' : ''}>مستحق</option>
+                      <option value="paid" ${isPaid ? 'selected' : ''}>مدفوع</option>
+                  </select>
+              </td>
+              <td data-label="تاريخ الدفع">${formatDate(inst.paidDate)}</td>
+              <td data-label="بيان القسط">${inst.customerName || ''}</td>
+              <td data-label="إجراءات" class="actions-cell">
+                  ${!isPaid ? `<button class="btn btn-partial btn-sm" data-id="${inst.id}">سداد جزئي</button>` : ''}
+                  <button class="btn btn-edit btn-sm" data-id="${inst.id}">تعديل</button>
+                  <button class="btn btn-delete-installment btn-sm btn-danger" data-id="${inst.id}">حذف</button>
+              </td>
+          `;
+          tableBody.appendChild(row);
+      });
+  }
+
+  async function handleStatusChange(select) {
+      const id = select.dataset.id;
+      const newStatus = select.value;
+      if (await (window as any).showConfirmationModal(`تغيير حالة القسط؟`)) {
+          try {
+              const res = await fetch('/api/installments/update', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id, status: newStatus, paidDate: newStatus === 'paid' ? new Date() : null })
+              });
+              if (res.ok) initializeApp();
+          } catch (e) { alert("خطأ في التحديث"); }
+      } else {
+          select.value = select.dataset.currentStatus;
+      }
+  }
+
+  function enterEditMode(row, button) {
+      row.classList.add('is-editing');
+      button.textContent = 'حفظ';
+      button.classList.replace('btn-edit', 'btn-save');
+
+      const amountCell = row.querySelector('td[data-field="amount"]');
+      const dateCell = row.querySelector('td[data-field="dueDate"]');
+
+      amountCell.innerHTML = `<input type="number" class="edit-input" value="${amountCell.dataset.originalValue}">`;
+      dateCell.innerHTML = `<input type="date" class="edit-input" value="${dateCell.dataset.originalValue}">`;
+  }
+
+  async function saveInstallmentChanges(row, button) {
+      const id = button.dataset.id;
+      const amount = parseFloat(row.querySelector('td[data-field="amount"] input').value);
+      const date = row.querySelector('td[data-field="dueDate"] input').value;
+
+      if (await (window as any).showConfirmationModal('حفظ التعديلات؟')) {
+          try {
+              const oldInst = allInstallments.find(i => i.id === id);
+              const diff = amount - oldInst.installmentAmount;
+              const newTotal = oldInst.totalAmount + diff;
+
+              await fetch('/api/installments/update', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id, installmentAmount: amount, dueDate: new Date(date) })
+              });
+
+              await fetch('/api/installments/bulk-update', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ projectId: currentProjectId, customerName: currentCustomerName, totalAmount: newTotal })
+              });
+
+              initializeApp();
+          } catch (e) { alert("خطأ في الحفظ"); }
+      }
+  }
+
+  async function handleDeleteInstallment(btn) {
+      if (allInstallments.length <= 1) { alert("لا يمكن حذف القسط الأخير."); return; }
+      if (await (window as any).showConfirmationModal('حذف هذا القسط؟')) {
+          try {
+              const id = btn.dataset.id;
+              const inst = allInstallments.find(i => i.id === id);
+              const newTotal = inst.totalAmount - inst.installmentAmount;
+
+              await fetch('/api/installments/bulk-delete', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ ids: [id] })
+              });
+
+              await fetch('/api/installments/bulk-update', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ projectId: currentProjectId, customerName: currentCustomerName, totalAmount: newTotal })
+              });
+
+              initializeApp();
+          } catch (e) { alert("خطأ في الحذف"); }
+      }
+  }
+
+  async function handleDeleteContract() {
+      if (await (window as any).showConfirmationModal('حذف العقد بالكامل؟')) {
+          try {
+              const res = await fetch('/api/installments/bulk-delete', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ projectId: currentProjectId, customerName: currentCustomerName })
+              });
+              if (res.ok) window.location.href = `/crs/project-installments?projectId=${currentProjectId}`;
+          } catch (e) { alert("خطأ في حذف العقد"); }
+      }
+  }
+
+  async function handlePartialPayment(btn) {
+      const id = btn.dataset.id;
+      const inst = allInstallments.find(i => i.id === id);
+      const paid = await (window as any).showPartialPaymentModal(id, inst.installmentAmount);
+
+      if (paid && paid < inst.installmentAmount) {
+          if (await (window as any).showConfirmationModal('تقسيم القسط؟')) {
+              try {
+                  await fetch('/api/installments/update', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id, installmentAmount: paid, status: 'paid', paidDate: new Date() })
+                  });
+
+                  await fetch('/api/installments/create', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                          projectId: inst.projectId, customerName: inst.customerName, customerPhone: inst.customerPhone,
+                          unitType: inst.unitType, unitLocation: inst.unitLocation, totalAmount: inst.totalAmount,
+                          installmentAmount: inst.installmentAmount - paid, dueDate: inst.dueDate, status: 'pending'
+                      })
+                  });
+                  initializeApp();
+              } catch (e) { alert("خطأ في الدفع الجزئي"); }
+          }
+      }
+  }
+
+  async function exportPDF() {
+      const { jsPDF } = await import('jspdf');
+      const { default: html2canvas } = await import('html2canvas');
+      const content = document.getElementById('contract-details-content');
+      const canvas = await html2canvas(content, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      pdf.addImage(imgData, 'PNG', 0, 0, 210, (210 / canvas.width) * canvas.height);
+      pdf.save(`${currentCustomerName}.pdf`);
+  }
+
+  async function exportExcel() {
+      const XLSX = await import('xlsx');
+      const table = document.getElementById('installments-table');
+      const wb = XLSX.utils.table_to_book(table);
+      XLSX.writeFile(wb, `${currentCustomerName}.xlsx`);
+  }
+</script>
+
 <style is:global>
     :root {
         --primary-color: #2c3e50;
@@ -106,645 +411,40 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
         --warning-color: #f39c12;
         --danger-color: #c0392b;
         --info-color: #3498db;
-        --light-bg: #f7f9fc;
         --white-bg: #ffffff;
         --border-color: #e0e0e0;
         --shadow: 0 4px 12px rgba(0,0,0,0.06);
-        --green-bg: #e8f8ef;
-        --yellow-bg: #fef9e7;
     }
-    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
-    main#page-content { padding: 2rem 1rem; background-color: var(--light-bg); min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
-    .details-container { width: 100%; max-width: 1200px; margin: 0 auto; }
-    .details-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); }
-    h1 { margin: 0; font-size: 2.2rem; color: var(--primary-color); }
-    .header-buttons { display: flex; gap: 1rem; }
-    .btn { padding: 0.7rem 1.4rem; border-radius: 8px; text-decoration: none; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
-    .btn-sm { font-size: 0.8rem; padding: 0.4rem 0.8rem; }
-    .actions-cell { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-start; align-items: center; min-width: 200px; }
-    .btn-secondary { background-color: var(--secondary-color); color: white; }
-    .btn-secondary:hover { background-color: #6a7374; }
-    .btn-danger { background-color: var(--danger-color); color: white; }
-    .btn-danger:hover { background-color: #a93226; }
-    .btn-warning { background-color: var(--warning-color); color: white; }
-    .btn-warning:hover { background-color: #d68910; }
-    .btn-info { background-color: var(--info-color); color: white; }
-    .btn-info:hover { background-color: #2980b9; }
-    .btn-edit, .btn-save { font-size: 0.9rem; padding: 0.5rem 1rem; }
-    .btn-edit { background-color: var(--info-color); color: white; }
-    .btn-edit:hover { background-color: #2980b9; }
-    .btn-save { background-color: var(--success-color); color: white; }
-    .btn-save:hover { background-color: #219d52; }
-    .btn-partial { background-color: var(--warning-color); color: white; }
-    .btn-partial:hover { background-color: #d68910; }
-
-    #loader, .message-card { text-align: center; padding: 3rem; margin-top: 2rem; background: var(--white-bg); border-radius: 10px; box-shadow: var(--shadow); color: var(--secondary-color); font-size: 1.2rem; }
-    #error-display { color: var(--danger-color); border-left: 5px solid var(--danger-color); }
-
-    .summary-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-    .stat-card { background: var(--white-bg); padding: 1.5rem; border-radius: 10px; box-shadow: var(--shadow); }
-    .stat-card h4 { margin: 0 0 0.5rem 0; font-size: 1rem; color: var(--secondary-color); font-weight: 600; }
-    .stat-card p { margin: 0; font-size: 2rem; font-weight: 700; color: var(--primary-color); }
+    main#page-content { padding: 2rem 1rem; background-color: #f7f9fc; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
+    .details-container { max-width: 1200px; margin: 0 auto; }
+    .details-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+    h1 { font-size: 2rem; color: var(--primary-color); }
+    .header-buttons { display: flex; gap: 0.5rem; }
+    .btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.3s; color: white; display: inline-block; text-decoration: none; font-family: inherit; }
+    .btn-info { background-color: var(--info-color); }
+    .btn-warning { background-color: var(--warning-color); }
+    .btn-danger { background-color: var(--danger-color); }
+    .btn-secondary { background-color: var(--secondary-color); }
+    .btn-sm { font-size: 0.85rem; padding: 0.4rem 0.8rem; }
+    
+    .summary-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: var(--shadow); border-right: 5px solid var(--primary-color); }
+    .stat-card h4 { margin: 0; color: #555; }
+    .stat-card p { font-size: 1.8rem; font-weight: 700; margin: 0.5rem 0 0; }
     .stat-card .paid { color: var(--success-color); }
     .stat-card .remaining { color: var(--danger-color); }
 
-    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
-    .info-card { background: var(--white-bg); padding: 1.5rem; border-radius: 10px; box-shadow: var(--shadow); }
-    .info-card h3 { margin: 0 0 1rem 0; font-size: 1.2rem; color: var(--primary-color); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
-    .info-card p { margin: 0.5rem 0; font-size: 1rem; line-height: 1.6; }
-    .info-card p span { color: var(--secondary-color); font-weight: 500; }
-
-    .installments-section { background: var(--white-bg); padding: 2rem; border-radius: 10px; box-shadow: var(--shadow); }
-    .installments-section h3 { margin: 0 0 1.5rem 0; font-size: 1.5rem; color: var(--primary-color); }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2.5rem; }
+    .info-card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: var(--shadow); }
     
-    .table-responsive-wrapper { overflow-x: auto; }
-    #installments-table { width: 100%; border-collapse: collapse; }
-    #installments-table th, #installments-table td { padding: 1rem; text-align: right; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-    #installments-table th { font-size: 0.9rem; color: var(--secondary-color); text-transform: uppercase; background-color: var(--light-bg); }
-    #installments-table td { font-size: 1rem; color: var(--primary-color); }
-    #installments-table select, #installments-table .edit-input { padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); font-family: 'Cairo', sans-serif; box-sizing: border-box; }
-    #installments-table .edit-input { width: 100%; }
-    #installments-table tr.status-paid { background-color: var(--green-bg); }
-    #installments-table tr.status-pending { background-color: var(--yellow-bg); }
-
-    @media (max-width: 768px) {
-        #installments-table.is-responsive thead { display: none; }
-        #installments-table.is-responsive tr { display: block; margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow); }
-        #installments-table.is-responsive td { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
-        #installments-table.is-responsive td:last-child { border-bottom: none; }
-        #installments-table.is-responsive td::before { content: attr(data-label); font-weight: bold; padding-left: 1rem; text-align: right; color: var(--primary-color); }
-        .actions-cell { justify-content: flex-end; }
-        .header-buttons { flex-wrap: wrap; justify-content: center; }
-    }
-
+    .installments-section { background: white; padding: 2rem; border-radius: 12px; box-shadow: var(--shadow); }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f8f9fa; padding: 1rem; text-align: right; }
+    td { padding: 1rem; border-bottom: 1px solid #eee; }
+    .status-paid { background-color: #e8f8ef; }
+    .status-pending { background-color: #fef9e7; }
+    .edit-input { width: 100%; padding: 0.4rem; border: 1px solid #ccc; border-radius: 4px; }
+    .actions-cell { display: flex; gap: 0.5rem; }
+    
+    .auth-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; text-align: center; }
 </style>
-
-<script>
-  import { checkAuth, logout } from '../../lib/auth.js';
-            let currentProjectId = null;
-    let currentCustomerName = null;
-    let allInstallments = [];
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const table = document.getElementById('installments-table');
-        
-        if (table) {
-            table.addEventListener('click', (e) => {
-                const target = e.target.closest('button');
-                if (!target) return;
-
-                if (target.classList.contains('btn-edit') || target.classList.contains('btn-save')) {
-                    handleEditToggle(target);
-                } else if (target.classList.contains('btn-partial')) {
-                    handlePartialPayment(target);
-                } else if (target.classList.contains('btn-delete-installment')) {
-                    handleDeleteInstallment(target);
-                }
-            });
-
-            table.addEventListener('change', (e) => {
-                if (e.target && e.target.classList.contains('status-select')) {
-                    handleStatusChange(e.target);
-                }
-            });
-        }
-
-        const deleteBtn = document.getElementById('delete-contract-btn');
-        if(deleteBtn) {
-            deleteBtn.addEventListener('click', handleDeleteContract);
-        }
-
-        document.getElementById('print-btn').addEventListener('click', () => window.print());
-        document.getElementById('export-pdf-btn').addEventListener('click', exportPDF);
-        document.getElementById('export-excel-btn').addEventListener('click', exportExcel);
-
-        const authLoadingMessage = document.getElementById('auth-loading-message');
-        const loginContainer = document.getElementById('admin-login-container');
-        const pageContent = document.getElementById('page-content');
-
-        (async () => {
-    const user = await checkAuth();
-          if(authLoadingMessage) authLoadingMessage.style.display = 'none';
-
-          if (user) {
-              try {
-                  const projectsResponse = await fetch('/api/projects'); // Quick check
-                  
-                  if (projectsResponse.ok) {
-                      if(pageContent) pageContent.style.display = 'block';
-                      if(loginContainer) loginContainer.style.display = 'none';
-                      initializeApp();
-                  } else {
-                      await logout();
-                      if(loginContainer) loginContainer.style.display = 'block';
-                      if(pageContent) pageContent.style.display = 'none';
-                  }
-              } catch (error) {
-                  console.error('Auth Check Error:', error);
-                  await logout();
-                  if(loginContainer) loginContainer.style.display = 'block';
-                  if(pageContent) pageContent.style.display = 'none';
-              }
-          } else {
-              if(pageContent) pageContent.style.display = 'none';
-              if(loginContainer) loginContainer.style.display = 'block';
-          }
-  })();
-
-
-    async function initializeApp() {
-        const loader = document.getElementById('loader');
-        const content = document.getElementById('contract-details-content');
-        const errorDisplay = document.getElementById('error-display');
-        const errorMessage = document.getElementById('error-message');
-
-        const urlParams = new URLSearchParams(window.location.search);
-        currentProjectId = urlParams.get('projectId');
-        currentCustomerName = urlParams.get('customerName');
-
-        if (!currentProjectId || !currentCustomerName) {
-            loader.style.display = 'none';
-            errorMessage.textContent = 'بيانات المشروع أو العميل غير متوفرة.';
-            errorDisplay.style.display = 'block';
-            return;
-        }
-
-        document.getElementById('back-link').href = `/crs/project-installments?projectId=${currentProjectId}`;
-        document.getElementById('edit-contract-btn').href = `/crs/edit-contract?projectId=${currentProjectId}&customerName=${encodeURIComponent(currentCustomerName)}`;
-
-        loader.style.display = 'block';
-        content.style.display = 'none';
-
-        try {
-            const response = await fetch(`/api/installments?projectId=${currentProjectId}&customerName=${encodeURIComponent(currentCustomerName)}`);
-            const data = await response.json();
-
-            if (!response.ok || data.length === 0) {
-                loader.style.display = 'none';
-                errorMessage.textContent = 'لم يتم العثور على أقساط لهذا العقد. قد يكون تم حذفه بالكامل.';
-                errorDisplay.style.display = 'block';
-                document.getElementById('delete-contract-btn').style.display = 'none';
-                document.getElementById('edit-contract-btn').style.display = 'none';
-                return;
-            }
-
-            allInstallments = data;
-            // Sorting is handled by backend but double check
-            allInstallments.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-            
-            renderContractInfo(allInstallments[0]);
-            renderInstallmentsTable(allInstallments);
-            calculateSummary(allInstallments, allInstallments[0].totalAmount);
-            
-            loader.style.display = 'none';
-            content.style.display = 'block';
-
-        } catch (error) {
-            console.error("Error fetching details: ", error);
-            loader.style.display = 'none';
-            errorMessage.textContent = 'حدث خطأ أثناء تحميل التفاصيل.';
-            errorDisplay.style.display = 'block';
-        }
-    }
-
-    async function exportPDF() {
-        const { jsPDF } = await import('jspdf');
-        const { default: html2canvas } = await import('html2canvas');
-        // jspdf-autotable is not used in the original function, so we don't import it.
-
-        const contractDetails = document.getElementById('contract-details-content');
-        const customerName = document.getElementById('info-customer-name').textContent || 'contract';
-
-        const button = document.getElementById('export-pdf-btn');
-        button.disabled = true;
-        button.textContent = 'جارٍ التصدير...';
-
-        try {
-            const canvas = await html2canvas(contractDetails, {
-                scale: 2, 
-                useCORS: true,
-                onclone: (document) => {
-                    const actionButtons = document.querySelectorAll('.actions-cell');
-                    actionButtons.forEach(btn => btn.style.display = 'none');
-                    const actionHeader = document.querySelector('#installments-table th:last-child');
-                    if(actionHeader) actionHeader.style.display = 'none';
-                }
-            });
-            
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({
-                orientation: 'p',
-                unit: 'mm',
-                format: 'a4'
-            });
-
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
-            const ratio = canvasWidth / canvasHeight;
-            const height = pdfWidth / ratio;
-
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, height);
-            pdf.save(`${customerName}-contract.pdf`);
-        } catch (err) {
-            console.error("PDF Export Error:", err);
-            alert('حدث خطأ أثناء تصدير ملف PDF.');
-        } finally {
-            button.disabled = false;
-            button.textContent = 'تصدير PDF';
-        }
-    }
-
-    async function exportExcel() {
-        const XLSX = await import('xlsx');
-        
-        const table = document.getElementById('installments-table');
-        const customerName = document.getElementById('info-customer-name').textContent;
-        const button = document.getElementById('export-excel-btn');
-        button.disabled = true;
-        button.textContent = 'جارٍ التصدير...';
-
-        try {
-            const wb = XLSX.utils.table_to_book(table, {sheet:"Installments"});
-            XLSX.writeFile(wb, `installments-${customerName}.xlsx`);
-        } catch (err) {
-            console.error("Excel Export Error:", err);
-            alert('حدث خطأ أثناء تصدير ملف Excel.');
-        } finally {
-            button.disabled = false;
-            button.textContent = 'تصدير Excel';
-        }
-    }
-
-    async function handleDeleteInstallment(button) {
-        const installmentId = button.dataset.id;
-        if (!installmentId) return;
-
-        if (allInstallments.length <= 1) {
-            alert("لا يمكن حذف القسط الأخير. لحذف العقد، استخدم زر \"حذف العقد\" الأحمر في أعلى الصفحة.");
-            return;
-        }
-
-        const confirmed = await window.showConfirmationModal("هل أنت متأكد من حذف هذا القسط؟ لا يمكن التراجع عن هذا الإجراء.");
-
-        if (confirmed) {
-            try {
-                button.disabled = true;
-                const installmentToDelete = allInstallments.find(inst => inst.id === installmentId);
-                if (!installmentToDelete) throw new Error("Installment not found");
-
-                const deletedAmount = installmentToDelete.installmentAmount;
-                const newTotalAmount = installmentToDelete.totalAmount - deletedAmount;
-
-                // 1. Delete the specific installment
-                const deleteResponse = await fetch('/api/installments/bulk-delete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ids: [installmentId] })
-                });
-
-                if (!deleteResponse.ok) throw new Error("Failed to delete installment");
-
-                // 2. Update all other installments for this customer
-                const updateResponse = await fetch('/api/installments/bulk-update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        projectId: currentProjectId,
-                        customerName: currentCustomerName,
-                        totalAmount: newTotalAmount
-                    })
-                });
-
-                if (!updateResponse.ok) throw new Error("Failed to update total amount");
-
-                initializeApp();
-
-            } catch (error) {
-                console.error("Error deleting installment: ", error);
-                alert("حدث خطأ أثناء حذف القسط.");
-                button.disabled = false;
-            }
-        }
-    }
-
-    async function handlePartialPayment(button) {
-        const installmentId = button.dataset.id;
-        const installment = allInstallments.find(inst => inst.id === installmentId);
-
-        if (!installment) return;
-
-        const paidAmount = await window.showPartialPaymentModal(installmentId, installment.installmentAmount);
-
-        if (paidAmount && paidAmount > 0 && paidAmount < installment.installmentAmount) {
-            const remainingAmount = installment.installmentAmount - paidAmount;
-
-            const confirmationMessage = `سيتم تقسيم القسط إلى: \n- قسط مدفوع بقيمة: ${formatCurrency(paidAmount)} \n- قسط جديد مستحق بقيمة: ${formatCurrency(remainingAmount)}. هل أنت متأكد؟`;
-
-            const confirmed = await window.showConfirmationModal(confirmationMessage);
-
-            if (confirmed) {
-                try {
-                    // 1. Update original installment to be 'paid' with specific amount
-                    const updateResp = await fetch('/api/installments/update', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            id: installmentId,
-                            installmentAmount: paidAmount,
-                            status: 'paid',
-                            paymentDate: new Date()
-                        })
-                    });
-                    if (!updateResp.ok) throw new Error("Failed to update original installment");
-
-                    // 2. Create new installment for remaining balance
-                    const createResp = await fetch('/api/installments/create', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            projectId: installment.projectId,
-                            customerName: installment.customerName,
-                            customerPhone: installment.customerPhone,
-                            unitType: installment.unitType,
-                            unitLocation: installment.unitLocation,
-                            totalAmount: installment.totalAmount,
-                            installmentAmount: remainingAmount,
-                            dueDate: installment.dueDate,
-                            installmentName: `بقية - ${installment.installmentName || 'القسط'}`,
-                            status: 'pending'
-                        })
-                    });
-                    if (!createResp.ok) throw new Error("Failed to create new installment");
-
-                    initializeApp();
-
-                } catch (error) {
-                    console.error("Error during partial payment: ", error);
-                    alert("حدث خطأ أثناء عملية السداد الجزئي.");
-                }
-            }
-        }
-    }
-
-    async function handleStatusChange(selectElement) {
-        const id = selectElement.dataset.id;
-        const newStatus = selectElement.value;
-        const oldStatus = selectElement.dataset.currentStatus;
-
-        if (newStatus === oldStatus) return;
-        
-        const newStatusText = newStatus === 'paid' ? 'مدفوع' : 'مستحق';
-        const confirmationMessage = `هل أنت متأكد من تغيير حالة القسط إلى \"${newStatusText}\"?`;
-
-        const confirmed = await window.showConfirmationModal(confirmationMessage);
-
-        if (confirmed) {
-            try {
-                const response = await fetch('/api/installments/update', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        id: id, 
-                        status: newStatus, 
-                        paymentDate: newStatus === 'paid' ? new Date() : null 
-                    })
-                });
-                if (response.ok) {
-                    initializeApp();
-                } else {
-                    throw new Error("Failed to update status");
-                }
-            } catch (error) {
-                console.error("Error updating status: ", error);
-                selectElement.value = oldStatus;
-            }
-        } else {
-            selectElement.value = oldStatus;
-        }
-    }
-
-    function handleEditToggle(button) {
-        const row = button.closest('tr');
-        const isEditing = row.classList.contains('is-editing');
-
-        if (isEditing) {
-            saveInstallmentChanges(row, button);
-        } else {
-            enterEditMode(row, button);
-        }
-    }
-
-    function enterEditMode(row, button) {
-        row.classList.add('is-editing');
-        button.textContent = 'حفظ';
-        button.classList.remove('btn-edit');
-        button.classList.add('btn-save');
-
-        const amountCell = row.querySelector('td[data-field="amount"]');
-        const dateCell = row.querySelector('td[data-field="dueDate"]');
-
-        const currentAmount = amountCell.dataset.originalValue;
-        const currentDate = dateCell.dataset.originalValue;
-
-        amountCell.innerHTML = `<input type="number" class="edit-input" value="${currentAmount}">`;
-        dateCell.innerHTML = `<input type="date" class="edit-input" value="${currentDate}">`;
-    }
-
-    async function saveInstallmentChanges(row, button) {
-        const installmentId = button.dataset.id;
-        const amountInput = row.querySelector('td[data-field="amount"] input');
-        const dateInput = row.querySelector('td[data-field="dueDate"] input');
-
-        const newAmount = parseFloat(amountInput.value);
-        const newDate = dateInput.value;
-
-        if (isNaN(newAmount) || newAmount <= 0 || !newDate) {
-            alert('الرجاء إدخال مبلغ وتاريخ صحيحين.');
-            return;
-        }
-
-        const confirmed = await window.showConfirmationModal('هل أنت متأكد من حفظ هذه التغييرات؟');
-
-        if (confirmed) {
-            button.disabled = true;
-            button.textContent = 'جارٍ الحفظ...';
-            
-            try {
-                const oldInstallment = allInstallments.find(inst => inst.id === installmentId);
-                if (!oldInstallment) throw new Error("لم يتم العثور على القسط المراد تعديله.");
-
-                const amountDifference = newAmount - oldInstallment.installmentAmount;
-                const newTotalAmount = oldInstallment.totalAmount + amountDifference;
-
-                // 1. Update the specific installment
-                const updateResp = await fetch('/api/installments/update', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        id: installmentId,
-                        installmentAmount: newAmount,
-                        dueDate: new Date(newDate),
-                        totalAmount: newTotalAmount
-                    })
-                });
-                if (!updateResp.ok) throw new Error("Failed to update installment");
-
-                // 2. Update all other installments for this customer
-                const bulkResp = await fetch('/api/installments/bulk-update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        projectId: currentProjectId,
-                        customerName: currentCustomerName,
-                        totalAmount: newTotalAmount
-                    })
-                });
-                if (!bulkResp.ok) throw new Error("Failed to bulk update totals");
-
-                initializeApp();
-
-            } catch (error) {
-                console.error("Error saving changes: ", error);
-                alert(`فشل حفظ التغييرات: ${error.message}`);
-                button.disabled = false;
-                button.textContent = 'حفظ';
-            }
-        }
-    }
-
-    async function handleDeleteContract() {
-        const confirmationMessage = `سيتم حذف العقد بالكامل بما في ذلك جميع الأقساط المرتبطة به. هل أنت متأكد من هذا الإجراء؟ لا يمكن التراجع عنه.`;
-        
-        const confirmed = await window.showConfirmationModal(confirmationMessage);
-
-        if (confirmed) {
-            const deleteBtn = document.getElementById('delete-contract-btn');
-            deleteBtn.disabled = true;
-            deleteBtn.textContent = 'جارٍ الحذف...';
-
-            try {
-                const response = await fetch('/api/installments/bulk-delete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        projectId: currentProjectId, 
-                        customerName: currentCustomerName 
-                    })
-                });
-
-                if (response.ok) {
-                    alert('تم حذف العقد بنجاح.');
-                    window.location.href = `/crs/project-installments?projectId=${currentProjectId}`;
-                } else {
-                    throw new Error("Failed to delete contract");
-                }
-
-            } catch (error) {
-                console.error("Error deleting contract: ", error);
-                alert('حدث خطأ أثناء حذف العقد.');
-                deleteBtn.disabled = false;
-                deleteBtn.textContent = 'حذف العقد';
-            }
-        }
-    }
-
-    const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
-    const formatDate = (dateValue, format = 'long') => {
-        if (!dateValue) return '-';
-        
-        let date;
-        if (typeof dateValue === 'string') {
-            date = new Date(dateValue);
-        } else if (dateValue instanceof Date) {
-            date = dateValue;
-        } else if (dateValue.toDate && typeof dateValue.toDate === 'function') {
-            date = dateValue.toDate(); // Fallback for any remaining Firestore objects
-        } else {
-            date = new Date(dateValue);
-        }
-
-        if (isNaN(date.getTime())) return '-';
-
-        if (format === 'yyyy-mm-dd') {
-            return date.toISOString().split('T')[0];
-        }
-        return date.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
-    };
-    const unitTypeTranslations = { apartment: 'شقة', shop: 'محل', basement: 'بدروم', other: 'أخرى' };
-
-    function renderContractInfo(data) {
-        document.getElementById('customer-name-header').textContent = `تفاصيل عقد: ${data.customerName}`;
-        document.getElementById('info-customer-name').textContent = data.customerName || '-';
-        document.getElementById('info-customer-phone').textContent = data.customerPhone || '-';
-        document.getElementById('info-unit-type').textContent = unitTypeTranslations[data.unitType] || data.unitType || '-';
-        document.getElementById('info-unit-location').textContent = data.unitLocation || '-';
-    }
-
-    function calculateSummary(installments, totalAmount) {
-        const totalPaid = installments
-            .filter(inst => inst.status === 'paid' && inst.installmentAmount)
-            .reduce((sum, inst) => sum + inst.installmentAmount, 0);
-        const totalRemaining = totalAmount - totalPaid;
-        document.getElementById('total-amount').textContent = formatCurrency(totalAmount);
-        document.getElementById('total-paid').textContent = formatCurrency(totalPaid);
-        document.getElementById('total-remaining').textContent = formatCurrency(totalRemaining);
-    }
-
-    function renderInstallmentsTable(installments) {
-        const tableBody = document.querySelector('#installments-table tbody');
-        tableBody.innerHTML = '';
-        if (!installments || installments.length === 0) {
-             document.getElementById('no-installments-message').style.display = 'block';
-            return;
-        }
-
-        const headers = {
-            number: "م.",
-            amount: "مبلغ القسط",
-            dueDate: "تاريخ الاستحقاق",
-            status: "الحالة",
-            paymentDate: "تاريخ الدفع",
-            name: "بيان القسط",
-            actions: "إجراءات"
-        };
-
-        installments.forEach((inst, index) => {
-            const row = document.createElement('tr');
-            const isPaid = inst.status === 'paid';
-
-            row.className = isPaid ? 'status-paid' : 'status-pending';
-            
-            const statusSelect = `
-                <select class="status-select" data-id="${inst.id}" data-current-status="${inst.status}">
-                    <option value="pending" ${!isPaid ? 'selected' : ''}>مستحق</option>
-                    <option value="paid" ${isPaid ? 'selected' : ''}>مدفوع</option>
-                </select>
-            `;
-
-            const amountForInput = inst.installmentAmount || 0;
-            const dateForInput = formatDate(inst.dueDate, 'yyyy-mm-dd');
-
-            let actionsCellContent = '';
-            if (!isPaid) {
-                actionsCellContent += `<button class="btn btn-partial btn-sm" data-id="${inst.id}">سداد جزئي</button>`;
-            }
-            actionsCellContent += `<button class="btn btn-edit btn-sm" data-id="${inst.id}">تعديل</button>`;
-            actionsCellContent += `<button class="btn btn-delete-installment btn-sm btn-danger" data-id="${inst.id}">حذف</button>`;
-
-            row.innerHTML = `
-                <td data-label="${headers.number}">${index + 1}</td>
-                <td data-label="${headers.amount}" data-field="amount" data-original-value="${amountForInput}">${formatCurrency(inst.installmentAmount)}</td>
-                <td data-label="${headers.dueDate}" data-field="dueDate" data-original-value="${dateForInput}">${formatDate(inst.dueDate)}</td>
-                <td data-label="${headers.status}">${statusSelect}</td>
-                <td data-label="${headers.paymentDate}">${formatDate(inst.paymentDate)}</td>
-                <td data-label="${headers.name}">${inst.installmentName || ''}</td>
-                <td data-label="${headers.actions}" class="actions-cell">${actionsCellContent}</td>
-            `;
-            tableBody.appendChild(row);
-        });
-    }
-
-</script>
-
-</script>

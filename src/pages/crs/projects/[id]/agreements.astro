@@ -1,19 +1,26 @@
-
 ---
 import Layout from '../../../../layouts/Layout.astro';
 import AdminLogin from '../../../../components/AdminLogin.astro';
+import prisma from "../../../../lib/prisma";
+
 export const prerender = false;
 
 const { id } = Astro.params;
+if (!id) {
+    return Astro.redirect('/404');
+}
+
 let project = null;
 
 try {
-    const projectDoc = await db.collection('projects').doc(id).get();
-    if (projectDoc.exists) {
-        const projectData = projectDoc.data();
+    const projectDoc = await prisma.project.findUnique({
+        where: { id: id }
+    });
+    
+    if (projectDoc) {
         project = { 
             id: projectDoc.id, 
-            projectName: projectData.projectName || 'اسم غير متوفر',
+            projectName: projectDoc.projectName || 'اسم غير متوفر',
         };
     } else {
         return Astro.redirect('/404');
@@ -195,48 +202,44 @@ try {
 </Layout>
 
 <script>
-  import { checkAuth, logout } from '../../../../lib/auth.js';
-                let currentEditAgreementId = null;
-    const pageContent = document.getElementById('page-content');
-    const projectId = pageContent.dataset.projectId;
+    import { checkAuth, logout } from '../../../../lib/auth.js';
+    import * as XLSX from 'xlsx';
+    import html2canvas from 'html2canvas';
+    import { jsPDF } from 'jspdf';
+
+    let currentEditAgreementId = null;
     let allAgreementsData = [];
+    const pageContent = document.getElementById('page-content');
+    const projectId = pageContent?.dataset.projectId;
+    const projectName = pageContent?.dataset.projectName;
 
     function toYYYYMMDD(date) {
         if (!date) return '';
-        const d = date instanceof Date ? date : date.toDate();
+        const d = new Date(date);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
-        (async () => {
-    const user = await checkAuth();
-            authLoadingMessage.style.display = 'none';
-            if (user) {
-                try {
-                    const userDoc = await getDoc(doc(db, "users", user.uid));
-                    if (userDoc.exists() && userDoc.data().role === 'admin') {
-                        pageContent.style.display = 'block';
-                        loginContainer.style.display = 'none';
-                        initializePage();
-                    } else { throw new Error('User is not an admin'); }
-                } catch (e) {
-                    logout();
-                    pageContent.style.display = 'none';
-                    loginContainer.style.display = 'block';
-                }
-            } else {
-                pageContent.style.display = 'none';
-                loginContainer.style.display = 'block';
-            }
-  })();
+        
+        const user = await checkAuth();
+        if(authLoadingMessage) authLoadingMessage.style.display = 'none';
 
+        if (user && user.role === 'admin') {
+            if(pageContent) pageContent.style.display = 'block';
+            if(loginContainer) loginContainer.style.display = 'none';
+            initializePage();
+        } else {
+            if(pageContent) pageContent.style.display = 'none';
+            if(loginContainer) loginContainer.style.display = 'block';
+        }
+    });
 
     function initializePage() {
-        if (!projectId || !document.querySelector('.agreements-list-container')) return;
+        if (!projectId) return;
         setupEventListeners();
-        listenForAgreements();
+        fetchAgreements();
     }
 
     function showModal(modal) { modal.classList.add('visible'); }
@@ -245,329 +248,231 @@ try {
     function setupEventListeners() {
         const addAgreementBtn = document.getElementById('add-agreement-btn');
         const agreementModal = document.getElementById('agreement-modal');
-        const cancelAgreementBtn = document.getElementById('cancel-agreement-btn');
-        const agreementForm = document.getElementById('agreement-form');
-        const modalTitle = document.getElementById('modal-title');
-        const agreementTitleSelect = document.getElementById('agreement-title');
-        const agreementsGrid = document.getElementById('agreements-grid');
         const deleteModal = document.getElementById('delete-modal');
-        let agreementIdToDelete = null;
+        const agreementForm = document.getElementById('agreement-form');
+        const agreementTitleSelect = document.getElementById('agreement-title') as HTMLSelectElement;
+        const totalInput = document.getElementById('agreement-total') as HTMLInputElement;
+        const areaInput = document.getElementById('area') as HTMLInputElement;
+        const pricePerMeterInput = document.getElementById('price-per-meter') as HTMLInputElement;
+        const quantityInput = document.getElementById('quantity') as HTMLInputElement;
+        const priceInput = document.getElementById('price') as HTMLInputElement;
+        const subtypeFilter = document.getElementById('subtype-filter') as HTMLSelectElement;
+        const categoryFilter = document.getElementById('category-filter') as HTMLSelectElement;
 
-        const categoryFilter = document.getElementById('category-filter');
-        const subtypeFilter = document.getElementById('subtype-filter');
-        const subtypeFilterGroup = document.getElementById('subtype-filter-group');
-
-        categoryFilter.addEventListener('change', () => {
-            subtypeFilterGroup.style.display = categoryFilter.value === 'المقاول' ? 'flex' : 'none';
-            subtypeFilter.value = 'all';
-            displayFilteredAgreements();
-        });
-        subtypeFilter.addEventListener('change', displayFilteredAgreements);
-
-        const otherTitleGroup = document.getElementById('other-title-group');
-        const otherAgreementTitleInput = document.getElementById('other-agreement-title');
-        const contractorSubtypeGroup = document.getElementById('contractor-subtype-group');
-        const contractorFields = document.getElementById('contractor-fields');
-        const genericFields = document.getElementById('generic-fields');
-        const areaInput = document.getElementById('area');
-        const pricePerMeterInput = document.getElementById('price-per-meter');
-        const quantityInput = document.getElementById('quantity');
-        const priceInput = document.getElementById('price');
-        const totalInput = document.getElementById('agreement-total');
-
-        addAgreementBtn.addEventListener('click', () => {
+        addAgreementBtn?.addEventListener('click', () => {
             currentEditAgreementId = null;
-            modalTitle.textContent = 'إضافة اتفاق جديد';
-            agreementForm.reset();
-            document.getElementById('date').value = toYYYYMMDD(new Date());
-            agreementTitleSelect.value = '';
+            document.getElementById('modal-title').textContent = 'إضافة اتفاق جديد';
+            agreementForm?.reset();
+            document.getElementById('date').value = new Date().toISOString().split('T')[0];
             agreementTitleSelect.dispatchEvent(new Event('change'));
             showModal(agreementModal);
         });
 
-        cancelAgreementBtn.addEventListener('click', () => hideModal(agreementModal));
-        agreementModal.addEventListener('click', (e) => { if (e.target === agreementModal) hideModal(agreementModal); });
-
-        agreementTitleSelect.addEventListener('change', () => {
+        document.getElementById('cancel-agreement-btn')?.addEventListener('click', () => hideModal(agreementModal));
+        
+        agreementTitleSelect?.addEventListener('change', () => {
             const title = agreementTitleSelect.value;
             const isContractor = title === 'المقاول';
             const isOther = title === 'اخري';
             const isGeneric = !isContractor && !isOther && title !== '';
-            otherTitleGroup.style.display = isOther ? 'block' : 'none';
-            contractorSubtypeGroup.style.display = isContractor ? 'block' : 'none';
-            contractorFields.style.display = isContractor ? 'block' : 'none';
-            genericFields.style.display = (isGeneric || isOther) ? 'block' : 'none';
-            otherAgreementTitleInput.required = isOther;
+            
+            document.getElementById('other-title-group').style.display = isOther ? 'block' : 'none';
+            document.getElementById('contractor-subtype-group').style.display = isContractor ? 'block' : 'none';
+            document.getElementById('contractor-fields').style.display = isContractor ? 'block' : 'none';
+            document.getElementById('generic-fields').style.display = (isGeneric || isOther) ? 'block' : 'none';
+            
             totalInput.readOnly = isContractor || isGeneric || isOther;
-            if (!isContractor) {
-                areaInput.value = '';
-                pricePerMeterInput.value = '';
-                document.getElementById('contractor-subtype').value = '';
-            }
-            if (!isGeneric && !isOther) { quantityInput.value = ''; priceInput.value = ''; }
-            if (!isOther) { otherAgreementTitleInput.value = ''; }
-            if (title === '') { totalInput.readOnly = false; }
         });
 
         function calculateTotal() {
-            const title = agreementTitleSelect.value;
-            if (title === 'المقاول') {
-                const area = parseFloat(areaInput.value) || 0;
-                const pricePerMeter = parseFloat(pricePerMeterInput.value) || 0;
-                totalInput.value = (area * pricePerMeter).toFixed(2);
-            } else if (title !== '') { 
-                const quantity = parseFloat(quantityInput.value) || 0;
-                const price = parseFloat(priceInput.value) || 0;
-                totalInput.value = (quantity * price).toFixed(2);
+            if (agreementTitleSelect.value === 'المقاول') {
+                totalInput.value = ((parseFloat(areaInput.value) || 0) * (parseFloat(pricePerMeterInput.value) || 0)).toFixed(2);
+            } else {
+                totalInput.value = ((parseFloat(quantityInput.value) || 0) * (parseFloat(priceInput.value) || 0)).toFixed(2);
             }
         }
-        [areaInput, pricePerMeterInput, quantityInput, priceInput].forEach(input => input.addEventListener('input', calculateTotal));
-        
-        agreementForm.addEventListener('submit', async (e) => {
+        [areaInput, pricePerMeterInput, quantityInput, priceInput].forEach(inp => inp?.addEventListener('input', calculateTotal));
+
+        agreementForm?.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const f = e.target as any;
             const selectedTitle = agreementTitleSelect.value;
             let finalTitle = selectedTitle;
-            if (selectedTitle === 'اخري') {
-                finalTitle = otherAgreementTitleInput.value.trim();
-                if (!finalTitle) { alert('يرجى إدخال اسم البند.'); return; }
-            } else if (selectedTitle === 'المقاول') {
-                const subtype = document.getElementById('contractor-subtype').value;
-                if (!subtype) { alert('يرجى اختيار نوع البند الفرعي للمقاول.'); return; }
-                finalTitle = subtype;
-            }
-            if (!finalTitle || finalTitle === "") { alert('يرجى تحديد بند الاتفاق.'); return; }
-            
-            const dateValue = document.getElementById('date').value;
-            const [year, month, day] = dateValue.split('-').map(Number);
-            const localDate = new Date(year, month - 1, day);
-            const agreementData = {
+            if(selectedTitle === 'اخري') finalTitle = f['other-agreement-title'].value;
+            else if(selectedTitle === 'المقاول') finalTitle = f['contractor-subtype'].value;
+
+            const data = {
+                projectId,
                 title: finalTitle,
-                agreedWith: document.getElementById('agreed-with').value,
-                date: Timestamp.fromDate(localDate),
-                total: parseFloat(totalInput.value) || 0,
-                details: document.getElementById('agreement-details').value,
-                notes: document.getElementById('agreement-notes').value,
-                mainCategory: selectedTitle, 
+                mainCategory: selectedTitle,
+                agreedWith: f['agreed-with'].value,
+                date: f.date.value,
+                total: parseFloat(f['agreement-total'].value),
+                details: f['agreement-details'].value,
+                notes: f['agreement-notes'].value,
+                area: parseFloat(f.area.value) || null,
+                pricePerMeter: parseFloat(f['price-per-meter'].value) || null,
+                quantity: parseFloat(f.quantity.value) || null,
+                price: parseFloat(f.price.value) || null
             };
-            if (selectedTitle === 'المقاول') {
-                agreementData.area = parseFloat(areaInput.value) || 0;
-                agreementData.pricePerMeter = parseFloat(pricePerMeterInput.value) || 0;
-            } else {
-                agreementData.quantity = parseFloat(quantityInput.value) || 0;
-                agreementData.price = parseFloat(priceInput.value) || 0;
-            }
-            const agreementsColRef = collection(db, 'projects', projectId, 'agreements');
+
             try {
-                if (currentEditAgreementId) {
-                    await updateDoc(doc(agreementsColRef, currentEditAgreementId), agreementData);
-                } else {
-                    await addDoc(agreementsColRef, { ...agreementData, createdAt: Timestamp.now() });
-                }
-                hideModal(agreementModal);
-            } catch (error) {
-                console.error("Error saving agreement: ", error);
-                alert("حدث خطأ أثناء حفظ الاتفاق. يرجى المحاولة مرة أخرى.");
-            }
-        });
-        
-        agreementsGrid.addEventListener('click', async (e) => {
-            const button = e.target.closest('button[class^="btn-icon"]');
-            if (!button) return;
-            const card = e.target.closest('.agreement-card');
-            if (!card) return;
-            const agreementId = card.dataset.id;
-            const agreementData = JSON.parse(card.dataset.agreement);
-            const projectName = document.getElementById('page-content').dataset.projectName;
-            if (button.classList.contains('btn-edit-custom')) openEditModal(agreementId, agreementData);
-            else if (button.classList.contains('btn-delete-custom')) { agreementIdToDelete = agreementId; showModal(deleteModal); }
-            else if (button.classList.contains('btn-print-custom')) printCard(card);
-            else if (button.classList.contains('btn-pdf-custom')) await exportCardAsPDF(card, agreementData, projectName);
-            else if (button.classList.contains('btn-excel-custom')) exportDataAsExcel(agreementData, projectName);
+                const method = currentEditAgreementId ? 'PUT' : 'POST';
+                const url = currentEditAgreementId ? `/api/agreements/${currentEditAgreementId}` : '/api/agreements';
+                const res = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if(res.ok) {
+                    hideModal(agreementModal);
+                    fetchAgreements();
+                } else alert('خطأ في الحفظ');
+            } catch(e) { console.error(e); }
         });
 
-        document.getElementById('cancel-delete-btn').addEventListener('click', () => hideModal(deleteModal));
-        deleteModal.addEventListener('click', (e) => { if (e.target === deleteModal) hideModal(deleteModal); });
-        document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
-            if (agreementIdToDelete) {
-                try {
-                    await deleteDoc(doc(db, 'projects', projectId, 'agreements', agreementIdToDelete));
-                    hideModal(deleteModal);
-                    agreementIdToDelete = null;
-                } catch (error) {
-                    console.error("Error deleting agreement: ", error);
-                    alert("حدث خطأ أثناء حذف الاتفاق. يرجى المحاولة مرة أخرى.");
-                }
-            }
+        categoryFilter?.addEventListener('change', () => {
+            document.getElementById('subtype-filter-group').style.display = categoryFilter.value === 'المقاول' ? 'flex' : 'none';
+            displayFilteredAgreements();
         });
+        subtypeFilter?.addEventListener('change', displayFilteredAgreements);
+
+        document.getElementById('agreements-grid')?.addEventListener('click', async (e) => {
+            const btn = e.target.closest('button');
+            if(!btn) return;
+            const card = btn.closest('.agreement-card');
+            const id = card.dataset.id;
+            const data = JSON.parse(card.dataset.agreement);
+
+            if(btn.classList.contains('btn-edit-custom')) openEditModal(id, data);
+            else if(btn.classList.contains('btn-delete-custom')) {
+                currentEditAgreementId = id;
+                showModal(deleteModal);
+            } else if(btn.classList.contains('btn-print-custom')) window.print();
+            else if(btn.classList.contains('btn-pdf-custom')) exportToPDF(card, data);
+            else if(btn.classList.contains('btn-excel-custom')) exportToExcel(data);
+        });
+
+        document.getElementById('confirm-delete-btn')?.addEventListener('click', async () => {
+            await fetch(`/api/agreements/${currentEditAgreementId}`, { method: 'DELETE' });
+            hideModal(deleteModal);
+            fetchAgreements();
+        });
+        document.getElementById('cancel-delete-btn')?.addEventListener('click', () => hideModal(deleteModal));
     }
 
-    function printCard(cardElement) {
-        const printableArea = cardElement.cloneNode(true);
-        const printContainer = document.createElement('div');
-        printContainer.classList.add('printable-area');
-        printContainer.appendChild(printableArea);
-        document.body.appendChild(printContainer);
-        window.print();
-        document.body.removeChild(printContainer);
-    }
-
-    async function exportCardAsPDF(cardElement, agreementData, projectName) {
-        const { jsPDF } = window.jspdf;
-        const canvas = await html2canvas(cardElement, { scale: 2, useCORS: true });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({ orientation: 'p', unit: 'px', format: [canvas.width, canvas.height] });
-        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-        pdf.save(`اتفاق-${projectName}-${agreementData.title}.pdf`);
-    }
-
-    function exportDataAsExcel(agreementData, projectName) {
-        const data = [['البند الرئيسي', agreementData.mainCategory], ['البند', agreementData.title], ['المتفق معه', agreementData.agreedWith], ['التاريخ', agreementData.date], ['الإجمالي', agreementData.total], ['المساحة', agreementData.area || '-'], ['سعر المتر', agreementData.pricePerMeter || '-'], ['الكمية', agreementData.quantity || '-'], ['السعر', agreementData.price || '-'], ['التفاصيل', agreementData.details || '-'], ['ملاحظات', agreementData.notes || '-']];
-        const worksheet = XLSX.utils.aoa_to_sheet(data);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Agreement Details");
-        XLSX.writeFile(workbook, `اتفاق-${projectName}-${agreementData.title}.xlsx`);
-    }
-    
-    function listenForAgreements() {
-        if (!projectId) return;
-        const agreementsQuery = query(collection(db, 'projects', projectId, 'agreements'), orderBy('date', 'desc'));
-        const noAgreementsMessage = document.getElementById('no-agreements-message');
-        const agreementsGrid = document.getElementById('agreements-grid');
-        onSnapshot(agreementsQuery, (snapshot) => {
-            allAgreementsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            if (allAgreementsData.length === 0) {
-                 noAgreementsMessage.textContent = 'لم يتم إضافة أي اتفاقات لهذا المشروع بعد.';
-                 noAgreementsMessage.style.display = 'block';
-                 agreementsGrid.innerHTML = '';
-            } else {
-                displayFilteredAgreements();
-            }
+    async function fetchAgreements() {
+        const res = await fetch(`/api/agreements?projectId=${projectId}`);
+        if(res.ok) {
+            allAgreementsData = await res.json();
+            displayFilteredAgreements();
             updateTotals();
-        });
+        }
     }
 
     function displayFilteredAgreements() {
-        const mainFilterValue = document.getElementById('category-filter').value;
-        const subtypeFilterValue = document.getElementById('subtype-filter').value;
-        const agreementsGrid = document.getElementById('agreements-grid');
-        const noAgreementsMessage = document.getElementById('no-agreements-message');
-        
-        if (!mainFilterValue) {
-            agreementsGrid.innerHTML = '';
-            noAgreementsMessage.textContent = 'يرجى اختيار بند من القائمة لعرض الاتفاقات.';
-            noAgreementsMessage.style.display = 'block';
-            updateTotals();
-            return;
-        }
+        const cat = (document.getElementById('category-filter') as HTMLSelectElement).value;
+        const sub = (document.getElementById('subtype-filter') as HTMLSelectElement).value;
+        const grid = document.getElementById('agreements-grid');
+        const msg = document.getElementById('no-agreements-message');
 
-        let filteredData = allAgreementsData;
-        if (mainFilterValue !== 'all') {
-            filteredData = filteredData.filter(item => item.mainCategory === mainFilterValue);
-        }
-        if (mainFilterValue === 'المقاول' && subtypeFilterValue !== 'all') {
-            filteredData = filteredData.filter(item => item.title === subtypeFilterValue);
-        }
+        let filtered = allAgreementsData;
+        if(cat && cat !== 'all') filtered = filtered.filter(a => a.mainCategory === cat);
+        if(cat === 'المقاول' && sub && sub !== 'all') filtered = filtered.filter(a => a.title === sub);
 
-        if (filteredData.length === 0) {
-            agreementsGrid.innerHTML = '';
-            noAgreementsMessage.textContent = 'لا توجد اتفاقات تطابق هذا البند.';
-            noAgreementsMessage.style.display = 'block';
-        } else {
-            agreementsGrid.innerHTML = filteredData.map(renderAgreementCard).join('');
-            noAgreementsMessage.style.display = 'none';
-        }
+        if(grid) grid.innerHTML = filtered.map(renderAgreementCard).join('');
+        if(msg) msg.style.display = filtered.length === 0 ? 'block' : 'none';
         updateTotals();
     }
 
-    function updateTotals() {
-        const filteredTotalEl = document.getElementById('filtered-agreements-total');
-        const grandTotalEl = document.getElementById('grand-agreements-total');
-
-        const grandTotal = allAgreementsData.reduce((sum, agr) => sum + (agr.total || 0), 0);
-        if (grandTotalEl) {
-            grandTotalEl.textContent = grandTotal.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
-        }
-
-        let filteredTotal = 0;
-        document.querySelectorAll('.agreement-card').forEach(card => {
-            filteredTotal += parseFloat(card.dataset.total) || 0;
-        });
-         if (filteredTotalEl) {
-            filteredTotalEl.textContent = filteredTotal.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
-        }
-    }
-
-    function renderAgreementCard(data) {
-        const { id, title, agreedWith, date, total, details, notes, mainCategory, area, pricePerMeter, quantity, price } = data;
-        const dateObj = date.toDate ? date.toDate() : new Date(date);
-        const storedData = {...data, date: toYYYYMMDD(date) };
-        if (storedData.createdAt) delete storedData.createdAt;
-
-        let calculationDetails = '';
-        if (mainCategory === 'المقاول') {
-            if(area) calculationDetails += `<div class="card-item"><strong>المساحة:</strong><span>${area} م²</span></div>`;
-            if(pricePerMeter) calculationDetails += `<div class="card-item"><strong>سعر المتر:</strong><span>${pricePerMeter.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</span></div>`;
-        } else if (mainCategory) {
-            if(quantity !== undefined && quantity !== null) calculationDetails += `<div class="card-item"><strong>الكمية:</strong><span>${quantity}</span></div>`;
-            if(price !== undefined && price !== null) calculationDetails += `<div class="card-item"><strong>السعر:</strong><span>${price.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</span></div>`;
+    function renderAgreementCard(a) {
+        const stored = {...a, date: toYYYYMMDD(a.date)};
+        let calc = '';
+        if(a.mainCategory === 'المقاول') {
+            calc = `<div class="card-item"><strong>المساحة:</strong><span>${a.area || 0} م²</span></div>
+                    <div class="card-item"><strong>سعر المتر:</strong><span>${(a.pricePerMeter || 0).toLocaleString()} ج.م</span></div>`;
+        } else if(a.quantity) {
+            calc = `<div class="card-item"><strong>الكمية:</strong><span>${a.quantity}</span></div>
+                    <div class="card-item"><strong>السعر:</strong><span>${(a.price || 0).toLocaleString()} ج.م</span></div>`;
         }
 
         return `
-            <div class="agreement-card" data-id="${id}" data-agreement='${JSON.stringify(storedData)}' data-main-category="${mainCategory}" data-title="${title}" data-total="${total || 0}">
+            <div class="agreement-card" data-id="${a.id}" data-total="${a.total}" data-agreement='${JSON.stringify(stored)}'>
                 <div class="card-header">
-                    <h3>${title || '-'}</h3>
-                     <div class="card-actions">
+                    <h3>${a.title}</h3>
+                    <div class="card-actions">
                         <button class="btn-icon btn-print-custom" title="طباعة"><i class="material-icons">print</i></button>
                         <button class="btn-icon btn-pdf-custom" title="تصدير PDF"><i class="material-icons">picture_as_pdf</i></button>
                         <button class="btn-icon btn-excel-custom" title="تصدير Excel"><i class="material-icons">description</i></button>
-                         <button class="btn-icon btn-edit-custom" title="تعديل"><i class="material-icons">edit</i></button>
-                         <button class="btn-icon btn-delete-custom" title="حذف"><i class="material-icons">delete</i></button>
+                        <button class="btn-icon btn-edit-custom" title="تعديل"><i class="material-icons">edit</i></button>
+                        <button class="btn-icon btn-delete-custom" title="حذف"><i class="material-icons">delete</i></button>
                     </div>
                 </div>
                 <div class="card-body">
-                    <div class="card-item"><strong>المتفق معه:</strong><span>${agreedWith || '-'}</span></div>
-                    <div class="card-item"><strong>التاريخ:</strong><span>${dateObj.toLocaleDateString('ar-EG-u-nu-latn', { year: 'numeric', month: 'long', day: 'numeric'})}</span></div>
-                    ${calculationDetails}
-                    <div class="card-item total-item"><strong>الإجمالي:</strong><span>${(total || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</span></div>
+                    <div class="card-item"><strong>المتفق معه:</strong><span>${a.agreedWith}</span></div>
+                    <div class="card-item"><strong>التاريخ:</strong><span>${new Date(a.date).toLocaleDateString('ar-EG')}</span></div>
+                    ${calc}
+                    <div class="card-item total-item"><strong>الإجمالي:</strong><span>${(a.total || 0).toLocaleString()} ج.م</span></div>
                 </div>
-                ${(details || notes) ? `
-                <div class="card-footer">
-                    ${details ? `<div class="card-details-full"><strong>تفاصيل الاتفاق:</strong><p>${details}</p></div>` : ''}
-                    ${notes ? `<div class="card-details-full"><strong>ملاحظات:</strong><p>${notes}</p></div>` : ''}
-                </div>
+                ${(a.details || a.notes) ? `
+                    <div class="card-footer">
+                        ${a.details ? `<div class="card-details-full"><strong>تفاصيل:</strong><p>${a.details}</p></div>` : ''}
+                        ${a.notes ? `<div class="card-details-full"><strong>ملاحظات:</strong><p>${a.notes}</p></div>` : ''}
+                    </div>
                 ` : ''}
             </div>
         `;
     }
-    
+
+    function updateTotals() {
+        const grand = allAgreementsData.reduce((s, a) => s + (a.total || 0), 0);
+        let filtered = 0;
+        document.querySelectorAll('.agreement-card').forEach(c => filtered += parseFloat((c as HTMLElement).dataset.total || '0'));
+        
+        const fEl = document.getElementById('filtered-agreements-total');
+        const gEl = document.getElementById('grand-agreements-total');
+        if(fEl) fEl.textContent = filtered.toLocaleString() + ' ج.م';
+        if(gEl) gEl.textContent = grand.toLocaleString() + ' ج.م';
+    }
+
     function openEditModal(id, data) {
         currentEditAgreementId = id;
         document.getElementById('modal-title').textContent = 'تعديل اتفاق';
-        const agreementForm = document.getElementById('agreement-form');
-        agreementForm.reset();
-        const titleSelect = document.getElementById('agreement-title');
-        const otherAgreementTitleInput = document.getElementById('other-agreement-title');
-        const contractorSubtypeSelect = document.getElementById('contractor-subtype');
-        const options = Array.from(titleSelect.options).map(opt => opt.value);
-        const mainCategory = data.mainCategory || (options.includes(data.title) ? data.title : 'اخري');
-        titleSelect.value = mainCategory;
-        titleSelect.dispatchEvent(new Event('change'));
-        if (mainCategory === 'المقاول') {
-            contractorSubtypeSelect.value = data.title || '';
-            document.getElementById('area').value = data.area || '';
-            document.getElementById('price-per-meter').value = data.pricePerMeter || '';
-        } else {
-             document.getElementById('quantity').value = data.quantity || '';
-             document.getElementById('price').value = data.price || '';
-             if (mainCategory === 'اخري') { otherAgreementTitleInput.value = data.title || ''; }
-        }
-        document.getElementById('agreed-with').value = data.agreedWith || '';
-        document.getElementById('date').value = data.date || '';
-        document.getElementById('agreement-total').value = data.total || '';
-        document.getElementById('agreement-details').value = data.details || '';
-        document.getElementById('agreement-notes').value = data.notes || '';
+        const f = document.getElementById('agreement-form') as any;
+        f['agreement-title'].value = data.mainCategory;
+        f['agreement-title'].dispatchEvent(new Event('change'));
+        
+        if(data.mainCategory === 'المقاول') f['contractor-subtype'].value = data.title;
+        else if(data.mainCategory === 'اخري') f['other-agreement-title'].value = data.title;
+
+        f['agreed-with'].value = data.agreedWith;
+        f.date.value = data.date;
+        f.area.value = data.area || '';
+        f['price-per-meter'].value = data.pricePerMeter || '';
+        f.quantity.value = data.quantity || '';
+        f.price.value = data.price || '';
+        f['agreement-total'].value = data.total;
+        f['agreement-details'].value = data.details || '';
+        f['agreement-notes'].value = data.notes || '';
+        
         showModal(document.getElementById('agreement-modal'));
     }
+
+    async function exportToPDF(card, data) {
+        const canvas = await html2canvas(card);
+        const img = canvas.toDataURL('image/png');
+        const pdf = new jsPDF();
+        pdf.addImage(img, 'PNG', 10, 10, 190, 0);
+        pdf.save(`اتفاق_${data.title}.pdf`);
+    }
+
+    function exportToExcel(data) {
+        const ws = XLSX.utils.json_to_sheet([data]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Agreement");
+        XLSX.writeFile(wb, `اتفاق_${data.title}.xlsx`);
+    }
+
 </script>
 
 <style is:global>

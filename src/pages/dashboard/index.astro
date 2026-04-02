@@ -1,4 +1,3 @@
-
 ---
 import Layout from '../../layouts/Layout.astro';
 ---
@@ -27,301 +26,229 @@ import Layout from '../../layouts/Layout.astro';
 
 <script>
   import { checkAuth, logout } from '../../lib/auth.js';
-          function initializeDashboard() {
-    let currentSupervisor = { uid: null, name: '' };
+  
+  let currentSupervisor = { id: null, name: '' };
 
-    const loadingMessage = document.getElementById('auth-loading-message');
-    const dashboardContent = document.getElementById('dashboard-content');
-    const userNamePlaceholder = document.getElementById('user-name-placeholder');
-    const projectsList = document.getElementById('projects-list');
-    const noProjectsMessage = document.getElementById('no-projects-message');
-    const logoutButton = document.getElementById('logout-button');
+  async function initializeDashboard() {
+      const loadingMessage = document.getElementById('auth-loading-message');
+      const dashboardContent = document.getElementById('dashboard-content');
+      const userNamePlaceholder = document.getElementById('user-name-placeholder');
+      const projectsList = document.getElementById('projects-list');
+      const noProjectsMessage = document.getElementById('no-projects-message');
+      const logoutButton = document.getElementById('logout-button');
 
-    if (!dashboardContent || !projectsList) return;
+      const user = await checkAuth();
+      if (loadingMessage) loadingMessage.style.display = 'none';
 
-    // --- Event Listeners ---
-    projectsList.addEventListener('click', async (e) => {
-        const target = e.target;
-        const projectGroup = target.closest('.project-group');
-        if (!projectGroup) return;
+      if (user && user.role === 'supervisor') {
+          currentSupervisor.id = user.userId;
+          currentSupervisor.name = user.name || 'المشرف';
+          if(userNamePlaceholder) userNamePlaceholder.textContent = currentSupervisor.name;
+          if(dashboardContent) dashboardContent.style.display = 'block';
+          
+          await fetchAndDisplayProjects(currentSupervisor.id);
+          
+          if(logoutButton) {
+              logoutButton.addEventListener('click', async () => {
+                  await logout();
+                  window.location.href = '/crs';
+              });
+          }
+      } else {
+          window.location.href = '/crs';
+      }
+  }
 
-        // Toggle form visibility
-        if (target.matches('.btn-toggle-expense')) {
-            projectGroup.querySelector('.expense-card').style.display = 'block';
-            projectGroup.querySelector('.report-card').style.display = 'none';
-        }
-        if (target.matches('.btn-toggle-report')) {
-            projectGroup.querySelector('.expense-card').style.display = 'none';
-            projectGroup.querySelector('.report-card').style.display = 'block';
-        }
-
-        // Cancel buttons
-        if (target.matches('.btn-cancel-expense')) projectGroup.querySelector('.expense-card').style.display = 'none';
-        if (target.matches('.btn-cancel-report')) projectGroup.querySelector('.report-card').style.display = 'none';
-
-        // Save expense item
-        if (target.matches('.btn-save-expense-item')) {
-            const form = target.closest('form.expense-form');
-            if (!form) return;
-            const projectId = form.dataset.projectId;
-
-            target.disabled = true;
-            target.textContent = 'جارٍ الحفظ...';
-            form.querySelectorAll('.error-message').forEach(el => el.textContent = '');
-
-            try {
-                const select = form.querySelector('.item-name-select');
-                let itemName = select.value;
-                if (itemName === 'اخري') {
-                    const otherInput = form.querySelector('.other-item-name');
-                    itemName = otherInput.value.trim();
-                    if (!itemName) throw { field: '.other-item-name', message: 'يرجى إدخال اسم البند.' };
-                }
-                if (!itemName) throw { field: '.item-name-select', message: 'يرجى اختيار بند.' };
-
-                const amountInput = form.querySelector('.item-amount');
-                const amount = parseFloat(amountInput.value);
-                if (isNaN(amount) || amount <= 0) throw { field: '.item-amount', message: 'يرجى إدخال مبلغ صحيح.' };
-
-                const notes = form.querySelector('.expense-notes').value.trim();
-                const imageFiles = form.querySelector('.expense-images').files;
-                
-                const imageUrls = await uploadFiles(imageFiles, projectId, 'daily_expenses');
-                
-                await addDoc(collection(db, 'daily_expenses'), {
-                    projectId: projectId,
-                    supervisorId: currentSupervisor.uid,
-                    supervisorName: currentSupervisor.name,
-                    items: [{ name: itemName, amount: amount }],
-                    totalAmount: amount,
-                    notes: notes,
-                    imageUrls: imageUrls,
-                    isRead: false,
-                    createdAt: serverTimestamp()
-                });
-
-                alert('تم ارسال المصروف بنجاح');
-                form.reset();
-                select.dispatchEvent(new Event('change'));
-
-            } catch (error) {
-                console.error("Expense Item Save Error:", error);
-                if (typeof error === 'object' && error.field) {
-                    const field = form.querySelector(error.field);
-                    if (field) {
-                        const errorEl = field.closest('.form-group').querySelector('.error-message');
-                        if (errorEl) errorEl.textContent = error.message;
-                        field.focus();
-                    }
-                } else {
-                    alert(error.message || 'حدث خطأ غير متوقع أثناء حفظ البند.');
-                }
-            } finally {
-                target.disabled = false;
-                target.textContent = 'حفظ البند';
-            }
-        }
-    });
-
-    projectsList.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        // Only daily report form will be submitted this way
-        if (e.target.matches('.report-form')) {
-            const form = e.target;
-            const projectId = form.dataset.projectId;
-            const submitButton = form.querySelector('button[type="submit"]');
-
-            submitButton.disabled = true;
-            submitButton.textContent = 'جارٍ الحفظ...';
-
-            try {
-                await saveDailyReport(form, projectId);
-                alert('تم حفظ التقرير بنجاح!');
-                window.location.reload(); // Reload to show updated state
-            } catch (error) {
-                console.error("Daily Report Submission Error:", error);
-                alert(error.message || 'حدث خطأ أثناء حفظ التقرير. يرجى المحاولة مرة أخرى.');
-                submitButton.disabled = false;
-                submitButton.textContent = 'حفظ التقرير';
-            }
-        }
-    });
-
-    projectsList.addEventListener('change', e => {
-        const target = e.target;
-        if (target.matches('.item-name-select')) {
-            const form = target.closest('form');
-            const otherItemGroup = form.querySelector('.other-item-name-group');
-            otherItemGroup.style.display = target.value === 'اخري' ? 'block' : 'none';
-            if (target.value !== 'اخري') {
-                form.querySelector('.other-item-name').value = ''; 
-            }
-        }
-    });
-    
-    // --- Auth Logic ---
-    (async () => {
-    const user = await checkAuth();
-      if (user) {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists() && userDoc.data().role === 'supervisor') {
-              currentSupervisor.uid = user.uid;
-              currentSupervisor.name = userDoc.data().name || 'المشرف';
-              userNamePlaceholder.textContent = currentSupervisor.name;
-              await fetchAndDisplayProjects(currentSupervisor.uid);
-              loadingMessage.style.display = 'none';
-              dashboardContent.style.display = 'block';
-          } else { window.location.href = '/crs'; }
-      } else { window.location.href = '/crs'; }
-    });
-
-    // --- Helper Functions ---
-    async function uploadFiles(files, projectId, folder) {
-        if (!files || files.length === 0) return [];
-        const uploadPromises = Array.from(files).map(file => {
-            const storageRef = ref(storage, `${folder}/${projectId}/${Date.now()}_${file.name}`);
-            const uploadTask = uploadBytesResumable(storageRef, file);
-            return new Promise((resolve, reject) => {
-                uploadTask.on('state_changed', 
-                    () => {}, (error) => reject(error), 
-                    () => getDownloadURL(uploadTask.snapshot.ref).then(resolve)
-                );
-  })();
-
-        return Promise.all(uploadPromises);
-    }
-
-    async function saveDailyReport(form, projectId) {
-        const reportText = form.querySelector('.report-text').value;
-        if (!reportText.trim()) throw new Error('نص التقرير مطلوب للحفظ.');
-        const imageFiles = form.querySelector('.report-images').files;
-        const imageUrls = await uploadFiles(imageFiles, projectId, 'daily_reports');
-
-        await addDoc(collection(db, 'daily_reports'), {
-            projectId: projectId,
-            supervisorId: currentSupervisor.uid,
-            supervisorName: currentSupervisor.name, 
-            reportText: reportText,
-            imageUrls: imageUrls,
-            isRead: false,
-            createdAt: serverTimestamp()
-        });
-    }
-
-    async function fetchAndDisplayProjects(supervisorUid) {
+  async function fetchAndDisplayProjects(supervisorId) {
+      const projectsList = document.getElementById('projects-list');
+      const noProjectsMessage = document.getElementById('no-projects-message');
+      
       try {
-          const projectsQuery = query(collection(db, "projects"), where("supervisorIds", "array-contains", supervisorUid));
-          const projectsSnapshot = await getDocs(projectsQuery);
-          const supervisedProjects = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          const response = await fetch(`/api/projects?supervisorId=${supervisorId}`);
+          const projects = await response.json();
 
-          if (supervisedProjects.length === 0) {
-              noProjectsMessage.style.display = 'block';
-              projectsList.innerHTML = '';
+          if (projects.length === 0) {
+              if(noProjectsMessage) noProjectsMessage.style.display = 'block';
+              if(projectsList) projectsList.innerHTML = '';
               return;
           }
 
-          const supervisorDocs = await Promise.all(supervisedProjects.flatMap(p => p.supervisorIds || []).map(id => getDoc(doc(db, "users", id))));
-          const supervisorsMap = new Map(supervisorDocs.filter(d => d.exists()).map(d => [d.id, d.data().name || 'اسم غير معروف']));
-
-          const enrichedProjects = supervisedProjects.map(project => ({
-              ...project,
-              supervisorNames: (project.supervisorIds || []).map(id => supervisorsMap.get(id) || 'اسم غير معروف')
-          }));
-
-          noProjectsMessage.style.display = 'none';
-          projectsList.innerHTML = enrichedProjects.map(createProjectCards).join('');
-
+          if(noProjectsMessage) noProjectsMessage.style.display = 'none';
+          if(projectsList) projectsList.innerHTML = projects.map(createProjectCard).join('');
+          
+          setupCardInteractions();
       } catch (error) {
-          console.error("Error fetching supervisor projects:", error);
-          projectsList.innerHTML = '<p class="error-message">حدث خطأ أثناء تحميل المشاريع.</p>';
+          console.error("Error fetching projects:", error);
       }
-    }
-
-    function createProjectCards(project) {
-        const supervisorNamesHtml = project.supervisorNames.join(', ');
-        return `
-          <div class="project-group" data-project-group-id="${project.id}">
-              <div class="project-card">
-                  <div class="card-details">
-                      <div class="card-item"><span class="item-label">اسم المشروع</span><p class="item-value">${project.projectName}</p></div>
-                      <div class="card-item"><span class="item-label">عنوان المشروع</span><p class="item-value">${project.projectAddress || 'غير محدد'}</p></div>
-                      <div class="card-item"><span class="item-label">المشرفون</span><p class="item-value">${supervisorNamesHtml}</p></div>
-                  </div>
-                  <div class="card-actions">
-                      <button class="btn btn-action btn-toggle-expense">مصروفات يومية</button>
-                      <button class="btn btn-action btn-toggle-report">تقرير يومي</button>
-                      <a href="/crs/projects/${project.id}/remains" class="btn btn-action btn-leftovers-link">عرض البواقي</a>
-                  </div>
-              </div>
-              
-              <div class="form-card expense-card" style="display: none;">
-                   <form class="expense-form" data-project-id="${project.id}" onsubmit="return false;"> <header class="form-card-header"><h2>إضافة مصروفات يومية لمشروع: ${project.projectName}</h2></header>
-                      <p class="form-description">كل بند يتم إضافته يُحفظ كتقرير منفصل.</p>
-                      
-                      <div class="expense-item-adder">
-                            <div class="form-group item-name-group">
-                                <label>البنود</label>
-                                <select class="item-name-select">
-                                    <option value="" disabled selected>-- اختر بند --</option>
-                                    <option value="عمال">عمال</option>
-                                    <option value="مصروفات نثريه">مصروفات نثريه</option>
-                                    <option value="حديد">حديد</option>
-                                    <option value="اسمنت">اسمنت</option>
-                                    <option value="طوب">طوب</option>
-                                    <option value="رمله">رمله</option>
-                                    <option value="زلط">زلط</option>
-                                    <option value="اخري">اخري</option>
-                                </select>
-                                <small class="error-message"></small>
-                            </div>
-                            <div class="form-group other-item-name-group" style="display: none;">
-                                <label>اسم البند (آخر)</label>
-                                <input type="text" class="other-item-name" placeholder="ادخل اسم البند">
-                                <small class="error-message"></small>
-                            </div>
-                            <div class="form-group">
-                                <label>المبلغ (ج.م)</label>
-                                <input type="number" class="item-amount" placeholder="0.00">
-                                <small class="error-message"></small>
-                            </div>
-                            <div class="form-group notes-group">
-                                <label>ملاحظات (اختياري)</label>
-                                <textarea class="expense-notes" rows="2"></textarea>
-                            </div>
-                            <div class="form-group attachments-group">
-                                <label>إرفاق صور (اختياري)</label>
-                                <input type="file" class="expense-images" multiple accept="image/*">
-                            </div>
-                      </div>
-
-                      <div class="form-actions">
-                        <button type="button" class="btn btn-submit btn-save-expense-item">حفظ البند</button>
-                        <button type="button" class="btn btn-cancel-expense">إغلاق</button>
-                      </div>
-                  </form>
-              </div>
-
-              <div class="form-card report-card" style="display: none;">
-                  <form class="report-form" data-project-id="${project.id}">
-                      <header class="form-card-header"><h2>إضافة تقرير يومي لمشروع: ${project.projectName}</h2></header>
-                      <div class="form-group"><label>نص التقرير</label><textarea class="report-text" rows="6" required placeholder="اكتب هنا تفاصيل سير العمل، المشاكل، التقدم المحرز..."></textarea></div>
-                      <div class="form-group"><label>إرفاق صور (اختياري)</label><input type="file" class="report-images" multiple accept="image/*"></div>
-                      <div class="form-actions"><button type="submit" class="btn btn-submit">حفظ التقرير</button><button type="button" class="btn-cancel-report">إلغاء</button></div>
-                  </form>
-              </div>
-          </div>
-        `;
-    }
-
-    if (logoutButton) logoutButton.addEventListener('click', async () => {
-        try { await logout(); window.location.href = '/crs'; } 
-        catch (error) { console.error("Logout Error:", error); }
-    });
   }
 
-  initializeDashboard();
-  document.addEventListener('astro:after-swap', initializeDashboard);
+  function createProjectCard(project) {
+      const supervisorNames = project.supervisors ? project.supervisors.map(s => s.name).join(', ') : '-';
+      return `
+        <div class="project-group" data-id="${project.id}">
+            <div class="project-card">
+                <div class="card-details">
+                    <div class="card-item"><span class="item-label">اسم المشروع</span><p class="item-value">${project.projectName}</p></div>
+                    <div class="card-item"><span class="item-label">عنوان المشروع</span><p class="item-value">${project.projectAddress || 'غير محدد'}</p></div>
+                    <div class="card-item"><span class="item-label">المشرفون</span><p class="item-value">${supervisorNames}</p></div>
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-action btn-toggle-expense">مصروفات يومية</button>
+                    <button class="btn btn-action btn-toggle-report">تقرير يومي</button>
+                    <a href="/crs/projects/${project.id}/remains" class="btn btn-action btn-leftovers-link">عرض البواقي</a>
+                </div>
+            </div>
+            
+            <div class="form-card expense-card" style="display: none;">
+                 <form class="expense-form" data-project-id="${project.id}">
+                    <header class="form-card-header"><h2>إضافة مصروفات يومية لمشروع: ${project.projectName}</h2></header>
+                    <div class="expense-item-adder">
+                          <div class="form-group">
+                              <label>البنود</label>
+                              <select class="item-name-select" required>
+                                  <option value="" disabled selected>-- اختر بند --</option>
+                                  <option value="عمال">عمال</option>
+                                  <option value="مصروفات نثريه">مصروفات نثريه</option>
+                                  <option value="حديد">حديد</option>
+                                  <option value="اسمنت">اسمنت</option>
+                                  <option value="طوب">طوب</option>
+                                  <option value="رمله">رمله</option>
+                                  <option value="زلط">زلط</option>
+                                  <option value="اخري">اخري</option>
+                              </select>
+                          </div>
+                          <div class="form-group other-item-name-group" style="display: none;">
+                              <label>اسم البند (آخر)</label>
+                              <input type="text" class="other-item-name" placeholder="ادخل اسم البند">
+                          </div>
+                          <div class="form-group">
+                              <label>المبلغ (ج.م)</label>
+                              <input type="number" class="item-amount" placeholder="0.00" required step="0.01">
+                          </div>
+                          <div class="form-group notes-group">
+                              <label>ملاحظات (اختياري)</label>
+                              <textarea class="expense-notes" rows="2"></textarea>
+                          </div>
+                    </div>
+                    <div class="form-actions">
+                      <button type="submit" class="btn btn-submit">حفظ البند</button>
+                      <button type="button" class="btn btn-cancel-expense">إغلاق</button>
+                    </div>
+                </form>
+            </div>
 
+            <div class="form-card report-card" style="display: none;">
+                <form class="report-form" data-project-id="${project.id}">
+                    <header class="form-card-header"><h2>إضافة تقرير يومي لمشروع: ${project.projectName}</h2></header>
+                    <div class="form-group"><label>نص التقرير</label><textarea class="report-text" rows="6" required placeholder="اكتب هنا تفاصيل سير العمل..."></textarea></div>
+                    <div class="form-actions"><button type="submit" class="btn btn-submit">حفظ التقرير</button><button type="button" class="btn-cancel-report">إلغاء</button></div>
+                </form>
+            </div>
+        </div>
+      `;
+  }
+
+  function setupCardInteractions() {
+      const projectGroups = document.querySelectorAll('.project-group');
+      
+      projectGroups.forEach(group => {
+          const expenseCard = group.querySelector('.expense-card') as HTMLElement;
+          const reportCard = group.querySelector('.report-card') as HTMLElement;
+          
+          group.querySelector('.btn-toggle-expense')?.addEventListener('click', () => {
+              expenseCard.style.display = expenseCard.style.display === 'none' ? 'block' : 'none';
+              reportCard.style.display = 'none';
+          });
+
+          group.querySelector('.btn-toggle-report')?.addEventListener('click', () => {
+              reportCard.style.display = reportCard.style.display === 'none' ? 'block' : 'none';
+              expenseCard.style.display = 'none';
+          });
+
+          group.querySelector('.btn-cancel-expense')?.addEventListener('click', () => expenseCard.style.display = 'none');
+          group.querySelector('.btn-cancel-report')?.addEventListener('click', () => reportCard.style.display = 'none');
+
+          const select = group.querySelector('.item-name-select') as HTMLSelectElement;
+          const otherGroup = group.querySelector('.other-item-name-group') as HTMLElement;
+          select?.addEventListener('change', () => {
+              otherGroup.style.display = select.value === 'اخري' ? 'block' : 'none';
+          });
+
+          // Form submissions
+          group.querySelector('.expense-form')?.addEventListener('submit', async (e) => {
+              e.preventDefault();
+              const form = e.target as HTMLFormElement;
+              const submitBtn = form.querySelector('.btn-submit') as HTMLButtonElement;
+              const projectId = form.dataset.projectId;
+
+              let itemName = (form.querySelector('.item-name-select') as HTMLSelectElement).value;
+              if(itemName === 'اخري') itemName = (form.querySelector('.other-item-name') as HTMLInputElement).value;
+              
+              const amount = parseFloat((form.querySelector('.item-amount') as HTMLInputElement).value);
+              const notes = (form.querySelector('.expense-notes') as HTMLTextAreaElement).value;
+
+              submitBtn.disabled = true;
+              submitBtn.textContent = 'جارٍ الحفظ...';
+
+              try {
+                  const res = await fetch('/api/dashboard/expenses', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                          projectId,
+                          supervisorName: currentSupervisor.name,
+                          items: [{ name: itemName, amount }],
+                          totalAmount: amount,
+                          notes
+                      })
+                  });
+                  if (res.ok) {
+                      alert('تم الحفظ بنجاح');
+                      form.reset();
+                      expenseCard.style.display = 'none';
+                  }
+              } catch (err) { alert('خطأ في الاتصال'); }
+              finally {
+                  submitBtn.disabled = false;
+                  submitBtn.textContent = 'حفظ البند';
+              }
+          });
+
+          group.querySelector('.report-form')?.addEventListener('submit', async (e) => {
+              e.preventDefault();
+              const form = e.target as HTMLFormElement;
+              const submitBtn = form.querySelector('.btn-submit') as HTMLButtonElement;
+              const projectId = form.dataset.projectId;
+              const content = (form.querySelector('.report-text') as HTMLTextAreaElement).value;
+
+              submitBtn.disabled = true;
+              submitBtn.textContent = 'جارٍ الحفظ...';
+
+              try {
+                  const res = await fetch('/api/dashboard/reports', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                          projectId,
+                          supervisorName: currentSupervisor.name,
+                          content
+                      })
+                  });
+                  if (res.ok) {
+                      alert('تم الحفظ بنجاح');
+                      form.reset();
+                      reportCard.style.display = 'none';
+                  }
+              } catch (err) { alert('خطأ في الاتصال'); }
+              finally {
+                  submitBtn.disabled = false;
+                  submitBtn.textContent = 'حفظ التقرير';
+              }
+          });
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', initializeDashboard);
 </script>
 
 <style is:global>
@@ -329,7 +256,7 @@ import Layout from '../../layouts/Layout.astro';
   .supervisor-dashboard-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f4f7f6; min-height: 100vh; padding: 2rem; }
   #auth-loading-message, .info-message { text-align: center; padding: 5rem 1rem; font-size: 1.2rem; color: #555; }
   .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem; padding-bottom: 1.5rem; border-bottom: 2px solid #e2e8f0; }
-  .btn-logout { background-color: var(--danger-color); color: white; }
+  .btn-logout { background-color: var(--danger-color); color: white; padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; }
   .projects-container { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; max-width: 900px; margin: 0 auto; }
   
   .project-card, .form-card { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.07); padding: 1.5rem 2rem; }
@@ -340,28 +267,22 @@ import Layout from '../../layouts/Layout.astro';
   .item-value { font-size: 1.2rem; font-weight: 600; color: #2d3748; }
   
   .card-actions { display: flex; gap: 1rem; justify-content: center; }
-  .btn-action { font-weight: 700; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; transition: all 0.2s; flex-grow: 1; text-align: center; }
+  .btn-action { font-weight: 700; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; transition: all 0.2s; flex-grow: 1; text-align: center; font-family: inherit; }
   .btn-toggle-expense { background-color: var(--primary-color); color: white; }
   .btn-toggle-report { background-color: var(--secondary-color); color: white; }
-  .btn-leftovers-link { background-color: var(--warning-color); color: white !important; text-decoration: none; }
+  .btn-leftovers-link { background-color: var(--warning-color); color: white !important; text-decoration: none; display: flex; align-items: center; justify-content: center; }
 
   .form-card { margin-top: -1rem; border-top-left-radius: 0; border-top-right-radius: 0; border-top: 1px solid #e2e8f0; }
-  .form-card-header { padding-bottom: 1rem; margin-bottom: 0.5rem; border-bottom: 2px solid #e2e8f0; }
-  .form-card-header h2 { font-size: 1.4rem; font-weight: 700; color: #1a202c; }
-  .form-description { margin-bottom: 1.5rem; font-size: 0.9rem; color: #555; }
+  .form-card-header h2 { font-size: 1.4rem; font-weight: 700; color: #1a202c; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 1rem; }
 
-  .form-group { margin: 0; display: flex; flex-direction: column; }
+  .form-group { margin-bottom: 1rem; display: flex; flex-direction: column; }
   label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
-  input, select, textarea { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+  input, select, textarea { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; font-family: inherit; }
 
-  .error-message { color: var(--danger-color); font-size: 0.875rem; margin-top: 0.25rem; min-height: 1.2rem; }
-
-  .expense-item-adder { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.5rem; padding-bottom: 1.5rem;}
-  .item-name-group, .other-item-name-group { grid-column: 1 / 2; }
-  .notes-group, .attachments-group { grid-column: 1 / -1; }
+  .expense-item-adder { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .notes-group { grid-column: 1 / -1; }
   
   .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem; border-top: 1px solid #e2e8f0; padding-top: 1.5rem; }
-  .btn, .btn-submit, .btn-cancel-expense, .btn-cancel-report, .btn-logout, .btn-save-expense-item { font-weight: 700; border: none; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; }
-  .btn-submit { background-color: var(--primary-color); color: white; padding: 0.8rem 1.5rem; }
-  .btn-cancel-expense, .btn-cancel-report { background-color: var(--gray-color); color: white; padding: 0.8rem 1.5rem; }
+  .btn-submit { background-color: var(--primary-color); color: white; padding: 0.8rem 1.5rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; }
+  .btn-cancel-expense, .btn-cancel-report { background-color: var(--gray-color); color: white; padding: 0.8rem 1.5rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; }
 </style>

@@ -1,4 +1,3 @@
-
 ---
 import Layout from '../../../layouts/Layout.astro';
 import AdminLogin from '../../../components/AdminLogin.astro';
@@ -202,133 +201,76 @@ try {
 
 <script>
   import { checkAuth, logout } from '../../../lib/auth.js';
-            document.addEventListener('DOMContentLoaded', () => {
-        const authLoadingMessage = document.getElementById('auth-loading-message');
-        const loginContainer = document.getElementById('admin-login-container');
-        const pageContent = document.getElementById('page-content');
+  
+  document.addEventListener('DOMContentLoaded', async () => {
+      const authLoadingMessage = document.getElementById('auth-loading-message');
+      const loginContainer = document.getElementById('admin-login-container');
+      const pageContent = document.getElementById('page-content');
+      
+      const user = await checkAuth();
+      if(authLoadingMessage) authLoadingMessage.style.display = 'none';
 
-        (async () => {
-    const user = await checkAuth();
-            if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+      if (user && user.role === 'admin') {
+          if(pageContent) pageContent.style.display = 'block';
+          if(loginContainer) loginContainer.style.display = 'none';
 
-            if (user) {
-                try {
-                    const checkAdminResp = await fetch('/api/projects');
-                    
-                    if (checkAdminResp.ok) {
-                        if(pageContent) pageContent.style.display = 'block';
-                        if(loginContainer) loginContainer.style.display = 'none';
-
-                        const logoutButton = document.getElementById('logout-button');
-                        if (logoutButton) {
-                            logoutButton.addEventListener('click', async () => {
-                                await logout();
-                                window.location.href = '/crs';
-                            });
-                        }
-
-                    } else {
-                        await logout();
-                        window.location.href = '/crs';
-                    }
-                } catch (error) {
-                    console.error('Auth Check Error:', error);
-                    await logout();
-                    if(loginContainer) loginContainer.style.display = 'block';
-                    if(pageContent) pageContent.style.display = 'none';
-                }
-            } else {
-                if(pageContent) pageContent.style.display = 'none';
-                if(loginContainer) loginContainer.style.display = 'block';
-            }
-  })();
-
+          const logoutButton = document.getElementById('logout-button');
+          logoutButton?.addEventListener('click', async () => {
+              await logout();
+              window.location.href = '/crs';
+          });
+      } else {
+          if(pageContent) pageContent.style.display = 'none';
+          if(loginContainer) loginContainer.style.display = 'block';
+      }
+  });
 </script>
 
 <style>
-.auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
-.auth-container p { font-size: 1.2rem; }
-.btn-logout { background-color: #ef4444; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
-.btn-logout:hover { background-color: #dc2626; }
+.auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; text-align: center; font-family: 'Cairo', sans-serif; }
+.btn-logout { background-color: #ef4444; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: inherit; }
 .page-header div:last-child { display: flex; align-items: center; gap: 1rem; }
-    @keyframes pulse {
-        0%, 100% {
-            transform: scale(1);
-            box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.7);
-        }
-        50% {
-            transform: scale(1.1);
-            box-shadow: 0 0 0 10px rgba(255, 82, 82, 0);
-        }
-    }
 
-    :root { 
-        --primary-color: #007bff; 
-        --border-color: #e9ecef; 
-        --card-shadow: 0 4px 15px rgba(0,0,0,0.06);
-        --expense-color: #dc3545;
-        --daily-color: #17a2b8;
-        --items-color: #28a745;
-        --suppliers-color: #ffc107;
-        --remains-color: #6f42c1; 
-        --agreements-color: #fd7e14; /* New color for agreements */
-        --notification-color: #ff5252;
-    }
-    .project-details-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; min-height: 100vh; padding: 2.5rem; }
-    .container { max-width: 1100px; margin: 0 auto; }
+:root { 
+    --primary-color: #007bff; 
+    --border-color: #e9ecef; 
+    --card-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    --expense-color: #dc3545;
+    --daily-color: #17a2b8;
+    --items-color: #28a745;
+    --suppliers-color: #ffc107;
+    --remains-color: #6f42c1; 
+    --agreements-color: #fd7e14;
+    --notification-color: #ff5252;
+}
 
-    .page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
-    h1 { font-size: 2.25rem; font-weight: 800; }
-    .page-subtitle { color: #6c757d; }
-    .back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; padding: 0.6rem 1rem; }
+.project-details-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; min-height: 100vh; padding: 2.5rem; }
+.container { max-width: 1100px; margin: 0 auto; }
+.page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
+h1 { font-size: 2.25rem; font-weight: 800; margin: 0; }
+.page-subtitle { color: #6c757d; }
+.back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; padding: 0.6rem 1rem; }
 
-    .project-info-card { background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; padding: 1.75rem; margin-bottom: 2.5rem; }
-    .info-item { display: flex; align-items: center; gap: 1rem; }
-    .info-item svg { color: var(--primary-color); width: 28px; height: 28px; }
-    .info-item div { display: flex; flex-direction: column; }
-    .info-item strong { font-weight: 700; font-size: 0.9rem; color: #6c757d; }
-    .info-item span { font-weight: 600; font-size: 1.1rem; }
+.project-info-card { background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; padding: 1.75rem; margin-bottom: 2.5rem; }
+.info-item { display: flex; align-items: center; gap: 1rem; }
+.info-item svg { color: var(--primary-color); }
+.info-item div { display: flex; flex-direction: column; }
+.info-item strong { font-weight: 700; font-size: 0.9rem; color: #6c757d; }
+.info-item span { font-weight: 600; font-size: 1.1rem; }
 
-    .report-links-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
-    .report-link-card { position: relative; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); text-decoration: none; color: inherit; display: flex; align-items: center; padding: 2rem; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid var(--border-color); }
-    .report-link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
-    .card-icon { margin-left: 1.5rem; padding: 1rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; }
-    .expense-icon { background-color: var(--expense-color); }
-    .daily-icon { background-color: var(--daily-color); }
-    .items-icon { background-color: var(--items-color); }
-    .suppliers-icon { background-color: var(--suppliers-color); }
-    .remains-icon { background-color: var(--remains-color); } 
-    .agreements-icon { background-color: var(--agreements-color); } /* New style for agreements icon */
-    .card-content h3 { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.5rem 0; }
-    .card-content p { margin: 0; color: #6c757d; line-height: 1.7; }
-    
-    .notification-badge {
-        position: absolute;
-        top: -10px; 
-        right: -10px;
-        background-color: var(--notification-color);
-        color: white;
-        border-radius: 16px;
-        padding: 4px 10px 4px 8px;
-        display: flex;
-        align-items: center;
-        font-size: 0.9rem;
-        font-weight: 700;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-    .notification-badge .dot {
-        width: 10px;
-        height: 10px;
-        background-color: white;
-        border-radius: 50%;
-        margin-left: 6px;
-        animation: pulse 1.5s infinite;
-    }
+.report-links-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
+.report-link-card { position: relative; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); text-decoration: none; color: inherit; display: flex; align-items: center; padding: 2rem; transition: transform 0.2s; border: 1px solid var(--border-color); }
+.report-link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+.card-icon { margin-left: 1.5rem; padding: 1.2rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; }
+.expense-icon { background-color: var(--expense-color); }
+.daily-icon { background-color: var(--daily-color); }
+.items-icon { background-color: var(--items-color); }
+.suppliers-icon { background-color: var(--suppliers-color); }
+.remains-icon { background-color: var(--remains-color); } 
+.agreements-icon { background-color: var(--agreements-color); }
 
-    .error-card { text-align: center; padding: 4rem; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); }
-    .error-card h2 { color: var(--danger-color); font-size: 2rem; margin-bottom: 1rem; }
+.card-content h3 { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.5rem 0; }
+.card-content p { margin: 0; color: #6c757d; line-height: 1.7; }
 
-    @media (max-width: 768px) {
-        .button-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
-    }
+.notification-badge { position: absolute; top: -10px; right: -10px; background-color: var(--notification-color); color: white; border-radius: 16px; padding: 4px 12px; font-size: 0.85rem; font-weight: 700; }
 </style>

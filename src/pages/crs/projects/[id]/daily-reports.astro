@@ -5,336 +5,211 @@ import AdminLogin from '../../../../components/AdminLogin.astro';
 import prisma from "../../../../lib/prisma";
 
 const { id } = Astro.params;
-if (!id) {
-    return Astro.redirect('/404');
-}
+if (!id) return Astro.redirect('/404');
 
 let project = null;
 let dailyReports = [];
 let feedback = { message: '', type: '' };
 
-// Mark notifications as read
+// Auth & Data Fetching
 try {
+    const projectDoc = await prisma.project.findUnique({ where: { id: id } });
+    if (!projectDoc) return Astro.redirect('/404');
+    project = projectDoc;
+
+    // Mark as read
     await prisma.dailyReport.updateMany({
-        where: {
-            projectId: id,
-            isRead: false
-        },
-        data: {
-            isRead: true
-        }
+        where: { projectId: id, isRead: false },
+        data: { isRead: true }
     });
-} catch (e) {
-    console.error("Error marking reports as read:", e);
-}
 
-// Handle form submission for updating reports
-if (Astro.request.method === 'POST') {
-    try {
+    // Handle Actions
+    const url = new URL(Astro.request.url);
+    const deleteId = url.searchParams.get('delete');
+    if (deleteId) {
+        await prisma.dailyReport.delete({ where: { id: deleteId } });
+        return Astro.redirect(`/crs/projects/${id}/daily-reports?feedback=deleted`);
+    }
+
+    if (Astro.request.method === 'POST') {
         const formData = await Astro.request.formData();
-        const reportIdToUpdate = formData.get('reportId')?.toString();
-        if (!reportIdToUpdate) throw new Error('Report ID is missing.');
-
-        const reportText = formData.get('reportText')?.toString();
-        const notes = formData.get('notes')?.toString();
+        const reportId = formData.get('reportId')?.toString();
+        const content = formData.get('content')?.toString() || '';
+        const notes = formData.get('notes')?.toString() || '';
 
         await prisma.dailyReport.update({
-            where: { id: reportIdToUpdate },
-            data: {
-                content: reportText, // Mapping UI 'reportText' to schema 'content'
-                notes: notes,
-            }
+            where: { id: reportId },
+            data: { content, notes }
         });
-
         return Astro.redirect(`/crs/projects/${id}/daily-reports?feedback=updated`);
-    } catch (error) {
-        console.error("Error updating daily report:", error);
-        return Astro.redirect(`/crs/projects/${id}/daily-reports?feedback=update_error`);
     }
-}
 
-// Handle report deletion
-const reportIdToDelete = Astro.url.searchParams.get('delete');
-if (reportIdToDelete) {
-    try {
-        await prisma.dailyReport.delete({
-            where: { id: reportIdToDelete }
-        });
-        return Astro.redirect(`/crs/projects/${id}/daily-reports?feedback=deleted`);
-    } catch (error) {
-        console.error("Error deleting daily report:", error);
-        return Astro.redirect(`/crs/projects/${id}/daily-reports?feedback=error`);
-    }
-}
+    // Feedback
+    const fb = url.searchParams.get('feedback');
+    if (fb === 'deleted') feedback = { message: 'تم حذف التقرير اليومي.', type: 'success' };
+    if (fb === 'updated') feedback = { message: 'تم تحديث التقرير اليومي.', type: 'success' };
 
-const feedbackParam = Astro.url.searchParams.get('feedback');
-if (feedbackParam === 'deleted') feedback = { message: 'تم حذف التقرير اليومي بنجاح.', type: 'success' };
-if (feedbackParam === 'updated') feedback = { message: 'تم تحديث التقرير اليومي بنجاح.', type: 'success' };
-if (feedbackParam === 'error') feedback = { message: 'حدث خطأ أثناء حذف التقرير اليومي.', type: 'error' };
-if (feedbackParam === 'update_error') feedback = { message: 'حدث خطأ أثناء تحديث التقرير اليومي.', type: 'error' };
-
-const formatDate = (date) => {
-    if (!date) return 'تاريخ غير متوفر';
-    const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' });
-};
-
-try {
-    const projectDoc = await prisma.project.findUnique({
-        where: { id: id }
-    });
-    
-    if (!projectDoc) return Astro.redirect('/404');
-    
-    project = { id: projectDoc.id, projectName: projectDoc.projectName };
-    
-    const reports = await prisma.dailyReport.findMany({
+    // Fetch Reports
+    dailyReports = await prisma.dailyReport.findMany({
         where: { projectId: id },
         orderBy: { createdAt: 'desc' }
     });
-    
-    dailyReports = reports.map(report => ({
-        id: report.id,
-        ...report,
-        reportText: report.content, // Alias content back to reportText for the UI
-        createdAtFormatted: formatDate(report.createdAt)
-    }));
 
-} catch (error) {
-    console.error("Error fetching daily reports:", error);
-    project = { projectName: "خطأ في تحميل البيانات" };
+} catch (e) {
+    console.error(e);
 }
 
+const formatDate = (d) => new Date(d).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 ---
 
 <Layout title={`التقارير اليومية: ${project?.projectName}`}>
-    <div id="auth-loading-message" class="auth-container">
-        <p>جارٍ التحقق من صلاحيات الدخول...</p>
-    </div>
+    <div id="auth-loading-message" class="auth-container"><p>جارٍ التحقق...</p></div>
+    <div id="admin-login-container" class="auth-container" style="display: none;"><AdminLogin /></div>
 
-    <div id="admin-login-container" class="auth-container" style="display: none;">
-      <AdminLogin />
-    </div>
-    
-    <main id="page-content" class="reports-display-page" style="display: none;">
+    <main id="page-content" style="display: none;">
         <div class="container">
             <header class="page-header">
-                 <div>
-                    <h1>التقارير اليومية لمشروع: {project.projectName}</h1>
-                    <p class="page-subtitle">عرض وتعديل وحذف التقارير اليومية مباشرة.</p>
-                </div>
                 <div>
-                    <a href={`/crs/projects/${id}`} class="back-link">&larr; العودة للتفاصيل</a>
-                    <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
+                    <h1>التقارير اليومية لمشروع: {project?.projectName}</h1>
+                    <p>عرض تفاصيل سير العمل اليومية.</p>
+                </div>
+                <div class="header-actions">
+                    <a href={`/crs/projects/${id}`} class="btn btn-secondary">العودة</a>
+                    <button id="logout-button" class="btn btn-danger">خروج</button>
                 </div>
             </header>
 
-            {feedback.message && <div class={`feedback-banner ${feedback.type}`}>{feedback.message}</div>}
+            {feedback.message && <div class={`alert ${feedback.type}`}>{feedback.message}</div>}
 
-            <section class="reports-section">
+            <div class="reports-list">
                 {dailyReports.length === 0 ? (
-                    <div class="no-items-card"><p>لا توجد تقارير يومية لهذا المشروع بعد.</p></div>
+                    <div class="empty-state">لا توجد تقارير يومية حتى الآن.</div>
                 ) : (
-                    <div class="list-container">
-                        {dailyReports.map(report => (
-                            <article class="card daily-report-card" data-report-id={report.id}>
-                                <div class="card-header"><span>بواسطة: {report.supervisorName}</span><time>{report.createdAtFormatted}</time></div>
-
-                                <div class="card-content view-mode">
-                                    <div class="card-body">
-                                        <div class="report-text-section"><h4>تفاصيل التقرير:</h4><p>{report.reportText}</p></div>
-                                        {report.notes && <div class="notes-section"><h4>ملاحظات:</h4><p>{report.notes}</p></div>}
-                                        {report.imageUrls && report.imageUrls.length > 0 && (
-                                            <div class="attachments">
-                                                <h3 class="attachments-title">الصور المرفقة:</h3>
-                                                <div class="image-gallery">
-                                                    {report.imageUrls.map(url => (
-                                                        <a href={url} target="_blank" rel="noopener noreferrer" class="image-thumbnail">
-                                                            <img src={url} alt="صورة مرفقة" loading="lazy" />
-                                                        </a>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div class="card-footer">
-                                        <button type="button" class="action-btn edit-btn-toggle">تعديل</button>
-                                        <button type="button" class="action-btn delete-btn" data-delete-url={`/crs/projects/${id}/daily-reports?delete=${report.id}`}>حذف</button>
-                                    </div>
+                    dailyReports.map(report => (
+                        <article class="report-card" data-id={report.id}>
+                            <div class="card-meta">
+                                <span>{report.supervisorName}</span>
+                                <time>{formatDate(report.createdAt)}</time>
+                            </div>
+                            
+                            <div class="view-mode">
+                                <div class="report-content">
+                                    <h4>محتوى التقرير:</h4>
+                                    <p>{report.content}</p>
                                 </div>
+                                {report.notes && (
+                                    <div class="report-notes">
+                                        <h4>ملاحظات:</h4>
+                                        <p>{report.notes}</p>
+                                    </div>
+                                )}
+                                {report.imageUrls && (report.imageUrls as string[]).length > 0 && (
+                                    <div class="report-images">
+                                        <h4>الصور المرفقة:</h4>
+                                        <div class="gallery">
+                                            {(report.imageUrls as string[]).map(url => (
+                                                <a href={url} target="_blank"><img src={url} alt="مرفق" /></a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                <div class="card-actions">
+                                    <button class="btn-edit">تعديل</button>
+                                    <button class="btn-delete" data-id={report.id}>حذف</button>
+                                </div>
+                            </div>
 
-                                <form method="POST" class="card-content edit-mode" style="display: none;">
-                                    <div class="card-body edit-form-body">
-                                        <input type="hidden" name="reportId" value={report.id} />
-                                        <h4>تعديل التقرير:</h4>
-                                        <textarea name="reportText" class="report-input">{report.reportText || ''}</textarea>
-                                        <h4>تعديل الملاحظات:</h4>
-                                        <textarea name="notes" class="notes-input">{report.notes || ''}</textarea>
-                                    </div>
-                                    <div class="card-footer">
-                                        <button type="button" class="action-btn cancel-btn-toggle">إلغاء</button>
-                                        <button type="submit" class="action-btn save-btn">حفظ التعديلات</button>
-                                    </div>
-                                </form>
-                            </article>
-                        ))}
-                    </div>
+                            <form method="POST" class="edit-mode" style="display: none;">
+                                <input type="hidden" name="reportId" value={report.id} />
+                                <div class="field">
+                                    <label>محتوى التقرير:</label>
+                                    <textarea name="content" required>{report.content}</textarea>
+                                </div>
+                                <div class="field">
+                                    <label>ملاحظات:</label>
+                                    <textarea name="notes">{report.notes}</textarea>
+                                </div>
+                                <div class="edit-actions">
+                                    <button type="button" class="btn-cancel">إلغاء</button>
+                                    <button type="submit" class="btn-save">حفظ</button>
+                                </div>
+                            </form>
+                        </article>
+                    ))
                 )}
-            </section>
-        </div>
-
-        <div id="delete-modal" class="modal-overlay">
-            <div class="modal-content">
-                <p>هل أنت متأكد أنك تريد حذف هذا التقرير؟</p>
-                <div class="modal-actions">
-                    <button id="cancel-delete-btn" class="action-btn cancel-btn-toggle">إلغاء</button>
-                    <a id="confirm-delete-btn" href="#" class="action-btn delete-btn">نعم، حذف</a>
-                </div>
             </div>
         </div>
     </main>
 </Layout>
 
 <script>
-  import { checkAuth, logout } from '../../../../lib/auth.js';
-            document.addEventListener('DOMContentLoaded', () => {
-        const authLoadingMessage = document.getElementById('auth-loading-message');
-        const loginContainer = document.getElementById('admin-login-container');
-        const pageContent = document.getElementById('page-content');
+    import { checkAuth, logout } from '../../../../lib/auth.js';
 
-        (async () => {
-    const user = await checkAuth();
-            if (authLoadingMessage) authLoadingMessage.style.display = 'none';
+    document.addEventListener('DOMContentLoaded', async () => {
+        const user = await checkAuth();
+        document.getElementById('auth-loading-message').style.display = 'none';
 
-            if (user) {
-                try {
-                    const checkAdminResp = await fetch('/api/projects');
-                    if (checkAdminResp.ok) {
-                        if (pageContent) pageContent.style.display = 'block';
-                        if (loginContainer) loginContainer.style.display = 'none';
+        if (user && user.role === 'admin') {
+            document.getElementById('page-content').style.display = 'block';
+            initApp();
+        } else {
+            document.getElementById('admin-login-container').style.display = 'block';
+        }
+    });
 
-                        const logoutButton = document.getElementById('logout-button');
-                        if (logoutButton) {
-                            logoutButton.addEventListener('click', async () => {
-                                await logout();
-                                window.location.href = '/crs';
-                            });
-                        }
+    function initApp() {
+        document.getElementById('logout-button')?.addEventListener('click', async () => {
+            await logout(); window.location.reload();
+        });
 
-                    } else {
-                        await logout();
-                        window.location.href = '/crs';
-                    }
-                } catch (error) {
-                    console.error('Auth Check Error:', error);
-                    await logout();
-                    if (loginContainer) loginContainer.style.display = 'block';
-                    if (pageContent) pageContent.style.display = 'none';
+        document.querySelectorAll('.btn-edit').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const card = btn.closest('.report-card');
+                card.querySelector('.view-mode').style.display = 'none';
+                card.querySelector('.edit-mode').style.display = 'block';
+            });
+        });
+
+        document.querySelectorAll('.btn-cancel').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const card = btn.closest('.report-card');
+                card.querySelector('.edit-mode').style.display = 'none';
+                card.querySelector('.view-mode').style.display = 'block';
+            });
+        });
+
+        document.querySelectorAll('.btn-delete').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if(confirm('هل أنت متأكد من الحذف؟')) {
+                    const id = (btn as any).dataset.id;
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('delete', id);
+                    window.location.href = url.toString();
                 }
-            } else {
-                if (pageContent) pageContent.style.display = 'none';
-                if (loginContainer) loginContainer.style.display = 'block';
-            }
+            });
         });
-
-        const container = document.querySelector('.container');
-        if (!container) return;
-
-        container.addEventListener('click', (e) => {
-            const target = e.target;
-            const card = target.closest('.daily-report-card');
-            if (!card) return;
-
-            const viewMode = card.querySelector('.view-mode');
-            const editMode = card.querySelector('.edit-mode');
-
-            if (target.matches('.edit-btn-toggle')) {
-                if(viewMode) viewMode.style.display = 'none';
-                if(editMode) editMode.style.display = 'block';
-            }
-
-            if (target.matches('.cancel-btn-toggle')) {
-                if(editMode) editMode.style.display = 'none';
-                if(viewMode) viewMode.style.display = 'block';
-            }
-
-            if (target.matches('.delete-btn')) {
-                const deleteUrl = target.dataset.deleteUrl;
-                if(deleteUrl) showDeleteModal(deleteUrl);
-            }
-        });
-
-        const deleteModal = document.getElementById('delete-modal');
-        const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
-        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
-
-        function showDeleteModal(deleteUrl) {
-            if(confirmDeleteBtn) confirmDeleteBtn.href = deleteUrl;
-            if(deleteModal) deleteModal.style.display = 'flex';
-        }
-        function hideDeleteModal() { 
-            if(deleteModal) deleteModal.style.display = 'none'; 
-        }
-
-        if(cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', hideDeleteModal);
-        if(deleteModal) deleteModal.addEventListener('click', e => { 
-            if (e.target === deleteModal) hideDeleteModal(); 
-  })();
-
+    }
 </script>
 
-<style>
-/* ... (styles remain the same) ... */
-.auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
-.auth-container p { font-size: 1.2rem; }
-.btn-logout { background-color: #ef4444; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
-.btn-logout:hover { background-color: #dc2626; }
-.page-header div:last-child { display: flex; align-items: center; gap: 1rem; }
-:root { 
-    --primary-color: #007bff; 
-    --success-color: #28a745;
-    --danger-color: #dc3545;
-    --border-color: #e9ecef; 
-    --card-shadow: 0 4px 15px rgba(0,0,0,0.06);
-}
-.reports-display-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; padding: 2.5rem; }
-.container { max-width: 1100px; margin: 0 auto; }
-.page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
-h1 { font-size: 2.25rem; font-weight: 800; }
-.page-subtitle { color: #6c757d; }
-.back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; background-color: #e7f3ff; padding: 0.6rem 1rem; border-radius: 8px; }
-
-.feedback-banner { padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 600; }
-.feedback-banner.success { background-color: #d4edda; color: #155724; }
-.feedback-banner.error { background-color: #f8d7da; color: #721c24; }
-
-.no-items-card { background: #fff; border: 1px dashed #ced4da; border-radius: 12px; padding: 3rem; text-align: center; color: #6c757d; }
-.list-container { display: flex; flex-direction: column; gap: 1.75rem; }
-
-.card { background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); overflow: hidden; }
-.card-header { display: flex; justify-content: space-between; padding: 1rem 1.5rem; background: #fdfdff; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; color: #6c757d; }
-
-.card-body { padding: 1.5rem; }
-.report-text-section p, .notes-section p { line-height: 1.8; margin: 0; color: #495057; white-space: pre-wrap; }
-.report-text-section, .notes-section, .attachments { margin-bottom: 1.5rem; }
-.notes-section, .attachments { padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
-h3, h4 { font-weight: 700; margin-bottom: 1rem; }
-.attachments-title { font-size: 1rem; }
-
-.image-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 0.75rem; }
-.image-thumbnail img { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; }
-
-.card-footer { display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1rem 1.5rem; background-color: #f8f9fa; border-top: 1px solid var(--border-color); }
-.action-btn { padding: 0.5rem 1.25rem; border: none; border-radius: 8px; font-weight: 600; text-decoration: none; cursor: pointer; }
-.edit-btn-toggle { background-color: #e9ecef; color: #343a40; }
-.delete-btn { background-color: var(--danger-color); color: #fff; }
-.save-btn { background-color: var(--success-color); color: #fff; }
-.cancel-btn-toggle { background-color: #6c757d; color: #fff;}
-
-.edit-form-body { padding-top: 0; }
-.report-input, .notes-input { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; min-height: 120px; resize: vertical; margin-bottom: 1rem; }
-
-.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.6); display: none; align-items: center; justify-content: center; z-index: 1000; }
-.modal-content { background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); text-align: center; max-width: 400px; width: 90%; }
-.modal-actions { display: flex; justify-content: center; gap: 1rem; margin-top: 2rem; }
+<style is:global>
+    :root { --primary: #2c3e50; --border: #eee; --shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    main#page-content { direction: rtl; font-family: 'Cairo', sans-serif; background: #f9f9f9; min-height: 100vh; padding: 2rem; }
+    .container { max-width: 1000px; margin: 0 auto; }
+    .page-header { display: flex; justify-content: space-between; border-bottom: 2px solid var(--border); padding-bottom: 1rem; margin-bottom: 2rem; }
+    .report-card { background: white; border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 1.5rem; padding: 1.5rem; border: 1px solid var(--border); }
+    .card-meta { display: flex; justify-content: space-between; font-size: 0.9rem; color: #777; margin-bottom: 1rem; }
+    .report-content, .report-notes, .report-images { margin-bottom: 1.2rem; }
+    h4 { margin-bottom: 0.5rem; color: var(--primary); }
+    p { white-space: pre-wrap; line-height: 1.6; }
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.5rem; }
+    .gallery img { width: 100%; height: 100px; object-fit: cover; border-radius: 6px; }
+    .btn { padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; border: none; font-weight: 600; font-family: inherit; }
+    .btn-secondary { background: #eee; color: #333; }
+    .btn-danger { background: #e74c3c; color: white; }
+    .btn-save { background: #27ae60; color: white; }
+    .edit-mode .field { margin-bottom: 1rem; }
+    .edit-mode label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+    .edit-mode textarea { width: 100%; min-height: 100px; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-family: inherit; }
+    .alert { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; text-align: center; }
+    .alert.success { background: #e8f8ef; color: #1e8449; }
 </style>

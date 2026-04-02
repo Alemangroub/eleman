@@ -1,9 +1,17 @@
 import prisma from "../../../lib/prisma.js";
 
-export async function GET() {
+export async function GET({ url }) {
+    const archived = url.searchParams.get('archived') === 'true';
+    const supervisorId = url.searchParams.get('supervisorId');
     try {
+        const where = { archived: archived };
+        if (supervisorId) {
+            where.supervisors = {
+                some: { userId: supervisorId }
+            };
+        }
         const projects = await prisma.project.findMany({
-            where: { archived: false },
+            where: where,
             include: {
                 supervisors: {
                     include: {
