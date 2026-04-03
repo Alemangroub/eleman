@@ -234,9 +234,47 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
       tableBody.innerHTML = '';
       
       installments.forEach((inst, index) => {
-          const row = document.createElement('tr');
           const isPaid = inst.status === 'paid';
+          const row = document.createElement('tr');
           row.className = isPaid ? 'status-paid' : 'status-pending';
+          
+          // Group installments by due date to detect partial payments
+          const sameDateInstallments = installments.filter(i => i.dueDate === inst.dueDate);
+          const installmentNumbers = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن', 'التاسع', 'العاشر'];
+          
+          let installmentDescription = '';
+          
+          if (sameDateInstallments.length > 1) {
+              // This is a partial payment situation
+              const paidInstallments = sameDateInstallments.filter(i => i.status === 'paid');
+              const pendingInstallments = sameDateInstallments.filter(i => i.status === 'pending');
+              
+              // Find the original installment order (by finding the highest amount)
+              const originalAmount = Math.max(...sameDateInstallments.map(i => i.installmentAmount));
+              const originalIndex = installments.findIndex(i => i.installmentAmount === originalAmount && i.dueDate === inst.dueDate);
+              const originalNumber = installmentNumbers[originalIndex] || `رقم ${originalIndex + 1}`;
+              
+              if (isPaid && inst.installmentAmount < originalAmount) {
+                  // This is a partial payment
+                  installmentDescription = `دفعة من القسط ${originalNumber}`;
+              } else if (!isPaid && inst.installmentAmount < originalAmount) {
+                  // This is the remaining amount
+                  installmentDescription = `الباقي من القسط ${originalNumber}`;
+              } else {
+                  // This is the original installment
+                  installmentDescription = `القسط ${originalNumber}`;
+              }
+          } else {
+              // Normal installment - check if it's a down payment (first installment and paid)
+              const installmentNumber = installmentNumbers[index] || `رقم ${index + 1}`;
+              
+              if (index === 0 && isPaid) {
+                  // First installment and already paid - likely a down payment
+                  installmentDescription = `مدفوع مقدماً`;
+              } else {
+                  installmentDescription = `القسط ${installmentNumber}`;
+              }
+          }
           
           row.innerHTML = `
               <td data-label="م.">${index + 1}</td>
@@ -249,7 +287,7 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
                   </select>
               </td>
               <td data-label="تاريخ الدفع">${formatDate(inst.paidDate)}</td>
-              <td data-label="بيان القسط">${inst.customerName || ''}</td>
+              <td data-label="بيان القسط">${installmentDescription}</td>
               <td data-label="إجراءات" class="actions-cell">
                   ${!isPaid ? `<button class="btn btn-partial btn-sm" data-id="${inst.id}">سداد جزئي</button>` : ''}
                   <button class="btn btn-edit btn-sm" data-id="${inst.id}">تعديل</button>
@@ -417,9 +455,9 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     }
     main#page-content { padding: 2rem 1rem; background-color: #f7f9fc; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
     .details-container { max-width: 1200px; margin: 0 auto; }
-    .details-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2rem; }
-    h1 { font-size: 2rem; color: var(--primary-color); }
-    .header-buttons { display: flex; gap: 0.5rem; }
+    .details-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+    h1 { font-size: 2rem; color: var(--primary-color); margin: 0; }
+    .header-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
     .btn { padding: 0.6rem 1.2rem; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.3s; color: white; display: inline-block; text-decoration: none; font-family: inherit; }
     .btn-info { background-color: var(--info-color); }
     .btn-warning { background-color: var(--warning-color); }
@@ -428,23 +466,145 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     .btn-sm { font-size: 0.85rem; padding: 0.4rem 0.8rem; }
     
     .summary-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-    .stat-card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: var(--shadow); border-right: 5px solid var(--primary-color); }
-    .stat-card h4 { margin: 0; color: #555; }
+    .stat-card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: var(--shadow); border-right: 5px solid var(--primary-color); text-align: center; }
+    .stat-card h4 { margin: 0; color: #555; font-size: 1rem; }
     .stat-card p { font-size: 1.8rem; font-weight: 700; margin: 0.5rem 0 0; }
     .stat-card .paid { color: var(--success-color); }
     .stat-card .remaining { color: var(--danger-color); }
 
     .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2.5rem; }
     .info-card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: var(--shadow); }
+    .info-card h3 { margin: 0 0 1rem 0; color: var(--primary-color); font-size: 1.2rem; }
+    .info-card p { margin: 0.5rem 0; font-size: 1rem; }
+    .info-card strong { color: #333; }
     
     .installments-section { background: white; padding: 2rem; border-radius: 12px; box-shadow: var(--shadow); }
-    table { width: 100%; border-collapse: collapse; }
-    th { background: #f8f9fa; padding: 1rem; text-align: right; }
-    td { padding: 1rem; border-bottom: 1px solid #eee; }
-    .status-paid { background-color: #e8f8ef; }
-    .status-pending { background-color: #fef9e7; }
-    .edit-input { width: 100%; padding: 0.4rem; border: 1px solid #ccc; border-radius: 4px; }
-    .actions-cell { display: flex; gap: 0.5rem; }
+    .installments-section h3 { color: var(--primary-color); margin-bottom: 1.5rem; font-size: 1.5rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 0.5rem; }
+    .table-responsive-wrapper { overflow-x: auto; }
+    .is-responsive { min-width: 800px; }
+    
+    table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; background: white; }
+    thead th { 
+        background: #f8f9fa; 
+        color: #495057; 
+        padding: 0.75rem; 
+        text-align: right; 
+        font-weight: 600; 
+        font-size: 0.875rem;
+        border-bottom: 1px solid #dee2e6;
+        border-top: 1px solid #dee2e6;
+    }
+    tbody td { 
+        padding: 0.75rem; 
+        border-bottom: 1px solid #dee2e6; 
+        vertical-align: middle;
+        font-size: 0.875rem;
+        color: #495057;
+    }
+    tbody tr:hover { background-color: rgba(0,0,0,.02); }
+    
+    .status-paid { background-color: #d4edda; }
+    .status-paid td { color: #155724; }
+    .status-pending { background-color: #fff3cd; }
+    .status-pending td { color: #856404; }
+    
+    .status-select { 
+        padding: 0.375rem 0.75rem; 
+        border-radius: 0.25rem; 
+        border: 1px solid #ced4da; 
+        background: white; 
+        font-weight: 400;
+        cursor: pointer;
+        transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+        font-size: 0.875rem;
+        color: #495057;
+    }
+    .status-select:focus { 
+        outline: none; 
+        border-color: #80bdff; 
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); 
+    }
+    
+    .edit-input { 
+        width: 100%; 
+        padding: 0.375rem 0.75rem; 
+        border: 1px solid #ced4da; 
+        border-radius: 0.25rem; 
+        font-weight: 400;
+        transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+        font-size: 0.875rem;
+        color: #495057;
+    }
+    .edit-input:focus { 
+        outline: none; 
+        border-color: #80bdff; 
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); 
+    }
+    
+    .actions-cell { 
+        display: flex; 
+        gap: 0.25rem; 
+        justify-content: flex-start;
+        padding: 0.25rem 0;
+        flex-wrap: wrap;
+    }
+    .actions-cell .btn { 
+        color: #495057 !important; 
+        background-color: #e9ecef !important; 
+        border: 1px solid #ced4da !important; 
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-weight: 400;
+        transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+        margin: 0;
+        line-height: 1.5;
+        text-decoration: none !important;
+        display: inline-block;
+        cursor: pointer;
+    }
+    .actions-cell .btn:hover { 
+        background-color: #dee2e6 !important; 
+        color: #495057 !important; 
+        text-decoration: none !important;
+    }
+    .actions-cell .btn:active {
+        background-color: #e9ecef !important;
+    }
+    .actions-cell .btn-partial { background-color: #fff3cd !important; border-color: #ffeaa7 !important; color: #856404 !important; }
+    .actions-cell .btn-partial:hover { background-color: #ffeaa7 !important; }
+    .actions-cell .btn-delete-installment { background-color: #f8d7da !important; border-color: #f5c6cb !important; color: #721c24 !important; }
+    .actions-cell .btn-delete-installment:hover { background-color: #f5c6cb !important; }
+    
+    @media (max-width: 768px) {
+        .details-header { flex-direction: column; align-items: stretch; }
+        .header-buttons { justify-content: center; }
+        .info-grid { grid-template-columns: 1fr; }
+        .summary-dashboard { grid-template-columns: 1fr; }
+        .actions-cell { flex-direction: column; align-items: center; }
+        .actions-cell .btn { width: 100%; max-width: 150px; }
+    }
+    
+    .message-card { 
+        background: white; 
+        padding: 2rem; 
+        border-radius: 12px; 
+        box-shadow: var(--shadow); 
+        text-align: center; 
+        color: #666; 
+        border-left: 4px solid var(--primary-color);
+    }
+    .message-card h1 { color: var(--primary-color); margin-bottom: 1rem; }
+    .message-card p { margin: 0; font-size: 1.1rem; }
     
     .auth-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; text-align: center; }
+    
+    @media (max-width: 768px) {
+        .details-header { flex-direction: column; align-items: stretch; }
+        .header-buttons { justify-content: center; }
+        .info-grid { grid-template-columns: 1fr; }
+        .summary-dashboard { grid-template-columns: 1fr; }
+        .actions-cell { flex-direction: column; align-items: center; }
+        .actions-cell .btn { width: 100%; max-width: 150px; }
+    }
 </style>
