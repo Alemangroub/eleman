@@ -17,22 +17,20 @@ export async function POST({ request }) {
                     customerPhone: installment.customerPhone,
                     unitType: installment.unitType,
                     unitLocation: installment.unitLocation,
-                    totalAmount: installment.totalAmount,
-                    installmentAmount: installment.installmentAmount,
+                    totalAmount: parseFloat(installment.totalAmount),
+                    installmentAmount: parseFloat(installment.installmentAmount),
                     dueDate: new Date(installment.dueDate),
                     status: installment.status || 'pending',
-                    installmentName: installment.installmentName || 'قسط',
-                    paymentDate: installment.paymentDate ? new Date(installment.paymentDate) : null
+                    paidDate: installment.paymentDate ? new Date(installment.paymentDate) : null
                 }
             }))
         );
 
         return new Response(JSON.stringify({ success: true, count: createdInstallments.length }), { 
-            status: 201,
-            headers: { 'Content-Type': 'application/json' }
+            status: 201 
         });
     } catch (error) {
         console.error("Error bulk creating installments:", error);
-        return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Internal Server Error", details: error.message }), { status: 500 });
     }
 }

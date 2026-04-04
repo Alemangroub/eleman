@@ -249,13 +249,16 @@ import AdminLogin from '../../components/AdminLogin.astro';
               installments.forEach(inst => {
                   if (inst.status === 'paid') totalPaidAmount += inst.installmentAmount || 0;
 
-                  if (!allContracts.has(inst.customerName)) {
-                      allContracts.set(inst.customerName, {
-                          customerName: inst.customerName,
+                  // Try to use customer info if available, otherwise use unit info
+                  const contractKey = inst.customerName || inst.unitId || 'unknown';
+                  if (!allContracts.has(contractKey)) {
+                      allContracts.set(contractKey, {
+                          customerName: inst.customerName || `وحدة ${inst.unitId}`,
                           customerPhone: inst.customerPhone,
                           unitType: inst.unitType,
                           unitLocation: inst.unitLocation,
-                          totalAmount: inst.totalAmount,
+                          totalAmount: inst.totalAmount || 0,
+                          unitId: inst.unitId
                       });
                       totalInstallmentsAmount += inst.totalAmount || 0;
                   }

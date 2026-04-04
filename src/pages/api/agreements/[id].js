@@ -12,7 +12,7 @@ export async function PUT({ params, request }) {
     try {
         const data = await request.json();
         const { 
-            title, mainCategory, agreedWith, date, total, 
+            title, mainCategory, agreedWith, floor, date, total, 
             details, notes, area, pricePerMeter, quantity, price 
         } = data;
 
@@ -21,7 +21,8 @@ export async function PUT({ params, request }) {
             data: {
                 title,
                 mainCategory,
-                agreedWith,
+                agreedWith: agreedWith || null,
+                floor: floor || null,
                 date: date ? new Date(date) : undefined,
                 total: total ? parseFloat(total) : undefined,
                 details,

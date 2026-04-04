@@ -171,7 +171,8 @@ model Agreement {
   projectId     String
   title         String
   mainCategory  String
-  agreedWith    String
+  agreedWith    String?
+  floor         String?
   date          DateTime
   total         Float
   details       String?  @db.Text

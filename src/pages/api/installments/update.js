@@ -2,7 +2,7 @@ import prisma from "../../../lib/prisma.js";
 
 export async function PATCH({ request }) {
     try {
-        const { id, status, installmentAmount, dueDate, totalAmount, paymentDate } = await request.json();
+        const { id, status, installmentAmount, dueDate, totalAmount, paidDate } = await request.json();
 
         if (!id) {
             return new Response(JSON.stringify({ error: "Installment ID is required" }), { status: 400 });
@@ -13,7 +13,7 @@ export async function PATCH({ request }) {
         if (installmentAmount !== undefined) updateData.installmentAmount = installmentAmount;
         if (dueDate !== undefined) updateData.dueDate = new Date(dueDate);
         if (totalAmount !== undefined) updateData.totalAmount = totalAmount;
-        if (paymentDate !== undefined) updateData.paymentDate = paymentDate ? new Date(paymentDate) : null;
+        if (paidDate !== undefined) updateData.paidDate = paidDate ? new Date(paidDate) : null;
 
         const updatedInstallment = await prisma.installment.update({
             where: { id: id },

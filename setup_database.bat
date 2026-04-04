@@ -1,0 +1,9 @@
+@echo off
+echo Setting up database in XAMPP...
+echo Creating database and users...
+"C:\xampp\mysql\bin\mysql.exe" -u root -e "CREATE DATABASE IF NOT EXISTS eleman CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+"C:\xampp\mysql\bin\mysql.exe" -u root eleman < create_empty_database.sql
+echo Database setup completed!
+echo Testing connection...
+"C:\xampp\mysql\bin\mysql.exe" -u root -e "USE eleman; SELECT * FROM User;"
+pause

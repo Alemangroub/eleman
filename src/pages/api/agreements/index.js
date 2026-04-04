@@ -26,7 +26,7 @@ export async function POST({ request }) {
     try {
         const data = await request.json();
         const { 
-            projectId, title, mainCategory, agreedWith, date, total, 
+            projectId, title, mainCategory, agreedWith, floor, date, total, 
             details, notes, area, pricePerMeter, quantity, price 
         } = data;
 
@@ -39,7 +39,8 @@ export async function POST({ request }) {
                 projectId,
                 title,
                 mainCategory,
-                agreedWith,
+                agreedWith: agreedWith || null,
+                floor: floor || null,
                 date: new Date(date),
                 total: parseFloat(total),
                 details,

@@ -19,7 +19,7 @@ import AdminLogin from '../components/AdminLogin.astro';
        <div class="container">
         <div class="dashboard-header">
           <h1>مرحباً بك في لوحة التحكم</h1>
-          <p>من هنا يمكنك إدارة محتوى الموقع بسهولة وأمان.</p>
+          <p id="welcome-message">مرحباً بك في لوحة التحكم، من هنا يمكنك إدارة كل محتوى الموقع بسهولة وأمان.</p>
         </div>
         <div class="grid-container">
             <a href="/crs/projects" class="card-link"><div class="card"><h3>إدارة المشاريع</h3><p>إضافة مشاريع جديدة وتعيين المشرفين والمهندسين المسؤولين عنها.</p></div></a>
@@ -56,7 +56,13 @@ import AdminLogin from '../components/AdminLogin.astro';
         if (user.role === 'admin') {
           dashboardContainer.style.display = 'block';
           loginContainer.style.display = 'none';
+          // Update welcome message for admin
+          const welcomeMessage = document.getElementById('welcome-message');
+          if (welcomeMessage) {
+            welcomeMessage.textContent = `مرحباً بك ${user.name} في لوحة التحكم، من هنا يمكنك إدارة كل محتوى الموقع بسهولة وأمان.`;
+          }
         } else if (user.role === 'supervisor') {
+          // Redirect supervisor to dashboard
           window.location.href = '/dashboard';
         } else {
           loginContainer.style.display = 'block';

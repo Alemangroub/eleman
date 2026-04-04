@@ -16,17 +16,18 @@
 
 <script>
   const loginForm = document.getElementById("login-form");
-  const emailInput = document.getElementById("email");
-  const passwordInput = document.getElementById("password");
-  const errorMessage = document.getElementById("error-message");
-  const loginButton = loginForm.querySelector('button[type="submit"]');
 
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+    const errorMessage = document.getElementById("error-message");
     errorMessage.textContent = '';
 
+    const loginButton = e.target.querySelector('button[type="submit"]');
     loginButton.disabled = true;
     loginButton.textContent = 'جاري تسجيل الدخول...';
+
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
 
     try {
       const response = await fetch('/api/auth/login', {

@@ -19,8 +19,7 @@ export async function POST({ request }) {
                 installmentAmount: data.installmentAmount,
                 dueDate: new Date(data.dueDate),
                 status: data.status || 'pending',
-                installmentName: data.installmentName || 'قسط',
-                paymentDate: data.paymentDate ? new Date(data.paymentDate) : null
+                paidDate: data.paidDate ? new Date(data.paidDate) : null
             }
         });
 
