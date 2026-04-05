@@ -140,7 +140,13 @@ const floorOptions = [
             <div class="content-area" id="items-content-area">
                 <div class="table-header">
                     <div class="table-controls-left">
-                        <h2 class="table-title">قائمة البنود الحالية</h2>
+                        <div class="table-title-row">
+                            <h2 class="table-title">قائمة البنود الحالية</h2>
+                            <div class="global-export-buttons">
+                                <button id="print-all-btn" class="btn-global-export btn-print-all" title="طباعة الكل"><span class="material-icons">print</span> طباعة</button>
+                                <button id="excel-all-btn" class="btn-global-export btn-excel-all" title="تصدير Excel"><span class="material-icons">table_chart</span> Excel</button>
+                            </div>
+                        </div>
                         <div class="filter-container">
                             <div class="form-group">
                                 <label for="floor-filter">الدور:</label>
@@ -996,6 +1002,186 @@ const floorOptions = [
             XLSX.writeFile(wb, `بند-${itemId}-${projectName}.xlsx`);
         }
 
+        // ====== Global Export Functions (All Visible Items) ======
+
+        function getFilteredItems() {
+            const floorVal = floorFilter.value;
+            const catVal = mainCatFilter.value;
+            const subVal = (document.getElementById('sub-category-filter') as HTMLSelectElement)?.value;
+            const subCatFilterGroup = document.getElementById('sub-category-filter-group') as HTMLElement;
+
+            return allItems.filter(item => {
+                const floorMatch = !floorVal || floorVal === 'all' || (item.floor || '') === floorVal;
+                let catMatch = !catVal || catVal === 'all';
+                if (!catMatch) {
+                    if (catVal === 'اخرى') {
+                        const specialCats = ['بند عمولات المبيعات للسماسره', 'بند الضرائب', 'بند التشوين'];
+                        catMatch = !(SUB_CATEGORIES.hasOwnProperty(item.name) || ALL_SUB_ITEMS.has(item.name) || specialCats.includes(item.name));
+                    } else if (subCatFilterGroup?.style.display === 'block' && subVal && subVal !== 'all-subs') {
+                        catMatch = item.name === subVal;
+                    } else {
+                        catMatch = (SUB_CATEGORIES[catVal] || []).includes(item.name) || item.name === catVal;
+                    }
+                }
+                return floorMatch && catMatch;
+            });
+        }
+
+        function buildExportHeaders() {
+            return ['التاريخ', 'الدور', 'اسم البند', 'الإجمالي', 'التفاصيل'];
+        }
+
+        function buildFullHeaders(items: any[]) {
+            const headers = ['التاريخ', 'الدور'];
+            const hasSpec = items.some(i => !!i.specificName);
+            if (hasSpec) headers.push('الاسم');
+            headers.push('اسم البند');
+            const hasCont = items.some(i => !!(i.pricePerMeter && i.area));
+            if (hasCont) { headers.push('سعر المتر'); headers.push('المساحة'); }
+            const hasCalc = items.some(i => !!(i.quantity && i.pricePerUnit));
+            if (hasCalc) { headers.push('الكمية'); headers.push('الوحدة'); headers.push('سعر الوحدة'); }
+            headers.push('الإجمالي');
+            headers.push('التفاصيل');
+            return { headers, hasSpec, hasCont, hasCalc };
+        }
+
+        function itemToRow(item: any, config: { headers: string[], hasSpec: boolean, hasCont: boolean, hasCalc: boolean }) {
+            const row: string[] = [];
+            row.push(item.createdAt || '-');
+            row.push(FLOOR_MAP[item.floor] || item.floor || '-');
+            if (config.hasSpec) row.push(item.specificName || '-');
+            row.push(item.name || '-');
+            if (config.hasCont) {
+                row.push(item.pricePerMeter ? parseFloat(item.pricePerMeter).toFixed(2) : '-');
+                row.push(item.area ? parseFloat(item.area).toFixed(2) : '-');
+            }
+            if (config.hasCalc) {
+                row.push(item.quantity ? parseFloat(item.quantity).toFixed(2) : '-');
+                row.push(item.unit || '-');
+                row.push(item.pricePerUnit ? parseFloat(item.pricePerUnit).toFixed(2) : '-');
+            }
+            row.push(item.totalPrice ? parseFloat(item.totalPrice).toFixed(2) : '0.00');
+            row.push(item.notes || '-');
+            return row;
+        }
+
+        // Print All Visible
+        document.getElementById('print-all-btn')?.addEventListener('click', () => {
+            const projectName = document.querySelector('h1')?.textContent?.split(':')[1]?.trim() || '';
+            const items = getFilteredItems();
+            if (items.length === 0) { alert('لا توجد بنود لطباعتها'); return; }
+
+            const config = buildFullHeaders(items);
+            const total = items.reduce((s, i) => s + (parseFloat(i.totalPrice) || 0), 0);
+            const grandTotal = allItems.reduce((s, i) => s + (parseFloat(i.totalPrice) || 0), 0);
+
+            const tableRows = items.map(item => {
+                const cells = itemToRow(item, config);
+                return `<tr>${cells.map(c => `<td>${c}</td>`).join('')}</tr>`;
+            }).join('');
+
+            const printWin = window.open('', '_blank', 'width=1000,height=700');
+            if (!printWin) { alert('يرجى السماح بالنوافذ المنبثقة'); return; }
+            printWin.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">
+                <title>طباعة بنود المشروع</title>
+                <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
+                <style>
+                    body { font-family: 'Cairo', sans-serif; padding: 1.5rem; direction: rtl; }
+                    h2 { text-align: center; color: #0056b3; margin-bottom: 1rem; }
+                    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+                    th, td { border: 1px solid #dee2e6; padding: 8px 10px; text-align: right; }
+                    th { background-color: #0056b3; color: white; font-weight: 700; }
+                    tr:nth-child(even) { background-color: #f8f9fa; }
+                    .totals { margin-top: 1rem; text-align: right; font-weight: 700; font-size: 1rem; }
+                    @media print { body { padding: 0; } }
+                </style>
+            </head><body>
+                <h2>بنود المشروع - ${projectName} (${items.length} بند)</h2>
+                <table>
+                    <thead><tr>${config.headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+                <div class="totals">
+                    <p>إجمالي البنود المعروضة: ${total.toFixed(2)} ج.م</p>
+                    <p>الإجمالي الكلي: ${grandTotal.toFixed(2)} ج.م</p>
+                </div>
+            </body></html>`);
+            printWin.document.close();
+            setTimeout(() => { printWin.print(); }, 500);
+        });
+
+        // PDF All Visible
+        document.getElementById('pdf-all-btn')?.addEventListener('click', async () => {
+            const projectName = document.querySelector('h1')?.textContent?.split(':')[1]?.trim() || '';
+            const items = getFilteredItems();
+            if (items.length === 0) { alert('لا توجد بنود لتصديرها'); return; }
+
+            const jsPDFLib = (window as any).jspdf;
+            if (!jsPDFLib || !jsPDFLib.jsPDF) { alert('مكتبة jsPDF غير متاحة'); return; }
+
+            const doc = new jsPDFLib.jsPDF({ orientation: 'landscape' });
+            let fontName = 'helvetica';
+            try {
+                const fontRes = await fetch('/Amiri-Regular.ttf');
+                if (fontRes.ok) {
+                    const buf = await fontRes.arrayBuffer();
+                    const bytes = new Uint8Array(buf);
+                    let binary = '';
+                    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                    doc.addFileToVFS('Amiri-Regular.ttf', btoa(binary));
+                    doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+                    doc.setFont('Amiri');
+                    fontName = 'Amiri';
+                }
+            } catch (e) { /* fallback */ }
+
+            doc.text(`بنود المشروع - ${projectName} (${items.length} بند)`, doc.internal.pageSize.getWidth() - 10, 15, { align: 'right' });
+
+            const config = buildFullHeaders(items);
+            const head = [config.headers];
+            const body = items.map(item => itemToRow(item, config));
+            const total = items.reduce((s, i) => s + (parseFloat(i.totalPrice) || 0), 0);
+
+            if (typeof (doc as any).autoTable === 'function') {
+                (doc as any).autoTable({
+                    head, body, startY: 25, theme: 'grid', margin: { right: 10, left: 10 },
+                    styles: { halign: 'right', font: fontName, fontStyle: 'normal', fontSize: 7, cellPadding: 3 },
+                    headStyles: { fillColor: [0, 86, 179], halign: 'right', font: fontName, fontStyle: 'normal', fontSize: 8 },
+                    didDrawPage: function(data: any) {
+                        doc.setFontSize(8);
+                        doc.text(`صفحة ${doc.internal.getNumberOfPages()}`, doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+                    }
+                });
+                const finalY = (doc as any).lastAutoTable?.finalY || (doc as any).autoTable.previous?.finalY || 50;
+                doc.setFontSize(11);
+                doc.text(`الإجمالي: ${total.toFixed(2)} ج.م`, doc.internal.pageSize.getWidth() - 10, finalY + 12, { align: 'right' });
+            }
+
+            doc.save(`بنود-${projectName}.pdf`);
+        });
+
+        // Excel All Visible
+        document.getElementById('excel-all-btn')?.addEventListener('click', () => {
+            const XLSX = (window as any).XLSX;
+            if (!XLSX) { alert('مكتبة XLSX غير متاحة'); return; }
+            const projectName = document.querySelector('h1')?.textContent?.split(':')[1]?.trim() || '';
+            const items = getFilteredItems();
+            if (items.length === 0) { alert('لا توجد بنود لتصديرها'); return; }
+
+            const config = buildFullHeaders(items);
+            const data = items.map(item => {
+                const obj: Record<string, string> = {};
+                const cells = itemToRow(item, config);
+                config.headers.forEach((h, i) => obj[h] = cells[i]);
+                return obj;
+            });
+
+            const ws = XLSX.utils.json_to_sheet(data, { header: config.headers });
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'بنود المشروع');
+            XLSX.writeFile(wb, `بنود-${projectName}.xlsx`);
+        });
+
         // Initial load
         loadItems();
     }
@@ -1049,6 +1235,14 @@ const floorOptions = [
     .table-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 1.5rem; }
     .table-controls-left { display: flex; flex-direction: column; gap: 1rem; flex-grow: 1; }
     .table-title { font-size: 1.5rem; font-weight: 700; color: #333; margin: 0; }
+    .table-title-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
+    .global-export-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .btn-global-export { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: #fff; transition: all 0.2s; font-family: inherit; }
+    .btn-global-export:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .btn-global-export .material-icons { font-size: 18px; }
+    .btn-print-all { background-color: var(--info-color); }
+    .btn-pdf-all { background-color: var(--pdf-color); }
+    .btn-excel-all { background-color: var(--excel-color); }
     .filter-container { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
 
     .totals-container { display: flex; gap: 1rem; flex-wrap: wrap; align-self: flex-start; }
