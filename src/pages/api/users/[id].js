@@ -1,9 +1,10 @@
 
 import prisma from "../../../lib/prisma.js";
+import { canAccessOwnUser, requireAuthenticatedUser } from "../../../lib/server-auth.js";
 
 export const prerender = false;
 
-export async function GET({ params }) {
+export async function GET({ request, params }) {
     const { id } = params;
 
     if (!id) {
@@ -11,6 +12,15 @@ export async function GET({ params }) {
     }
 
     try {
+        const { errorResponse, user: currentUser } = requireAuthenticatedUser(request);
+        if (errorResponse) {
+            return errorResponse;
+        }
+
+        if (!canAccessOwnUser(currentUser, id)) {
+            return new Response(JSON.stringify({ error: "غير مسموح" }), { status: 403 });
+        }
+
         const user = await prisma.user.findUnique({
             where: { id: id },
             include: {

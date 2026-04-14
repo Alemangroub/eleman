@@ -1,7 +1,6 @@
 import jwt from "jsonwebtoken";
 import cookie from "cookie";
-
-const JWT_SECRET = import.meta.env.JWT_SECRET || "fallback-secret-for-dev-only";
+import { getJwtSecretOrThrow } from "../../../lib/server-auth.js";
 
 export async function GET({ request }) {
     try {
@@ -19,7 +18,8 @@ export async function GET({ request }) {
             return new Response(JSON.stringify({ authenticated: false, message: "No token found" }), { status: 401 });
         }
 
-        const decoded = jwt.verify(finalToken, JWT_SECRET);
+        const jwtSecret = getJwtSecretOrThrow();
+        const decoded = jwt.verify(finalToken, jwtSecret);
 
         return new Response(JSON.stringify({
             authenticated: true,
@@ -33,6 +33,6 @@ export async function GET({ request }) {
 
     } catch (error) {
         console.error("JWT Verification Error:", error.message);
-        return new Response(JSON.stringify({ authenticated: false, error: error.message }), { status: 401 });
+        return new Response(JSON.stringify({ authenticated: false, error: "غير مصرح" }), { status: 401 });
     }
 }

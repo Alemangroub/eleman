@@ -1,4 +1,5 @@
 import prisma from "../../../lib/prisma.js";
+import { requireProjectAccess } from "../../../lib/server-auth.js";
 
 export async function PATCH({ request }) {
     try {
@@ -6,6 +7,20 @@ export async function PATCH({ request }) {
 
         if (!id) {
             return new Response(JSON.stringify({ error: "Installment ID is required" }), { status: 400 });
+        }
+
+        const installment = await prisma.installment.findUnique({
+            where: { id },
+            select: { projectId: true }
+        });
+
+        if (!installment) {
+            return new Response(JSON.stringify({ error: "Installment not found" }), { status: 404 });
+        }
+
+        const { errorResponse } = await requireProjectAccess(request, installment.projectId);
+        if (errorResponse) {
+            return errorResponse;
         }
 
         const updateData = {};

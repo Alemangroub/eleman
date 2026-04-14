@@ -1,4 +1,5 @@
 import prisma from "../../../lib/prisma.js";
+import { requireProjectAccess } from "../../../lib/server-auth.js";
 
 export async function POST({ request }) {
     try {
@@ -6,6 +7,17 @@ export async function POST({ request }) {
 
         if (!projectId && !customerName && !ids) {
             return new Response(JSON.stringify({ error: "No filter provided" }), { status: 400 });
+        }
+
+        if (!projectId && ids && Array.isArray(ids)) {
+            return new Response(JSON.stringify({ error: "Project ID is required for bulk deletion" }), { status: 400 });
+        }
+
+        if (projectId) {
+            const { errorResponse } = await requireProjectAccess(request, projectId);
+            if (errorResponse) {
+                return errorResponse;
+            }
         }
 
         const whereClause = {};

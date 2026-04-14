@@ -1,19 +1,27 @@
 import prisma from "../../../lib/prisma.js";
+import { requireAdmin } from "../../../lib/server-auth.js";
 
 export async function POST({ request }) {
     try {
-        const { projectName, projectAddress, supervisorIds } = await request.json();
+        const { errorResponse } = requireAdmin(request);
+        if (errorResponse) {
+            return errorResponse;
+        }
 
-        if (!projectName || !projectAddress) {
+        const { projectName, projectAddress, supervisorIds } = await request.json();
+        const normalizedProjectName = typeof projectName === "string" ? projectName.trim() : "";
+        const normalizedProjectAddress = typeof projectAddress === "string" ? projectAddress.trim() : "";
+
+        if (!normalizedProjectName || !normalizedProjectAddress) {
             return new Response(JSON.stringify({ error: "Project name and address are required" }), { status: 400 });
         }
 
         const newProject = await prisma.project.create({
             data: {
-                projectName,
-                projectAddress,
+                projectName: normalizedProjectName,
+                projectAddress: normalizedProjectAddress,
                 supervisors: {
-                    create: (supervisorIds || []).map(sid => ({
+                    create: (Array.isArray(supervisorIds) ? supervisorIds : []).map(sid => ({
                         userId: sid
                     }))
                 }

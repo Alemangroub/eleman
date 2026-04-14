@@ -1,4 +1,5 @@
 import prisma from "../../../lib/prisma.js";
+import { requireProjectAccess } from "../../../lib/server-auth.js";
 
 export async function POST({ request }) {
     try {
@@ -8,7 +9,16 @@ export async function POST({ request }) {
             return new Response(JSON.stringify({ error: "Invalid installments data" }), { status: 400 });
         }
 
-        // Create multiple installments in one transaction
+        const projectId = data.installments[0]?.projectId;
+        if (!projectId || data.installments.some(installment => installment.projectId !== projectId)) {
+            return new Response(JSON.stringify({ error: "Invalid project scope" }), { status: 400 });
+        }
+
+        const { errorResponse } = await requireProjectAccess(request, projectId);
+        if (errorResponse) {
+            return errorResponse;
+        }
+
         const createdInstallments = await prisma.$transaction(
             data.installments.map(installment => prisma.installment.create({
                 data: {
@@ -31,6 +41,6 @@ export async function POST({ request }) {
         });
     } catch (error) {
         console.error("Error bulk creating installments:", error);
-        return new Response(JSON.stringify({ error: "Internal Server Error", details: error.message }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500 });
     }
 }

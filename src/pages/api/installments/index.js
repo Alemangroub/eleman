@@ -1,6 +1,7 @@
 import prisma from "../../../lib/prisma.js";
+import { requireProjectAccess } from "../../../lib/server-auth.js";
 
-export async function GET({ url }) {
+export async function GET({ request, url }) {
     const projectId = url.searchParams.get('projectId');
     const customerName = url.searchParams.get('customerName');
 
@@ -9,6 +10,11 @@ export async function GET({ url }) {
     }
 
     try {
+        const { errorResponse } = await requireProjectAccess(request, projectId);
+        if (errorResponse) {
+            return errorResponse;
+        }
+
         const whereClause = { projectId: projectId };
         if (customerName) {
             whereClause.customerName = customerName;

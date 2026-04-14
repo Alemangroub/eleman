@@ -1,9 +1,26 @@
 import prisma from "../../../lib/prisma.js";
+import { requireAuthenticatedUser, requireProjectAccess } from "../../../lib/server-auth.js";
 
-export async function GET({ url }) {
+export async function GET({ request, url }) {
     const projectId = url.searchParams.get('projectId');
     
     try {
+        if (projectId) {
+            const { errorResponse } = await requireProjectAccess(request, projectId);
+            if (errorResponse) {
+                return errorResponse;
+            }
+        } else {
+            const { errorResponse, user } = requireAuthenticatedUser(request);
+            if (errorResponse) {
+                return errorResponse;
+            }
+
+            if (user.role !== 'admin') {
+                return new Response(JSON.stringify({ error: "غير مسموح" }), { status: 403 });
+            }
+        }
+
         const whereClause = {
             status: 'pending',
         };

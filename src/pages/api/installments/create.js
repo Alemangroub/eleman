@@ -1,4 +1,5 @@
 import prisma from "../../../lib/prisma.js";
+import { requireProjectAccess } from "../../../lib/server-auth.js";
 
 export async function POST({ request }) {
     try {
@@ -6,6 +7,11 @@ export async function POST({ request }) {
 
         if (!data.projectId || !data.customerName || !data.installmentAmount || !data.dueDate) {
             return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
+        }
+
+        const { errorResponse } = await requireProjectAccess(request, data.projectId);
+        if (errorResponse) {
+            return errorResponse;
         }
 
         const newInstallment = await prisma.installment.create({

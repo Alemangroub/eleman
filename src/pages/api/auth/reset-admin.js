@@ -3,10 +3,11 @@ import bcrypt from "bcryptjs";
 
 export async function POST() {
     try {
-        // Delete all existing users
+        if (!import.meta.env.DEV) {
+            return new Response(JSON.stringify({ error: "غير مسموح" }), { status: 403 });
+        }
+
         await prisma.user.deleteMany({});
-        
-        // Create new admin user with specified credentials
         const hashedPassword = await bcrypt.hash('elemancompanyid111', 10);
         const admin = await prisma.user.create({
             data: {
@@ -29,8 +30,7 @@ export async function POST() {
     } catch (error) {
         console.error("Reset admin error:", error);
         return new Response(JSON.stringify({ 
-            error: "حدث خطأ في إعادة تعيين المدير",
-            details: error.message 
+            error: "حدث خطأ في إعادة تعيين المدير"
         }), { status: 500 });
     }
 }

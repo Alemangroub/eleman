@@ -1,7 +1,13 @@
 import prisma from "../../../lib/prisma.js";
+import { requireAdmin } from "../../../lib/server-auth.js";
 
-export async function GET() {
+export async function GET({ request }) {
     try {
+        const { errorResponse } = requireAdmin(request);
+        if (errorResponse) {
+            return errorResponse;
+        }
+
         const supervisors = await prisma.user.findMany({
             where: { role: 'supervisor' },
             select: { id: true, name: true }

@@ -1,16 +1,20 @@
 
 import prisma from '../../lib/prisma';
+import { requireAdmin } from '../../lib/server-auth.js';
 
 export async function POST({ request }) {
     try {
+        const { errorResponse } = requireAdmin(request);
+        if (errorResponse) {
+            return errorResponse;
+        }
+
         const { projectId, supervisorId } = await request.json();
 
         if (!projectId || !supervisorId) {
             return new Response(JSON.stringify({ error: "Incomplete data provided. Missing projectId or supervisorId." }), { status: 400 });
         }
 
-        // Ensure the supervisor exists and is assigned to the project.
-        // Using upsert to avoid errors if already assigned.
         await prisma.projectSupervisor.upsert({
             where: {
                 projectId_userId: {
@@ -30,8 +34,7 @@ export async function POST({ request }) {
     } catch (error) {
         console.error("API Error during supervisor assignment:", error);
         return new Response(JSON.stringify({ 
-            error: "An internal error occurred during the assignment process.", 
-            details: error.message 
+            error: "An internal error occurred during the assignment process."
         }), { status: 500 });
     }
 }

@@ -1,7 +1,13 @@
 import prisma from "../../../lib/prisma.js";
+import { requireAdmin } from "../../../lib/server-auth.js";
 
 export async function PATCH({ request }) {
     try {
+        const { errorResponse } = requireAdmin(request);
+        if (errorResponse) {
+            return errorResponse;
+        }
+
         const { id, projectName, projectAddress, archived, supervisorIds } = await request.json();
         
         if (!id) {
@@ -9,14 +15,13 @@ export async function PATCH({ request }) {
         }
 
         const updateData = {};
-        if (projectName !== undefined) updateData.projectName = projectName;
-        if (projectAddress !== undefined) updateData.projectAddress = projectAddress;
+        if (typeof projectName === "string") updateData.projectName = projectName.trim();
+        if (typeof projectAddress === "string") updateData.projectAddress = projectAddress.trim();
         if (archived !== undefined) updateData.archived = archived;
         
-        // Handle supervisor bulk sync if provided
         if (Array.isArray(supervisorIds)) {
             updateData.supervisors = {
-                deleteMany: {}, // Clear existing
+                deleteMany: {},
                 create: supervisorIds.map(sid => ({
                     userId: sid
                 }))

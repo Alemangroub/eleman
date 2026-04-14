@@ -1,4 +1,5 @@
 import prisma from "../../../lib/prisma.js";
+import { requireProjectAccess } from "../../../lib/server-auth.js";
 
 export async function POST({ request }) {
     try {
@@ -8,10 +9,15 @@ export async function POST({ request }) {
             return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
         }
 
+        const { errorResponse, user } = await requireProjectAccess(request, data.projectId);
+        if (errorResponse) {
+            return errorResponse;
+        }
+
         const newReport = await prisma.dailyReport.create({
             data: {
                 projectId: data.projectId,
-                supervisorName: data.supervisorName || "مشرف غير معروف",
+                supervisorName: user?.name || data.supervisorName || "مشرف غير معروف",
                 content: data.content,
                 notes: data.notes || "",
                 imageUrls: data.imageUrls || [],

@@ -1,9 +1,10 @@
 
 import prisma from "../../../lib/prisma.js";
+import { requireProjectAccess } from "../../../lib/server-auth.js";
 
 export const prerender = false;
 
-export async function GET({ params }) {
+export async function GET({ request, params }) {
     const { id } = params;
 
     if (!id) {
@@ -11,6 +12,11 @@ export async function GET({ params }) {
     }
 
     try {
+        const { errorResponse } = await requireProjectAccess(request, id);
+        if (errorResponse) {
+            return errorResponse;
+        }
+
         const project = await prisma.project.findUnique({
             where: { id: id },
             include: {

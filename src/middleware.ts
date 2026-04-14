@@ -1,28 +1,51 @@
 import { defineMiddleware } from 'astro/middleware';
 
-// This middleware intercepts requests to add CORS headers for all API routes.
+function isAllowedDevOrigin(origin: string) {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+}
+
+function applySecurityHeaders(response: Response) {
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+  if (import.meta.env.PROD) {
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
-  // Handle preflight (OPTIONS) requests specifically for API routes.
+  const requestOrigin = context.request.headers.get('origin');
+  const allowOrigin = import.meta.env.DEV && requestOrigin && isAllowedDevOrigin(requestOrigin)
+    ? requestOrigin
+    : '';
+
   if (context.request.method === 'OPTIONS' && context.url.pathname.startsWith('/api/')) {
-    // For OPTIONS, we return a new response with only the CORS headers.
-    return new Response(null, {
-      status: 204, // No Content
-      headers: {
-        'Access-Control-Allow-Origin': '*', // Allow any origin for simplicity. For production, you might restrict this.
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization', // Specify allowed headers.
-      },
+    const response = new Response(null, {
+      status: 204,
+      headers: allowOrigin
+        ? {
+            'Access-Control-Allow-Origin': allowOrigin,
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Vary': 'Origin',
+          }
+        : {},
     });
+
+    applySecurityHeaders(response);
+    return response;
   }
 
-  // Proceed with the request to get the actual response.
   const response = await next();
+  applySecurityHeaders(response);
 
-  // For all other API requests, add CORS headers to the *outgoing* response.
-  if (context.url.pathname.startsWith('/api/')) {
-    response.headers.set('Access-Control-Allow-Origin', '*');
+  if (context.url.pathname.startsWith('/api/') && allowOrigin) {
+    response.headers.set('Access-Control-Allow-Origin', allowOrigin);
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    response.headers.set('Vary', 'Origin');
   }
 
   return response;

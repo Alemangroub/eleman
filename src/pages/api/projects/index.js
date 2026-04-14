@@ -1,15 +1,31 @@
 import prisma from "../../../lib/prisma.js";
+import { requireAuthenticatedUser } from "../../../lib/server-auth.js";
 
-export async function GET({ url }) {
+export async function GET({ request, url }) {
     const archived = url.searchParams.get('archived') === 'true';
     const supervisorId = url.searchParams.get('supervisorId');
     try {
-        const where = { archived: archived };
-        if (supervisorId) {
-            where.supervisors = {
-                some: { userId: supervisorId }
-            };
+        const { errorResponse, user } = requireAuthenticatedUser(request);
+        if (errorResponse) {
+            return errorResponse;
         }
+
+        const where = { archived: archived };
+
+        const effectiveSupervisorId = user.role === 'admin'
+            ? supervisorId
+            : user.role === 'supervisor'
+                ? user.userId
+                : null;
+
+        if (effectiveSupervisorId) {
+            where.supervisors = {
+                some: { userId: effectiveSupervisorId }
+            };
+        } else if (user.role !== 'admin') {
+            return new Response(JSON.stringify({ error: "غير مسموح" }), { status: 403 });
+        }
+
         const projects = await prisma.project.findMany({
             where: where,
             include: {

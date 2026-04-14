@@ -1,19 +1,20 @@
 
 import prisma from '../../lib/prisma';
+import { requireAdmin } from '../../lib/server-auth.js';
 
 export async function POST({ request }) {
-    if (request.headers.get("Content-Type") !== "application/json") {
-        return new Response(JSON.stringify({ error: "Content-Type must be application/json" }), { status: 415 });
-    }
-
     try {
+        const { errorResponse } = requireAdmin(request);
+        if (errorResponse) {
+            return errorResponse;
+        }
+
         const { projectId, supervisorId } = await request.json();
 
         if (!projectId || !supervisorId) {
             return new Response(JSON.stringify({ error: "Project ID and Supervisor ID are required" }), { status: 400 });
         }
 
-        // Atomically remove the supervisor assignment.
         await prisma.projectSupervisor.delete({
             where: {
                 projectId_userId: {
@@ -28,8 +29,7 @@ export async function POST({ request }) {
     } catch (error) {
         console.error("Error removing supervisor:", error);
         return new Response(JSON.stringify({ 
-            error: "An internal server error occurred.", 
-            details: error.message 
+            error: "An internal server error occurred."
         }), { status: 500 });
     }
 }
