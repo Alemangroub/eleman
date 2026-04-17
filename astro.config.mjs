@@ -6,12 +6,7 @@ import node from "@astrojs/node";
 export default defineConfig({
   output: "server",
   adapter: node({
-    mode: "standalone"
+    mode: "middleware"
   }),
-  integrations: [tailwind()],
-  vite: {
-    ssr: {
-      external: []
-    }
-  }
+  integrations: [tailwind()]
 });

@@ -1,0 +1,59 @@
+import { p as prisma } from '../../../chunks/prisma_DflsjPUV.mjs';
+export { renderers } from '../../../renderers.mjs';
+
+const prerender = false;
+
+async function PUT({ params, request }) {
+    const { id } = params;
+    try {
+        const data = await request.json();
+        const updateData = {};
+
+        if (data.name !== undefined) updateData.name = data.name;
+        if (data.totalPrice !== undefined) updateData.totalPrice = parseFloat(data.totalPrice);
+        if (data.floor !== undefined) updateData.floor = String(data.floor);
+        if (data.notes !== undefined) updateData.notes = data.notes || null;
+        if (data.specificName !== undefined) updateData.specificName = data.specificName || null;
+        if (data.pricePerMeter !== undefined) updateData.pricePerMeter = data.pricePerMeter ? parseFloat(data.pricePerMeter) : null;
+        if (data.area !== undefined) updateData.area = data.area ? parseFloat(data.area) : null;
+        if (data.quantity !== undefined) updateData.quantity = data.quantity ? parseFloat(data.quantity) : null;
+        if (data.pricePerUnit !== undefined) updateData.pricePerUnit = data.pricePerUnit ? parseFloat(data.pricePerUnit) : null;
+        if (data.unit !== undefined) updateData.unit = data.unit || null;
+        if (data.createdAt !== undefined) updateData.createdAt = new Date(data.createdAt);
+
+        const updatedItem = await prisma.item.update({
+            where: { id },
+            data: updateData
+        });
+
+        return new Response(JSON.stringify({
+            ...updatedItem,
+            createdAt: updatedItem.createdAt.toLocaleDateString('en-CA')
+        }), { status: 200 });
+    } catch (error) {
+        console.error("Error updating item:", error);
+        return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500 });
+    }
+}
+
+async function DELETE({ params }) {
+    const { id } = params;
+    try {
+        await prisma.item.delete({ where: { id } });
+        return new Response(JSON.stringify({ message: "Item deleted successfully" }), { status: 200 });
+    } catch (error) {
+        console.error("Error deleting item:", error);
+        return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500 });
+    }
+}
+
+const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
+    __proto__: null,
+    DELETE,
+    PUT,
+    prerender
+}, Symbol.toStringTag, { value: 'Module' }));
+
+const page = () => _page;
+
+export { page };
