@@ -25,7 +25,7 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <script>
-  import { checkAuth, logout } from '../../lib/auth.js';
+  import { checkAuth, logout, getAuthHeaders } from '../../lib/auth.js';
   
   let currentSupervisor = { id: null, name: '' };
 
@@ -64,7 +64,7 @@ import Layout from '../../layouts/Layout.astro';
       const noProjectsMessage = document.getElementById('no-projects-message');
       
       try {
-          const response = await fetch(`/api/projects?supervisorId=${supervisorId}`);
+          const response = await fetch(`/api/projects?supervisorId=${supervisorId}`, { headers: getAuthHeaders() });
           const projects = await response.json();
 
           if (projects.length === 0) {
@@ -193,7 +193,7 @@ import Layout from '../../layouts/Layout.astro';
               try {
                   const res = await fetch('/api/dashboard/expenses', {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
+                      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                       body: JSON.stringify({
                           projectId,
                           supervisorName: currentSupervisor.name,
@@ -227,7 +227,7 @@ import Layout from '../../layouts/Layout.astro';
               try {
                   const res = await fetch('/api/dashboard/reports', {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
+                      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                       body: JSON.stringify({
                           projectId,
                           supervisorName: currentSupervisor.name,

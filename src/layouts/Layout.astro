@@ -3,9 +3,10 @@
 export interface Props {
 	title: string;
     showGlowEffect?: boolean; // Optional property
+    bodyClass?: string; // Optional body class
 }
 
-const { title, showGlowEffect = false } = Astro.props;
+const { title, showGlowEffect = false, bodyClass = "" } = Astro.props;
 ---
 
 <!DOCTYPE html>
@@ -25,7 +26,7 @@ const { title, showGlowEffect = false } = Astro.props;
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 	</head>
-	<body>
+	<body class={bodyClass}>
         <!-- Frame Elements -->
         <div class="frame frame-left"></div>
         <div class="frame frame-right"></div>

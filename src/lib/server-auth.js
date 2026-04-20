@@ -157,6 +157,6 @@ export function clearAuthCookie() {
         path: "/",
         maxAge: 0,
         sameSite: "lax",
-        secure: isProduction,
+        secure: true, // تم التغيير هنا لتحديد secure: true بشكل صريح
     });
 }

@@ -1,11 +1,11 @@
 /* empty css                                 */
 import { e as createComponent, k as renderComponent, r as renderTemplate, m as maybeRenderHead } from '../chunks/astro/server_D9q-hNhU.mjs';
 import 'piccolore';
-import { $ as $$Layout } from '../chunks/Layout_DB-3ZIKO.mjs';
-import { $ as $$TopBar } from '../chunks/TopBar_D-6X39D4.mjs';
-import { $ as $$Header, a as $$Footer } from '../chunks/Footer_DwwQezhF.mjs';
-import { $ as $$Achievements$1 } from '../chunks/Achievements_llB0UzpU.mjs';
-import { $ as $$FloatingButton } from '../chunks/FloatingButton_D8Sj4jEu.mjs';
+import { $ as $$Layout } from '../chunks/Layout_YA1LhvQq.mjs';
+import { $ as $$TopBar } from '../chunks/TopBar_DOuvakAw.mjs';
+import { $ as $$Header, a as $$Footer } from '../chunks/Footer_DKtJ1RGl.mjs';
+import { $ as $$Achievements$1 } from '../chunks/Achievements_BQRRPcqZ.mjs';
+import { $ as $$FloatingButton } from '../chunks/FloatingButton_C_jNSweE.mjs';
 /* empty css                                        */
 export { renderers } from '../renderers.mjs';
 
@@ -19,9 +19,9 @@ const $$Achievements = createComponent(($$result, $$props, $$slots) => {
     p2: "\u0627\u0644\u0648\u062D\u062F\u0627\u062A \u0627\u0644\u0633\u0643\u0646\u064A\u0629 \u0627\u0644\u062A\u064A \u0646\u0633\u0644\u0645\u0647\u0627 \u0647\u064A \u0623\u0643\u062B\u0631 \u0645\u0646 \u0645\u062C\u0631\u062F \u062C\u062F\u0631\u0627\u0646 \u0648\u0623\u0633\u0642\u0641\u061B \u0625\u0646\u0647\u0627 \u0645\u0646\u0627\u0632\u0644 \u062A\u062D\u062A\u0636\u0646 \u0623\u062D\u0644\u0627\u0645 \u0627\u0644\u0623\u0633\u0631\u060C \u0648\u0645\u0633\u0627\u062D\u0627\u062A \u062A\u0646\u0634\u0623 \u0641\u064A\u0647\u0627 \u0639\u0644\u0627\u0642\u0627\u062A \u0627\u0644\u062C\u064A\u0631\u0629 \u0627\u0644\u0637\u064A\u0628\u0629. \u0646\u062D\u0646 \u0644\u0627 \u0646\u0628\u0646\u064A \u0639\u0642\u0627\u0631\u0627\u062A \u0641\u062D\u0633\u0628\u060C \u0628\u0644 \u0646\u0624\u0633\u0633 \u0644\u0645\u062C\u062A\u0645\u0639\u0627\u062A \u0645\u062A\u0643\u0627\u0645\u0644\u0629 \u0648\u0645\u062A\u0631\u0627\u0628\u0637\u0629\u060C \u0648\u0646\u0633\u0627\u0647\u0645 \u0641\u064A \u0631\u0641\u0639 \u0645\u0633\u062A\u0648\u0649 \u062C\u0648\u062F\u0629 \u0627\u0644\u062D\u064A\u0627\u0629 \u0645\u0646 \u062E\u0644\u0627\u0644 \u062A\u0648\u0641\u064A\u0631 \u0628\u0646\u064A\u0629 \u062A\u062D\u062A\u064A\u0629 \u0639\u0635\u0631\u064A\u0629 \u0648\u062E\u062F\u0645\u0627\u062A \u0645\u062A\u0643\u0627\u0645\u0644\u0629\u060C \u0644\u0646\u0635\u0646\u0639 \u0623\u062B\u0631\u064B\u0627 \u0625\u064A\u062C\u0627\u0628\u064A\u064B\u0627 \u064A\u0645\u062A\u062F \u0644\u0623\u062C\u064A\u0627\u0644 \u0642\u0627\u062F\u0645\u0629."
   };
   return renderTemplate`${renderComponent($$result, "Layout", $$Layout, { "title": "\u0625\u0646\u062C\u0627\u0632\u0627\u062A\u0646\u0627 - \u0634\u0631\u0643\u0629 \u0627\u0644\u0625\u064A\u0645\u0627\u0646", "data-astro-cid-gyx3anpu": true }, { "default": ($$result2) => renderTemplate` ${renderComponent($$result2, "TopBar", $$TopBar, { "data-astro-cid-gyx3anpu": true })} ${renderComponent($$result2, "Header", $$Header, { "showMenu": true, "data-astro-cid-gyx3anpu": true })} ${maybeRenderHead()}<main class="achievements-page" data-astro-cid-gyx3anpu> ${renderComponent($$result2, "Achievements", $$Achievements$1, { "data-astro-cid-gyx3anpu": true })} <section class="our-philosophy" data-astro-cid-gyx3anpu> <div class="container" data-astro-cid-gyx3anpu> <div class="section-header" data-astro-cid-gyx3anpu> <h2 class="section-title" data-astro-cid-gyx3anpu>أساس نجاحنا: رؤية والتزام</h2> <p class="section-subtitle" data-astro-cid-gyx3anpu>أرقامنا لم تكن وليدة الصدفة، بل هي نتاج رؤية واضحة والتزام راسخ تجاه عملائنا ومجتمعنا.</p> </div> <div class="text-content-grid" data-astro-cid-gyx3anpu> <p data-astro-cid-gyx3anpu>${philosophyContent.p1}</p> <p data-astro-cid-gyx3anpu>${philosophyContent.p2}</p> </div> </div> </section> <section class="our-impact" data-astro-cid-gyx3anpu> <div class="container" data-astro-cid-gyx3anpu> <div class="section-header" data-astro-cid-gyx3anpu> <h2 class="section-title" data-astro-cid-gyx3anpu>أثرنا في المجتمع: أبعد من مجرد أرقام</h2> <p class="section-subtitle" data-astro-cid-gyx3anpu>نحن نؤمن بأن النجاح الحقيقي يقاس بمدى الأثر الإيجابي الذي نتركه في حياة الناس والمجتمع.</p> </div> <div class="text-content-grid" data-astro-cid-gyx3anpu> <p data-astro-cid-gyx3anpu>${impactContent.p1}</p> <p data-astro-cid-gyx3anpu>${impactContent.p2}</p> </div> </div> </section> </main> ${renderComponent($$result2, "Footer", $$Footer, { "data-astro-cid-gyx3anpu": true })} ${renderComponent($$result2, "FloatingButton", $$FloatingButton, { "data-astro-cid-gyx3anpu": true })} ` })} `;
-}, "/home/user/Eman-Project/src/pages/achievements.astro", void 0);
+}, "C:/Users/ENJAZ/Desktop/eleman/src/pages/achievements.astro", void 0);
 
-const $$file = "/home/user/Eman-Project/src/pages/achievements.astro";
+const $$file = "C:/Users/ENJAZ/Desktop/eleman/src/pages/achievements.astro";
 const $$url = "/achievements";
 
 const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({

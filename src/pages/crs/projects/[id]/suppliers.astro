@@ -197,7 +197,7 @@ try {
 </Layout>
 
 <script>
-    import { checkAuth, logout } from '../../../../lib/auth.js';
+    import { checkAuth, logout, getAuthHeaders } from '../../../../lib/auth.js';
     import * as XLSX from 'xlsx';
 
     const pageContent = document.getElementById('page-content');
@@ -290,12 +290,13 @@ try {
                 notes: f['item-notes'].value
             };
 
-            const url = currentEditImportId ? `/api/imports/${currentEditImportId}` : '/api/imports';
-            const method = currentEditImportId ? 'PUT' : 'POST';
+            const url = currentEditImportId ? '/api/imports/update' : '/api/imports';
+            const body = currentEditImportId ? { ...data, id: currentEditImportId } : data;
+            
             const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                method: 'POST',
+                headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify(body)
             });
             if(res.ok) {
                 hideModal(importModal);
@@ -318,14 +319,23 @@ try {
         });
 
         document.getElementById('confirm-delete-btn')?.addEventListener('click', async () => {
-            await fetch(`/api/imports/${currentEditImportId}`, { method: 'DELETE' });
+            await fetch('/api/imports/delete', { 
+                method: 'POST',
+                headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({ id: currentEditImportId })
+            });
             hideModal(deleteModal);
             fetchImports();
         });
         document.getElementById('cancel-delete-btn')?.addEventListener('click', () => hideModal(deleteModal));
 
         document.getElementById('category-filter')?.addEventListener('change', applyFilter);
-        document.getElementById('print-btn')?.addEventListener('click', () => window.print());
+        document.getElementById('print-btn')?.addEventListener('click', () => {
+            const main = document.getElementById('page-content');
+            if(main) main.classList.add('printable-area');
+            window.print();
+            if(main) main.classList.remove('printable-area');
+        });
         document.getElementById('export-excel-btn')?.addEventListener('click', () => {
              const table = document.getElementById('imports-table');
              const wb = XLSX.utils.table_to_book(table, { sheet: "Sheet JS" });
@@ -335,7 +345,7 @@ try {
     }
 
     async function fetchImports() {
-        const res = await fetch(`/api/imports?projectId=${projectId}`);
+        const res = await fetch(`/api/imports?projectId=${projectId}`, { headers: getAuthHeaders() });
         if(res.ok) {
             allImportsData = await res.json();
             renderTable();
@@ -478,5 +488,109 @@ th { background: #f8f9fa; font-weight: 700; }
 .form-group label { display: block; margin-bottom: 0.3rem; font-weight: 700; }
 .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 6px; font-family: inherit;}
 .modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1rem; }
-@media print { .header-actions, .controls-container, .btn-action-cell { display: none !important; } }
+    
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            align-items: stretch;
+            text-align: center;
+        }
+        .header-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+        .controls-container {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .summaries-inline {
+            flex-direction: column;
+        }
+        .export-buttons {
+            justify-content: center;
+        }
+        
+        /* Responsive Table */
+        table, thead, tbody, th, td, tr {
+            display: block;
+        }
+        thead tr {
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+        }
+        tr {
+            border: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            padding: 0.5rem;
+            background: #fff;
+        }
+        td {
+            border: none;
+            border-bottom: 1px solid #eee;
+            position: relative;
+            padding-right: 50% !important;
+            text-align: left !important;
+            min-height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        td:last-child {
+            border-bottom: 0;
+        }
+        td:before {
+            position: absolute;
+            right: 1rem;
+            width: 45%;
+            white-space: nowrap;
+            font-weight: 700;
+            content: attr(data-label);
+            text-align: right;
+            color: var(--secondary-color);
+        }
+        .btn-action-cell {
+            justify-content: flex-end;
+            padding-top: 0.5rem;
+        }
+    }
+
+    @media print { 
+        .header-actions, 
+        .controls-container, 
+        .btn-action-cell,
+        .btn,
+        #add-import-btn { 
+            display: none !important; 
+        } 
+        
+        main.imports-admin-page {
+            padding: 0 !important;
+            background: white !important;
+        }
+
+        .container {
+            max-width: 100% !important;
+            width: 100% !important;
+        }
+
+        .imports-list-container {
+            box-shadow: none !important;
+            padding: 0 !important;
+        }
+
+        table {
+            width: 100% !important;
+            border: 1px solid #ddd !important;
+        }
+
+        th, td {
+            border: 1px solid #ddd !important;
+        }
+    }
 </style>

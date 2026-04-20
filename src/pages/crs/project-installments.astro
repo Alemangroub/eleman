@@ -183,7 +183,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
 </style>
 
 <script>
-  import { checkAuth, logout } from '../../lib/auth.js';
+  import { checkAuth, logout, getAuthHeaders } from '../../lib/auth.js';
   
   let allContracts = new Map();
   let projectId;
@@ -230,14 +230,14 @@ import AdminLogin from '../../components/AdminLogin.astro';
       if(notificationsBtn) notificationsBtn.href = `/crs/notifications?projectId=${projectId}`;
       
       try {
-          const projectRes = await fetch(`/api/project-details/${projectId}`);
+          const projectRes = await fetch(`/api/project-details/${projectId}`, { headers: getAuthHeaders() });
           const project = await projectRes.json();
           if(project.error) throw new Error(project.error);
 
           const projectNameEl = document.getElementById('project-name');
           if(projectNameEl) projectNameEl.textContent = `عقود المشروع: ${project.projectName}`;
           
-          const installmentsRes = await fetch(`/api/installments?projectId=${projectId}`);
+          const installmentsRes = await fetch(`/api/installments?projectId=${projectId}`, { headers: getAuthHeaders() });
           const installments = await installmentsRes.json();
 
           await fetchAndDisplayNotifications(projectId);
@@ -297,7 +297,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
   async function fetchAndDisplayNotifications(projectId) {
       const badge = document.querySelector('.notification-badge') as HTMLElement;
       try {
-          const response = await fetch(`/api/installments/notifications?projectId=${projectId}`);
+          const response = await fetch(`/api/installments/notifications?projectId=${projectId}`, { headers: getAuthHeaders() });
           const data = await response.json();
           if (data.count > 0) {
               badge.textContent = data.count;

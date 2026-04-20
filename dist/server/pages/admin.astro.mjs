@@ -12,9 +12,9 @@ const $$Admin = createComponent(($$result, $$props, $$slots) => {
       "Location": "/crs"
     }
   });
-}, "/home/user/Eman-Project/src/pages/admin.astro", void 0);
+}, "C:/Users/ENJAZ/Desktop/eleman/src/pages/admin.astro", void 0);
 
-const $$file = "/home/user/Eman-Project/src/pages/admin.astro";
+const $$file = "C:/Users/ENJAZ/Desktop/eleman/src/pages/admin.astro";
 const $$url = "/admin";
 
 const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({

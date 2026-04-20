@@ -179,7 +179,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
 </style>
 
 <script>
-  import { checkAuth, logout } from '../../lib/auth.js';
+  import { checkAuth, logout, getAuthHeaders } from '../../lib/auth.js';
 
   let projectIdToDelete = null;
   let projectIdToUnarchive = null;
@@ -219,7 +219,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
       const tableWrapper = document.querySelector('.table-wrapper') as HTMLElement;
 
       try {
-          const response = await fetch('/api/projects?archived=true');
+          const response = await fetch('/api/projects?archived=true', { headers: getAuthHeaders() });
           const projects = await response.json();
 
           if(tableWrapper) tableWrapper.style.display = projects.length === 0 ? 'none' : 'block';
@@ -263,7 +263,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
           try {
               const res = await fetch('/api/projects/delete', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                   body: JSON.stringify({ id: projectIdToDelete })
               });
               if (res.ok) {
@@ -278,7 +278,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
           try {
               const res = await fetch('/api/projects/update', {
                   method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                   body: JSON.stringify({ id: projectIdToUnarchive, archived: false })
               });
               if (res.ok) {

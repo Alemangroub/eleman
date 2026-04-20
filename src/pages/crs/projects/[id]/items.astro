@@ -239,7 +239,7 @@ const floorOptions = [
 </Layout>
 
 <script>
-    import { checkAuth, logout } from '../../../../lib/auth.js';
+    import { checkAuth, logout, getAuthHeaders } from '../../../../lib/auth.js';
 
     const FLOOR_MAP: Record<string, string> = {
         "-1": "البدروم", "0": "ارضي", "1": "الاول", "2": "الثاني",
@@ -460,7 +460,7 @@ const floorOptions = [
 
                 const res = await fetch('/api/items', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify(body)
                 });
                 if (!res.ok) throw new Error('فشل في حفظ البند');
@@ -474,7 +474,7 @@ const floorOptions = [
         // Load items
         async function loadItems() {
             try {
-                const res = await fetch(`/api/items?projectId=${projectId}`);
+                const res = await fetch(`/api/items?projectId=${projectId}`, { headers: getAuthHeaders() });
                 if (!res.ok) throw new Error('Failed to load');
                 allItems = await res.json();
                 renderItems();
@@ -698,10 +698,10 @@ const floorOptions = [
             }
 
             try {
-                const res = await fetch(`/api/items/${itemId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updates)
+                const res = await fetch('/api/items/update', { 
+                    method: 'POST',
+                    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ ...updates, id: itemId })
                 });
                 if (!res.ok) throw new Error('Save failed');
 
@@ -744,7 +744,11 @@ const floorOptions = [
             const btn = document.getElementById('delete-modal-confirm-btn') as HTMLButtonElement;
             btn.disabled = true; btn.textContent = 'جاري الحذف...';
             try {
-                const res = await fetch(`/api/items/${deleteInfo.itemId}`, { method: 'DELETE' });
+                const res = await fetch('/api/items/delete', { 
+                    method: 'POST',
+                    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ itemId: deleteInfo.itemId })
+                });
                 if (!res.ok) throw new Error('Delete failed');
                 document.getElementById(`item-row-${deleteInfo.itemId}`)?.remove();
                 allItems = allItems.filter(i => i.id !== deleteInfo!.itemId);

@@ -1,7 +1,7 @@
 import { p as prisma } from '../../../chunks/prisma_DflsjPUV.mjs';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { g as getJwtSecretOrThrow, c as createAuthCookie } from '../../../chunks/server-auth_CR4aO5JM.mjs';
+import { g as getJwtSecretOrThrow, c as createAuthCookie } from '../../../chunks/server-auth_DXOJNl0z.mjs';
 export { renderers } from '../../../renderers.mjs';
 
 const LOGIN_WINDOW_MS = 15 * 60 * 1e3;

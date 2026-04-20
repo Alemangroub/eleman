@@ -1,9 +1,9 @@
 /* empty css                                    */
 import { e as createComponent, k as renderComponent, r as renderTemplate, m as maybeRenderHead, g as addAttribute } from '../../chunks/astro/server_D9q-hNhU.mjs';
 import 'piccolore';
-import { $ as $$Layout } from '../../chunks/Layout_DB-3ZIKO.mjs';
-import { $ as $$TopBar } from '../../chunks/TopBar_D-6X39D4.mjs';
-import { $ as $$Header, a as $$Footer } from '../../chunks/Footer_DwwQezhF.mjs';
+import { $ as $$Layout } from '../../chunks/Layout_YA1LhvQq.mjs';
+import { $ as $$TopBar } from '../../chunks/TopBar_DOuvakAw.mjs';
+import { $ as $$Header, a as $$Footer } from '../../chunks/Footer_DKtJ1RGl.mjs';
 export { renderers } from '../../renderers.mjs';
 
 const $$RealEstateInvestment = createComponent(($$result, $$props, $$slots) => {
@@ -150,9 +150,9 @@ const $$RealEstateInvestment = createComponent(($$result, $$props, $$slots) => {
     }
   }
 </style>`;
-}, "/home/user/Eman-Project/src/pages/services/real-estate-investment.astro", void 0);
+}, "C:/Users/ENJAZ/Desktop/eleman/src/pages/services/real-estate-investment.astro", void 0);
 
-const $$file = "/home/user/Eman-Project/src/pages/services/real-estate-investment.astro";
+const $$file = "C:/Users/ENJAZ/Desktop/eleman/src/pages/services/real-estate-investment.astro";
 const $$url = "/services/real-estate-investment";
 
 const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({

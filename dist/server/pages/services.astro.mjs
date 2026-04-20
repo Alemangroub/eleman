@@ -1,13 +1,13 @@
 /* empty css                                 */
 import { e as createComponent, m as maybeRenderHead, u as unescapeHTML, r as renderTemplate, k as renderComponent } from '../chunks/astro/server_D9q-hNhU.mjs';
 import 'piccolore';
-import { $ as $$Layout } from '../chunks/Layout_DB-3ZIKO.mjs';
-import { $ as $$TopBar } from '../chunks/TopBar_D-6X39D4.mjs';
-import { $ as $$Header, a as $$Footer } from '../chunks/Footer_DwwQezhF.mjs';
-import { $ as $$Services$1 } from '../chunks/Services_BhcNhXRv.mjs';
+import { $ as $$Layout } from '../chunks/Layout_YA1LhvQq.mjs';
+import { $ as $$TopBar } from '../chunks/TopBar_DOuvakAw.mjs';
+import { $ as $$Header, a as $$Footer } from '../chunks/Footer_DKtJ1RGl.mjs';
+import { $ as $$Services$1 } from '../chunks/Services_BX1W9d9C.mjs';
 import 'clsx';
 /* empty css                                    */
-import { $ as $$FloatingButton } from '../chunks/FloatingButton_D8Sj4jEu.mjs';
+import { $ as $$FloatingButton } from '../chunks/FloatingButton_C_jNSweE.mjs';
 export { renderers } from '../renderers.mjs';
 
 const $$OurApproach = createComponent(($$result, $$props, $$slots) => {
@@ -58,13 +58,13 @@ const $$OurApproach = createComponent(($$result, $$props, $$slots) => {
     }
   ];
   return renderTemplate`${maybeRenderHead()}<section class="our-principles" data-astro-cid-dinuvir6> <div class="container" data-astro-cid-dinuvir6> <div class="section-header" data-astro-cid-dinuvir6> <h2 class="section-title" data-astro-cid-dinuvir6>منهجيتنا في تقديم القيمة</h2> <p class="section-subtitle" data-astro-cid-dinuvir6>نحن لا نبني عقارات فحسب، بل نبني ثقة وعلاقات تمتد للمستقبل. إليك كيف نضمن التميز في كل خدمة نقدمها.</p> </div> <div class="principles-timeline" data-astro-cid-dinuvir6> ${principles.map((principle, index) => renderTemplate`<div class="principle-step" data-astro-cid-dinuvir6> <div class="principle-step-icon-wrapper" data-astro-cid-dinuvir6> <div class="principle-step-icon" data-astro-cid-dinuvir6>${unescapeHTML(principle.icon)}</div> ${index < principles.length - 1 && renderTemplate`<div class="principle-step-connector" data-astro-cid-dinuvir6></div>`} </div> <div class="principle-step-content" data-astro-cid-dinuvir6> <h3 class="principle-step-title" data-astro-cid-dinuvir6>${principle.title}</h3> <p class="principle-step-text" data-astro-cid-dinuvir6>${principle.text}</p> </div> </div>`)} </div> </div> </section> <section class="how-we-work" data-astro-cid-dinuvir6> <div class="container" data-astro-cid-dinuvir6> <div class="section-header" data-astro-cid-dinuvir6> <h2 class="section-title" data-astro-cid-dinuvir6>رحلة مشروعك معنا</h2> <p class="section-subtitle" data-astro-cid-dinuvir6>نؤمن بالشفافية والوضوح. إليك كيف نحول فكرتك إلى واقع ملموس عبر أربع مراحل أساسية.</p> </div> <div class="workflow-timeline" data-astro-cid-dinuvir6> ${workflow.map((step, index) => renderTemplate`<div class="workflow-step" data-astro-cid-dinuvir6> <div class="step-icon-wrapper" data-astro-cid-dinuvir6> <div class="step-icon" data-astro-cid-dinuvir6>${unescapeHTML(step.icon)}</div> ${index < workflow.length - 1 && renderTemplate`<div class="step-connector" data-astro-cid-dinuvir6></div>`} </div> <div class="step-content" data-astro-cid-dinuvir6> <h3 class="step-title" data-astro-cid-dinuvir6>${step.title}</h3> <p class="step-text" data-astro-cid-dinuvir6>${step.text}</p> </div> </div>`)} </div> <div class="cta-container" data-astro-cid-dinuvir6> <a href="/contact" class="cta-button" data-astro-cid-dinuvir6>ابدأ رحلتك معنا</a> </div> </div> </section> `;
-}, "/home/user/Eman-Project/src/components/OurApproach.astro", void 0);
+}, "C:/Users/ENJAZ/Desktop/eleman/src/components/OurApproach.astro", void 0);
 
 const $$Services = createComponent(($$result, $$props, $$slots) => {
   return renderTemplate`${renderComponent($$result, "Layout", $$Layout, { "title": "\u062E\u062F\u0645\u0627\u062A\u0646\u0627 - \u0634\u0631\u0643\u0629 \u0627\u0644\u0625\u064A\u0645\u0627\u0646", "data-astro-cid-ucd2ps2b": true }, { "default": ($$result2) => renderTemplate` ${renderComponent($$result2, "TopBar", $$TopBar, { "data-astro-cid-ucd2ps2b": true })} ${renderComponent($$result2, "Header", $$Header, { "showMenu": true, "data-astro-cid-ucd2ps2b": true })} ${maybeRenderHead()}<main class="services-page" data-astro-cid-ucd2ps2b> ${renderComponent($$result2, "Services", $$Services$1, { "data-astro-cid-ucd2ps2b": true })} ${renderComponent($$result2, "OurApproach", $$OurApproach, { "data-astro-cid-ucd2ps2b": true })} <!-- <-- Add the new component here --> </main> ${renderComponent($$result2, "Footer", $$Footer, { "data-astro-cid-ucd2ps2b": true })} ${renderComponent($$result2, "FloatingButton", $$FloatingButton, { "data-astro-cid-ucd2ps2b": true })} ` })} `;
-}, "/home/user/Eman-Project/src/pages/services.astro", void 0);
+}, "C:/Users/ENJAZ/Desktop/eleman/src/pages/services.astro", void 0);
 
-const $$file = "/home/user/Eman-Project/src/pages/services.astro";
+const $$file = "C:/Users/ENJAZ/Desktop/eleman/src/pages/services.astro";
 const $$url = "/services";
 
 const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({

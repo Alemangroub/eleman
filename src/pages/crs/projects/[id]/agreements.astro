@@ -605,7 +605,7 @@ try {
 </style>
 
 <script>
-    import { checkAuth, logout } from '../../../../lib/auth.js';
+    import { checkAuth, logout, getAuthHeaders } from '../../../../lib/auth.js';
 
     const FLOOR_MAP = {
         basement: 'بدروم', ground: 'ارضي',
@@ -688,11 +688,14 @@ try {
             };
 
             try {
-                const token = localStorage.getItem('auth_token');
-                const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+                const headers = getAuthHeaders({ 'Content-Type': 'application/json' });
 
                 if (currentEditId) {
-                    await fetch(`/api/agreements/${currentEditId}`, { method: 'PUT', headers, body: JSON.stringify(payload) });
+                    await fetch('/api/agreements/update', { 
+                        method: 'POST', 
+                        headers, 
+                        body: JSON.stringify({ ...payload, id: currentEditId }) 
+                    });
                 } else {
                     await fetch('/api/agreements', { method: 'POST', headers, body: JSON.stringify(payload) });
                 }
@@ -733,9 +736,11 @@ try {
         document.getElementById('confirm-delete-btn')?.addEventListener('click', async () => {
             if (!pendingDeleteId) return;
             try {
-                const token = localStorage.getItem('auth_token');
-                const headers = token ? { Authorization: `Bearer ${token}` } : {};
-                await fetch(`/api/agreements/${pendingDeleteId}`, { method: 'DELETE', headers });
+                const res = await fetch('/api/agreements/delete', { 
+                    method: 'POST', 
+                    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ id: pendingDeleteId })
+                });
                 hideModal(deleteModal);
                 pendingDeleteId = null;
                 fetchAgreements();
@@ -762,9 +767,7 @@ try {
         const noMsg = document.getElementById('no-agreements-message');
         const grid = document.getElementById('agreements-grid');
         try {
-            const token = localStorage.getItem('auth_token');
-            const headers = token ? { Authorization: `Bearer ${token}` } : {};
-            const res = await fetch(`/api/agreements?projectId=${projectId}`, { headers });
+            const res = await fetch(`/api/agreements?projectId=${projectId}`, { headers: getAuthHeaders() });
             const data = await res.json();
             allAgreements = Array.isArray(data) ? data : [];
             if (allAgreements.length === 0) {

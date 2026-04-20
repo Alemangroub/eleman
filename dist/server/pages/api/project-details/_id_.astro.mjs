@@ -1,5 +1,5 @@
 import { p as prisma } from '../../../chunks/prisma_DflsjPUV.mjs';
-import { b as requireProjectAccess } from '../../../chunks/server-auth_CR4aO5JM.mjs';
+import { b as requireProjectAccess } from '../../../chunks/server-auth_DXOJNl0z.mjs';
 export { renderers } from '../../../renderers.mjs';
 
 const prerender = false;

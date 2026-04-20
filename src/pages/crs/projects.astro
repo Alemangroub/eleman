@@ -35,6 +35,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         </div>
         <h1 class="page-title">إدارة المشروعات</h1>
         <div class="header-side right">
+           <a href="/dashboard" class="btn btn-secondary">لوحة التحكم</a>
            <button id="logout-button" class="btn btn-danger">تسجيل الخروج</button>
         </div>
     </div>
@@ -451,7 +452,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
 </style>
 
 <script>
-  import { checkAuth, logout } from '../../lib/auth.js';
+  import { checkAuth, logout, getAuthHeaders } from '../../lib/auth.js';
 
   let allProjects = [];
   let allSupervisors = [];
@@ -647,7 +648,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
     // --- DATA FETCHING ---
     async function fetchProjects() {
         try {
-            const response = await fetch('/api/projects');
+            const response = await fetch('/api/projects', { headers: getAuthHeaders() });
             if (response.ok) {
                 allProjects = await response.json();
                 renderProjects(allProjects);
@@ -657,7 +658,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
 
     async function fetchSupervisors() {
         try {
-            const response = await fetch('/api/users/supervisors');
+            const response = await fetch('/api/users/supervisors', { headers: getAuthHeaders() });
             if (response.ok) {
                 allSupervisors = await response.json();
                 updateAddSupervisorDropdown();
@@ -721,7 +722,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         try {
           const response = await fetch('/api/projects/update', {
               method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
+              headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
               body: JSON.stringify({ id: projectIdToArchive, archived: true })
           });
           if (response.ok) {
@@ -796,7 +797,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
       try {
         const response = await fetch('/api/projects/update', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({
                 id: projectIdToEdit,
                 projectName: projectNameInput.value,

@@ -1,16 +1,22 @@
-import { a as clearAuthCookie } from '../../../chunks/server-auth_CR4aO5JM.mjs';
+import { a as clearAuthCookie } from '../../../chunks/server-auth_DXOJNl0z.mjs';
 export { renderers } from '../../../renderers.mjs';
 
-async function POST() {
+async function ALL() {
     const headers = new Headers();
     headers.append("Set-Cookie", clearAuthCookie());
 
-    return new Response(JSON.stringify({ success: true }), { status: 200, headers });
+    return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: {
+            "Set-Cookie": clearAuthCookie(),
+            "Content-Type": "application/json"
+        }
+    });
 }
 
 const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
     __proto__: null,
-    POST
+    ALL
 }, Symbol.toStringTag, { value: 'Module' }));
 
 const page = () => _page;

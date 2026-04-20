@@ -1,4 +1,5 @@
 import { p as prisma } from '../../../chunks/prisma_DflsjPUV.mjs';
+import { r as requireAdmin } from '../../../chunks/server-auth_DXOJNl0z.mjs';
 export { renderers } from '../../../renderers.mjs';
 
 const prerender = false;
@@ -41,13 +42,18 @@ async function PUT({ params, request }) {
     }
 }
 
-async function DELETE({ params }) {
+async function POST({ params, request }) {
     const { id } = params;
     if (!id) {
         return new Response(JSON.stringify({ error: "ID is required" }), { status: 400 });
     }
 
     try {
+        const { errorResponse } = requireAdmin(request);
+        if (errorResponse) {
+            return errorResponse;
+        }
+
         await prisma.agreement.delete({
             where: { id: id }
         });
@@ -60,7 +66,7 @@ async function DELETE({ params }) {
 
 const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
     __proto__: null,
-    DELETE,
+    POST,
     PUT,
     prerender
 }, Symbol.toStringTag, { value: 'Module' }));

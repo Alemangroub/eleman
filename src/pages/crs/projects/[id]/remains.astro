@@ -553,6 +553,7 @@ try {
 </Layout>
 
 <script>
+    import { checkAuth, logout, getAuthHeaders } from '../../../../lib/auth.js';
     import { initializeAuthCheck } from '../../../../scripts/auth/remains-auth.ts';
 
     const LOG_LIMIT = 3;
@@ -771,7 +772,7 @@ try {
         try {
             const res = await fetch('/api/remains', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     projectId: projId, material: mat, quantity: isDisp ? -q : q,
                     notes: f.notes.value, supervisorId: user.userId,
@@ -813,17 +814,25 @@ try {
     }
 
     document.getElementById('confirm-delete-btn')?.addEventListener('click', async () => {
-        await fetch(`/api/remains/${docIdToDelete}`, { method: 'DELETE' });
+        await fetch('/api/remains/delete', { 
+            method: 'POST',
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ id: docIdToDelete })
+        });
         location.reload();
     });
 
     document.getElementById('edit-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const f = e.target as any;
-        await fetch(`/api/remains/${f.docId.value}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notes: f.notes.value, quantity: parseInt(f.quantity.value) })
+        await fetch('/api/remains/update', {
+            method: 'POST',
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ 
+                id: f.docId.value,
+                notes: f.notes.value, 
+                quantity: parseFloat(f.quantity.value) 
+            })
         });
         location.reload();
     });

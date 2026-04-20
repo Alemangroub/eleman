@@ -174,7 +174,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
 </style>
 
 <script>
-  import { checkAuth, logout } from '../../lib/auth.js';
+  import { checkAuth, logout, getAuthHeaders } from '../../lib/auth.js';
   let adminUser = null;
   let usersCache = {};
 
@@ -201,7 +201,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
     const usersList = document.getElementById('users-list');
     const noUsersMessage = document.getElementById('no-users-message');
     try {
-      const response = await fetch('/api/users/list');
+      const response = await fetch('/api/users/list', { headers: getAuthHeaders() });
       const users = await response.json();
       usersCache = {};
       const filteredUsers = users.filter(u => u.id !== adminUser?.userId);
@@ -247,7 +247,11 @@ import AdminLogin from '../../components/AdminLogin.astro';
       const password = document.getElementById('user-password').value;
       const role = document.getElementById('user-role').value;
       try {
-        const res = await fetch('/api/users/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, password, role }) });
+        const res = await fetch('/api/users/create', { 
+          method: 'POST', 
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }), 
+          body: JSON.stringify({ name, email, password, role }) 
+        });
         const result = await res.json();
         if (res.ok) { feedbackMessage.textContent = 'تم إنشاء حساب المستخدم بنجاح!'; feedbackMessage.classList.add('success'); addUserForm.reset(); fetchAndRenderUsers(); }
         else { feedbackMessage.textContent = result.error || 'فشل إنشاء المستخدم.'; feedbackMessage.classList.add('error'); }
@@ -283,7 +287,11 @@ import AdminLogin from '../../components/AdminLogin.astro';
       if (!userIdToDelete) return;
       modalConfirmBtn.disabled = true; modalConfirmBtn.textContent = 'جاري الحذف...';
       try {
-        const res = await fetch('/api/users/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: userIdToDelete }) });
+        const res = await fetch('/api/users/delete', { 
+          method: 'POST', 
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }), 
+          body: JSON.stringify({ id: userIdToDelete }) 
+        });
         if (res.ok) { alert('تم حذف المستخدم بنجاح!'); fetchAndRenderUsers(); }
         else { const r = await res.json(); alert('فشل: ' + r.error); }
       } catch (err) { alert('خطأ: ' + err.message); }
@@ -301,7 +309,11 @@ import AdminLogin from '../../components/AdminLogin.astro';
       const payload = { id, name, email, role };
       if (password) payload.password = password;
       try {
-        const res = await fetch('/api/users/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await fetch('/api/users/update', { 
+          method: 'POST', 
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }), 
+          body: JSON.stringify(payload) 
+        });
         if (res.ok) { editFeedback.textContent = 'تم تحديث بيانات المستخدم بنجاح!'; editFeedback.classList.add('success'); fetchAndRenderUsers(); setTimeout(() => { editModal.style.display = 'none'; }, 2000); }
         else { const r = await res.json(); throw new Error(r.error); }
       } catch (err) { editFeedback.textContent = 'فشل: ' + err.message; editFeedback.classList.add('error'); }

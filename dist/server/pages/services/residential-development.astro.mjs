@@ -1,9 +1,9 @@
 /* empty css                                    */
 import { e as createComponent, k as renderComponent, r as renderTemplate, m as maybeRenderHead, g as addAttribute } from '../../chunks/astro/server_D9q-hNhU.mjs';
 import 'piccolore';
-import { $ as $$Layout } from '../../chunks/Layout_DB-3ZIKO.mjs';
-import { $ as $$TopBar } from '../../chunks/TopBar_D-6X39D4.mjs';
-import { $ as $$Header, a as $$Footer } from '../../chunks/Footer_DwwQezhF.mjs';
+import { $ as $$Layout } from '../../chunks/Layout_YA1LhvQq.mjs';
+import { $ as $$TopBar } from '../../chunks/TopBar_DOuvakAw.mjs';
+import { $ as $$Header, a as $$Footer } from '../../chunks/Footer_DKtJ1RGl.mjs';
 /* empty css                                                      */
 export { renderers } from '../../renderers.mjs';
 
@@ -21,9 +21,9 @@ const $$ResidentialDevelopment = createComponent(($$result, $$props, $$slots) =>
 - **\u0645\u0648\u0627\u0642\u0639 \u0627\u0633\u062A\u0631\u0627\u062A\u064A\u062C\u064A\u0629:** \u0646\u062E\u062A\u0627\u0631 \u0645\u0648\u0627\u0642\u0639 \u0645\u0634\u0627\u0631\u064A\u0639\u0646\u0627 \u0628\u0639\u0646\u0627\u064A\u0629 \u0641\u0627\u0626\u0642\u0629 \u0641\u064A \u0642\u0644\u0628 \u0627\u0644\u0645\u062F\u0646 \u0627\u0644\u062C\u062F\u064A\u062F\u0629 \u0627\u0644\u0648\u0627\u0639\u062F\u0629\u060C \u0644\u0636\u0645\u0627\u0646 \u0633\u0647\u0648\u0644\u0629 \u0627\u0644\u0648\u0635\u0648\u0644 \u0625\u0644\u0649 \u0627\u0644\u062E\u062F\u0645\u0627\u062A \u0627\u0644\u0623\u0633\u0627\u0633\u064A\u0629 \u0648\u0627\u0644\u0645\u0646\u0627\u0637\u0642 \u0627\u0644\u062D\u064A\u0648\u064A\u0629.`
   };
   return renderTemplate`${renderComponent($$result, "Layout", $$Layout, { "title": service.title, "data-astro-cid-skwjcsqc": true }, { "default": ($$result2) => renderTemplate` ${renderComponent($$result2, "TopBar", $$TopBar, { "data-astro-cid-skwjcsqc": true })} ${renderComponent($$result2, "Header", $$Header, { "showMenu": true, "data-astro-cid-skwjcsqc": true })} ${maybeRenderHead()}<main class="service-detail-page" data-astro-cid-skwjcsqc> <article class="service-content-container" data-astro-cid-skwjcsqc> <header class="service-header" data-astro-cid-skwjcsqc> <div class="header-image-container" data-astro-cid-skwjcsqc> <img${addAttribute(service.image, "src")}${addAttribute(service.title, "alt")} class="header-image" data-astro-cid-skwjcsqc> <div class="header-overlay" data-astro-cid-skwjcsqc></div> </div> <div class="header-text" data-astro-cid-skwjcsqc> <h1 class="service-main-title" data-astro-cid-skwjcsqc>${service.title}</h1> <p class="service-intro-description" data-astro-cid-skwjcsqc>${service.description}</p> </div> </header> <section class="service-detailed-info" data-astro-cid-skwjcsqc> <div class="detailed-description-wrapper" data-astro-cid-skwjcsqc> <h2 class="details-section-title" data-astro-cid-skwjcsqc>تفاصيل الخدمة</h2> <p class="detailed-text" data-astro-cid-skwjcsqc>${service.detailedDescription}</p> </div> </section> <div class="back-to-home-link-wrapper" data-astro-cid-skwjcsqc> <a href="/" class="back-to-home-link" data-astro-cid-skwjcsqc>العودة إلى الرئيسية</a> </div> </article> </main> ${renderComponent($$result2, "Footer", $$Footer, { "data-astro-cid-skwjcsqc": true })} ` })} `;
-}, "/home/user/Eman-Project/src/pages/services/residential-development.astro", void 0);
+}, "C:/Users/ENJAZ/Desktop/eleman/src/pages/services/residential-development.astro", void 0);
 
-const $$file = "/home/user/Eman-Project/src/pages/services/residential-development.astro";
+const $$file = "C:/Users/ENJAZ/Desktop/eleman/src/pages/services/residential-development.astro";
 const $$url = "/services/residential-development";
 
 const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({

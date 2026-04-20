@@ -89,7 +89,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
 </style>
 
 <script>
-  import { checkAuth, logout } from '../../lib/auth.js';
+  import { checkAuth, logout, getAuthHeaders } from '../../lib/auth.js';
   
   let currentProjectId = null;
   let originalCustomerName = null;
@@ -135,7 +135,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
       (document.getElementById('cancel-btn') as HTMLAnchorElement).href = `/crs/contract-details?projectId=${currentProjectId}&customerName=${encodeURIComponent(originalCustomerName)}`;
 
       try {
-          const res = await fetch(`/api/installments?projectId=${currentProjectId}&customerName=${encodeURIComponent(originalCustomerName)}`);
+          const res = await fetch(`/api/installments?projectId=${currentProjectId}&customerName=${encodeURIComponent(originalCustomerName)}`, { headers: getAuthHeaders() });
           const data = await res.json();
 
           if (!res.ok || data.length === 0) throw new Error('لم يتم العثور على العقد.');
@@ -182,7 +182,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
       try {
           const res = await fetch('/api/installments/bulk-update', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
               body: JSON.stringify(updatedData)
           });
 

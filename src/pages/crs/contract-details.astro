@@ -99,7 +99,7 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
 </Layout>
 
 <script>
-  import { checkAuth, logout } from '../../lib/auth.js';
+  import { checkAuth, logout, getAuthHeaders } from '../../lib/auth.js';
   
   let currentProjectId = null;
   let currentCustomerName = null;
@@ -150,7 +150,7 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
       (document.getElementById('edit-contract-btn') as HTMLAnchorElement).href = `/crs/edit-contract?projectId=${currentProjectId}&customerName=${encodeURIComponent(currentCustomerName)}`;
 
       try {
-          const response = await fetch(`/api/installments?projectId=${currentProjectId}&customerName=${encodeURIComponent(currentCustomerName)}`);
+          const response = await fetch(`/api/installments?projectId=${currentProjectId}&customerName=${encodeURIComponent(currentCustomerName)}`, { headers: getAuthHeaders() });
           const data = await response.json();
 
           if (!response.ok || data.length === 0) {
@@ -173,7 +173,19 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
   }
 
   function setupInteractions() {
-      document.getElementById('print-btn')?.addEventListener('click', () => window.print());
+      document.getElementById('print-btn')?.addEventListener('click', () => {
+          const content = document.getElementById('contract-details-content');
+          if (!content) return;
+          
+          // Add printable-area class to the content container
+          const mainElement = document.getElementById('page-content');
+          if (mainElement) mainElement.classList.add('printable-area');
+          
+          window.print();
+          
+          // Remove the class after printing
+          if (mainElement) mainElement.classList.remove('printable-area');
+      });
       document.getElementById('export-pdf-btn')?.addEventListener('click', exportPDF);
       document.getElementById('export-excel-btn')?.addEventListener('click', exportExcel);
       document.getElementById('delete-contract-btn')?.addEventListener('click', handleDeleteContract);
@@ -305,7 +317,7 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
           try {
               const res = await fetch('/api/installments/update', {
                   method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                   body: JSON.stringify({ id, status: newStatus, paidDate: newStatus === 'paid' ? new Date() : null })
               });
               if (res.ok) initializeApp();
@@ -340,13 +352,13 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
 
               await fetch('/api/installments/update', {
                   method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                   body: JSON.stringify({ id, installmentAmount: amount, dueDate: new Date(date) })
               });
 
               await fetch('/api/installments/bulk-update', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                   body: JSON.stringify({ projectId: currentProjectId, customerName: currentCustomerName, totalAmount: newTotal })
               });
 
@@ -365,13 +377,13 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
 
               await fetch('/api/installments/bulk-delete', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ ids: [id] })
+                  headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                  body: JSON.stringify({ ids: [id], projectId: currentProjectId })
               });
 
               await fetch('/api/installments/bulk-update', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                   body: JSON.stringify({ projectId: currentProjectId, customerName: currentCustomerName, totalAmount: newTotal })
               });
 
@@ -385,7 +397,7 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
           try {
               const res = await fetch('/api/installments/bulk-delete', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                   body: JSON.stringify({ projectId: currentProjectId, customerName: currentCustomerName })
               });
               if (res.ok) window.location.href = `/crs/project-installments?projectId=${currentProjectId}`;
@@ -403,13 +415,13 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
               try {
                   await fetch('/api/installments/update', {
                       method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
+                      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                       body: JSON.stringify({ id, installmentAmount: paid, status: 'paid', paidDate: new Date() })
                   });
 
                   await fetch('/api/installments/create', {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
+                      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                       body: JSON.stringify({
                           projectId: inst.projectId, customerName: inst.customerName, customerPhone: inst.customerPhone,
                           unitType: inst.unitType, unitLocation: inst.unitLocation, totalAmount: inst.totalAmount,
@@ -481,7 +493,6 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     .installments-section { background: white; padding: 2rem; border-radius: 12px; box-shadow: var(--shadow); }
     .installments-section h3 { color: var(--primary-color); margin-bottom: 1.5rem; font-size: 1.5rem; border-bottom: 2px solid var(--primary-color); padding-bottom: 0.5rem; }
     .table-responsive-wrapper { overflow-x: auto; }
-    .is-responsive { min-width: 800px; }
     
     table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; background: white; }
     thead th { 
@@ -568,23 +579,11 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
         color: #495057 !important; 
         text-decoration: none !important;
     }
-    .actions-cell .btn:active {
-        background-color: #e9ecef !important;
-    }
     .actions-cell .btn-partial { background-color: #fff3cd !important; border-color: #ffeaa7 !important; color: #856404 !important; }
     .actions-cell .btn-partial:hover { background-color: #ffeaa7 !important; }
     .actions-cell .btn-delete-installment { background-color: #f8d7da !important; border-color: #f5c6cb !important; color: #721c24 !important; }
     .actions-cell .btn-delete-installment:hover { background-color: #f5c6cb !important; }
-    
-    @media (max-width: 768px) {
-        .details-header { flex-direction: column; align-items: stretch; }
-        .header-buttons { justify-content: center; }
-        .info-grid { grid-template-columns: 1fr; }
-        .summary-dashboard { grid-template-columns: 1fr; }
-        .actions-cell { flex-direction: column; align-items: center; }
-        .actions-cell .btn { width: 100%; max-width: 150px; }
-    }
-    
+
     .message-card { 
         background: white; 
         padding: 2rem; 
@@ -599,12 +598,104 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     
     .auth-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; text-align: center; }
     
+    @media (min-width: 769px) {
+        .is-responsive { min-width: 800px; }
+    }
+
     @media (max-width: 768px) {
-        .details-header { flex-direction: column; align-items: stretch; }
+        .details-header { flex-direction: column; align-items: stretch; text-align: center; }
         .header-buttons { justify-content: center; }
         .info-grid { grid-template-columns: 1fr; }
         .summary-dashboard { grid-template-columns: 1fr; }
-        .actions-cell { flex-direction: column; align-items: center; }
-        .actions-cell .btn { width: 100%; max-width: 150px; }
+        .installments-section { padding: 1rem; }
+        
+        /* Responsive Table */
+        table, thead, tbody, th, td, tr { display: block; }
+        thead tr { position: absolute; top: -9999px; left: -9999px; }
+        tr { 
+            border: 1px solid #eee; 
+            margin-bottom: 1.5rem; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+        td { 
+            border: none; 
+            border-bottom: 1px solid #eee; 
+            position: relative; 
+            padding-right: 45% !important; 
+            text-align: left !important;
+            min-height: 2.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        td:last-child { border-bottom: 0; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        td:before { 
+            position: absolute; 
+            right: 1rem; 
+            width: 40%; 
+            white-space: nowrap; 
+            font-weight: 700;
+            content: attr(data-label);
+            text-align: right;
+            color: #666;
+        }
+        .actions-cell { flex-direction: row; justify-content: flex-end; gap: 0.5rem; }
+        .actions-cell .btn { width: auto; max-width: none; flex: 1; }
+    }
+
+    /* Print Styles */
+    @media print {
+        .header-buttons, 
+        .actions-cell, 
+        #back-link,
+        .btn-edit,
+        .btn-save,
+        .btn-partial,
+        .btn-delete-installment,
+        .btn-warning,
+        .btn-danger {
+            display: none !important;
+        }
+
+        main#page-content {
+            padding: 0 !important;
+            margin: 0 !important;
+            background: white !important;
+        }
+
+        .details-container {
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .stat-card {
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+        }
+
+        table {
+            border: 1px solid #ddd !important;
+        }
+
+        th, td {
+            border: 1px solid #ddd !important;
+        }
+
+        /* Ensure colors are printed */
+        .status-paid {
+            background-color: #f0fff4 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        
+        .status-pending {
+            background-color: #fffaf0 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
     }
 </style>

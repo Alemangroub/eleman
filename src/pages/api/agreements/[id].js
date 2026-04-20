@@ -1,5 +1,6 @@
 
 import prisma from "../../../lib/prisma.js";
+import { requireAdmin } from "../../../lib/server-auth.js";
 
 export const prerender = false;
 
@@ -41,13 +42,18 @@ export async function PUT({ params, request }) {
     }
 }
 
-export async function DELETE({ params }) {
+export async function POST({ params, request }) {
     const { id } = params;
     if (!id) {
         return new Response(JSON.stringify({ error: "ID is required" }), { status: 400 });
     }
 
     try {
+        const { errorResponse } = requireAdmin(request);
+        if (errorResponse) {
+            return errorResponse;
+        }
+
         await prisma.agreement.delete({
             where: { id: id }
         });

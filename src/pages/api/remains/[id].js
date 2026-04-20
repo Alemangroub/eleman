@@ -1,5 +1,6 @@
 
 import prisma from "../../../lib/prisma.js";
+import { requireAdmin } from "../../../lib/server-auth.js";
 
 export const prerender = false;
 
@@ -25,9 +26,14 @@ export async function PUT({ params, request }) {
     }
 }
 
-export async function DELETE({ params }) {
+export async function POST({ params, request }) {
     const { id } = params;
     try {
+        const { errorResponse } = requireAdmin(request);
+        if (errorResponse) {
+            return errorResponse;
+        }
+
         await prisma.remainsLog.delete({
             where: { id: id }
         });

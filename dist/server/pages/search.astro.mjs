@@ -1,10 +1,10 @@
 /* empty css                                 */
 import { e as createComponent, k as renderComponent, r as renderTemplate, h as createAstro, m as maybeRenderHead, al as Fragment, g as addAttribute } from '../chunks/astro/server_D9q-hNhU.mjs';
 import 'piccolore';
-import { $ as $$Layout } from '../chunks/Layout_DB-3ZIKO.mjs';
-import { $ as $$Header, a as $$Footer } from '../chunks/Footer_DwwQezhF.mjs';
+import { $ as $$Layout } from '../chunks/Layout_YA1LhvQq.mjs';
+import { $ as $$Header, a as $$Footer } from '../chunks/Footer_DKtJ1RGl.mjs';
 import { a as achievements } from '../chunks/achievements_5on8DSSQ.mjs';
-import { i as info } from '../chunks/info_z3mEWYcI.mjs';
+import { i as info } from '../chunks/info_CJDkWWUE.mjs';
 /* empty css                                  */
 export { renderers } from '../renderers.mjs';
 
@@ -49,9 +49,9 @@ const $$Search = createComponent(($$result, $$props, $$slots) => {
     searchResults = [...filteredServices, ...filteredAchievements, ...filteredInfo];
   }
   return renderTemplate`${renderComponent($$result, "Layout", $$Layout, { "title": `\u0646\u062A\u0627\u0626\u062C \u0627\u0644\u0628\u062D\u062B \u0639\u0646: ${query}`, "data-astro-cid-ipsxrsrh": true }, { "default": ($$result2) => renderTemplate` ${renderComponent($$result2, "Header", $$Header, { "showMenu": true, "data-astro-cid-ipsxrsrh": true })} ${maybeRenderHead()}<main class="search-results-main" data-astro-cid-ipsxrsrh> <div class="container" data-astro-cid-ipsxrsrh> ${query ? renderTemplate`${renderComponent($$result2, "Fragment", Fragment, { "data-astro-cid-ipsxrsrh": true }, { "default": ($$result3) => renderTemplate` <h1 class="search-title" data-astro-cid-ipsxrsrh>نتائج البحث عن: <span class="query-term" data-astro-cid-ipsxrsrh>"${query}"</span></h1> ${searchResults.length > 0 ? renderTemplate`<div class="results-grid" data-astro-cid-ipsxrsrh> ${searchResults.map((item) => renderTemplate`<a${addAttribute(item.url, "href")} class="result-card" data-astro-cid-ipsxrsrh> <span class="result-type" data-astro-cid-ipsxrsrh>${item.type}</span> <h3 class="result-title" data-astro-cid-ipsxrsrh>${item.title}</h3> <p class="result-description" data-astro-cid-ipsxrsrh>${item.description}</p> </a>`)} </div>` : renderTemplate`<p class="search-info" data-astro-cid-ipsxrsrh>لم يتم العثور على نتائج تطابق بحثك. حاول استخدام كلمات أخرى.</p>`}<a href="/" class="back-button" data-astro-cid-ipsxrsrh>العودة إلى الرئيسية</a> ` })}` : renderTemplate`${renderComponent($$result2, "Fragment", Fragment, { "data-astro-cid-ipsxrsrh": true }, { "default": ($$result3) => renderTemplate` <h1 class="search-title" data-astro-cid-ipsxrsrh>الرجاء إدخال مصطلح للبحث</h1> <p class="search-info" data-astro-cid-ipsxrsrh>يبدو أنك وصلت إلى هذه الصفحة بدون تحديد ما تبحث عنه.</p> <a href="/" class="back-button" data-astro-cid-ipsxrsrh>العودة إلى الرئيسية</a> ` })}`} </div> </main> ${renderComponent($$result2, "Footer", $$Footer, { "data-astro-cid-ipsxrsrh": true })} ` })} `;
-}, "/home/user/Eman-Project/src/pages/search.astro", void 0);
+}, "C:/Users/ENJAZ/Desktop/eleman/src/pages/search.astro", void 0);
 
-const $$file = "/home/user/Eman-Project/src/pages/search.astro";
+const $$file = "C:/Users/ENJAZ/Desktop/eleman/src/pages/search.astro";
 const $$url = "/search";
 
 const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
