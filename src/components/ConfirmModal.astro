@@ -1,0 +1,133 @@
+---
+// This component is for the confirmation modal dialog.
+---
+<div id="confirm-modal-backdrop" class="modal-backdrop" style="display: none;">
+  <div id="confirm-modal" class="modal-content">
+    <p id="confirm-modal-message"></p>
+    <div class="modal-buttons">
+      <button id="confirm-modal-cancel" class="btn btn-secondary">إلغاء</button>
+      <button id="confirm-modal-confirm" class="btn btn-danger">تأكيد</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    direction: rtl;
+    font-family: 'Cairo', sans-serif;
+  }
+
+  .modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+  }
+
+  .modal-content p {
+    font-size: 1.2rem;
+    color: #333;
+    margin-bottom: 1.5rem;
+  }
+
+  .modal-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+  }
+
+    /* We are re-declaring button styles here to make the component self-contained */
+  .modal-buttons .btn {
+    padding: 0.7rem 1.4rem;
+    border-radius: 8px;
+    text-decoration: none;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .btn-secondary {
+    background-color: #7f8c8d;
+    color: white;
+  }
+  .btn-secondary:hover {
+    background-color: #6a7374;
+  }
+
+  .btn-danger {
+    background-color: #c0392b;
+    color: white;
+  }
+  .btn-danger:hover {
+    background-color: #a93226;
+  }
+</style>
+
+<script>
+  // This script provides a global function to show the modal and handles confirmation logic.
+  // It returns a Promise that resolves based on the user's choice.
+  function showConfirmationModal(message) {
+    return new Promise((resolve) => {
+      const backdrop = document.getElementById('confirm-modal-backdrop');
+      const messageEl = document.getElementById('confirm-modal-message');
+      const confirmBtn = document.getElementById('confirm-modal-confirm');
+      const cancelBtn = document.getElementById('confirm-modal-cancel');
+      
+      // Ensure modal elements are present
+      if (!backdrop || !messageEl || !confirmBtn || !cancelBtn) {
+        console.error("Modal elements not found!");
+        return resolve(false); // Resolve as false if modal is broken
+      }
+
+      messageEl.textContent = message;
+      backdrop.style.display = 'flex';
+
+      // Use one-time event listeners to prevent stacking
+      const handleConfirm = () => {
+        backdrop.style.display = 'none';
+        cleanup();
+        resolve(true);
+      };
+
+      const handleCancel = () => {
+        backdrop.style.display = 'none';
+        cleanup();
+        resolve(false);
+      };
+      
+      const handleBackdropClick = (e) => {
+        if (e.target === backdrop) {
+            handleCancel();
+        }
+      }
+
+      const cleanup = () => {
+        confirmBtn.removeEventListener('click', handleConfirm);
+        cancelBtn.removeEventListener('click', handleCancel);
+        backdrop.removeEventListener('click', handleBackdropClick);
+      };
+      
+      confirmBtn.addEventListener('click', handleConfirm);
+      cancelBtn.addEventListener('click', handleCancel);
+      backdrop.addEventListener('click', handleBackdropClick);
+    });
+  }
+
+  // Make the function globally available
+  window.showConfirmationModal = showConfirmationModal;
+</script>

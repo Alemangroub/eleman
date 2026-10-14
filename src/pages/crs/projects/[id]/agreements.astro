@@ -1,0 +1,896 @@
+---
+import Layout from '../../../../layouts/Layout.astro';
+import AdminLogin from '../../../../components/AdminLogin.astro';
+import prisma from "../../../../lib/prisma";
+
+export const prerender = false;
+
+const { id } = Astro.params;
+if (!id) {
+    return Astro.redirect('/404');
+}
+
+let project = null;
+
+try {
+    const projectDoc = await prisma.project.findUnique({
+        where: { id: id }
+    });
+    
+    if (projectDoc) {
+        project = { 
+            id: projectDoc.id, 
+            projectName: projectDoc.projectName || 'اسم غير متوفر',
+        };
+    } else {
+        return Astro.redirect('/404');
+    }
+} catch (error) {
+    console.error("Error fetching project data in agreements.astro:", error);
+    project = null;
+}
+---
+
+<Layout title={`اللي وصل المقاول: ${project ? project.projectName : ''}`}>
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
+    </div>
+
+    <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+    </div>
+
+    <main id="page-content" class="agreements-admin-page" style="display: none;" data-project-id={project?.id} data-project-name={project?.projectName}>
+        <div class="container">
+             {project ? (
+                <>
+                    <header class="page-header">
+                        <div>
+                            <h1>اللي وصل المقاول: {project.projectName}</h1>
+                            <p class="page-subtitle">هنا يمكنك عرض وإدارة مستحقات المقاول والمدفوعات.</p>
+                        </div>
+                        <div class="header-actions">
+                           <button id="add-agreement-btn" class="btn btn-primary">+ إضافة دفعة جديدة</button>
+                           <a href={`/crs/projects/${id}`} class="btn btn-secondary">&larr; العودة للتفاصيل</a>
+                        </div>
+                    </header>
+
+                    <div class="agreements-list-container">
+                         <div class="list-controls">
+                            <div class="filter-group">
+                                <label for="floor-filter">تصفية حسب الدور:</label>
+                                <select id="floor-filter">
+                                    <option value="all">عرض الكل</option>
+                                    <option value="basement">بدروم</option><option value="ground">ارضي</option><option value="1">الدور 1</option><option value="2">الدور 2</option><option value="3">الدور 3</option><option value="4">الدور 4</option><option value="5">الدور 5</option><option value="6">الدور 6</option><option value="7">الدور 7</option><option value="8">الدور 8</option><option value="9">الدور 9</option><option value="10">الدور 10</option><option value="11">الدور 11</option><option value="12">الدور 12</option><option value="13">الدور 13</option><option value="14">الدور 14</option><option value="15">الدور 15</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="totals-summary-container">
+                            <div id="floor-total-box" class="total-box" style="display: none;">
+                                <span class="total-label">إجمالي الدور المحدد</span>
+                                <span id="floor-total" class="total-value">0.00 ج.م</span>
+                            </div>
+                            <div class="total-box grand-total-box">
+                                <span class="total-label">الإجمالي الكلي</span>
+                                <span id="grand-agreements-total" class="total-value">0.00 ج.م</span>
+                            </div>
+                        </div>
+                        <div id="agreements-grid" class="agreements-grid">
+                            <!-- Agreement cards are injected by JS -->
+                        </div>
+                        <p id="no-agreements-message" style="display: none;">لم يتم إضافة أي دفعات لهذا المشروع بعد.</p>
+                    </div>
+                </>
+            ) : (
+                <div class="error-card">
+                    <h2>خطأ في تحميل البيانات</h2>
+                    <p>حدث خطأ حرج أثناء محاولة تحميل تفاصيل المشروع. برجاء المحاولة مرة أخرى لاحقاً.</p>
+                    <a href="/crs/projects" class="back-link">العودة إلى قائمة المشاريع</a>
+                </div>
+            )}
+        </div>
+    </main>
+
+    <!-- Add/Edit Agreement Modal -->
+    <div id="agreement-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 id="modal-title">إضافة دفعة جديدة</h3>
+            <form id="agreement-form">
+                <div class="form-group">
+                    <label for="agreement-floor">الدور</label>
+                    <select id="agreement-floor" required>
+                        <option value="" disabled selected>اختر الدور</option>
+                        <option value="basement">بدروم</option><option value="ground">ارضي</option><option value="1">الدور 1</option><option value="2">الدور 2</option><option value="3">الدور 3</option><option value="4">الدور 4</option><option value="5">الدور 5</option><option value="6">الدور 6</option><option value="7">الدور 7</option><option value="8">الدور 8</option><option value="9">الدور 9</option><option value="10">الدور 10</option><option value="11">الدور 11</option><option value="12">الدور 12</option><option value="13">الدور 13</option><option value="14">الدور 14</option><option value="15">الدور 15</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="date">التاريخ</label>
+                    <input type="date" id="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="agreement-total">الإجمالي</label>
+                    <input type="number" id="agreement-total" required step="any">
+                </div>
+                <div class="form-group">
+                    <label for="agreement-details">تفاصيل الدفعة</label>
+                    <textarea id="agreement-details" rows="4"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="cancel-agreement-btn" class="btn btn-secondary">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>تأكيد الحذف</h3>
+            <p>هل أنت متأكد من أنك تريد حذف هذه الدفعة؟</p>
+            <div class="modal-actions">
+                <button id="cancel-delete-btn" class="btn btn-secondary">إلغاء</button>
+                <button id="confirm-delete-btn" class="btn btn-danger">تأكيد الحذف</button>
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<style is:global>
+    :root {
+        --primary-color: #3f51b5;
+        --secondary-color: #6c757d;
+        --danger-color: #d9534f;
+        --success-color: #28a745;
+        --light-gray: #f4f7f6;
+        --dark-text: #333;
+        --light-text: #555;
+        --white: #fff;
+        --border-color: #e0e0e0;
+        --shadow: 0 4px 6px rgba(0,0,0,.05);
+        --card-shadow: 0 5px 15px rgba(0, 0, 0, .08);
+        --card-hover-shadow: 0 8px 25px rgba(0, 0, 0, .12);
+    }
+
+    .agreements-admin-page {
+        padding: 3rem 1.5rem;
+        background-color: var(--light-gray);
+        min-height: 100vh;
+        direction: rtl;
+        font-family: Cairo, sans-serif;
+    }
+
+    .container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .auth-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 2.5rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .page-header h1 {
+        font-size: 2.2rem;
+        color: var(--dark-text);
+        font-weight: 900;
+    }
+
+    .page-subtitle {
+        color: var(--light-text);
+        margin-top: 0.25rem;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .btn {
+        display: inline-block;
+        padding: 0.7rem 1.3rem;
+        color: var(--white);
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        transition: all 0.2s ease-in-out;
+        text-align: center;
+        border: 1px solid transparent;
+        cursor: pointer;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+    }
+
+    .btn-primary {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+
+    .btn-secondary {
+        background-color: var(--secondary-color);
+        border-color: var(--secondary-color);
+    }
+
+    .btn-danger {
+        background-color: var(--danger-color);
+        border-color: var(--danger-color);
+    }
+
+    .agreements-list-container {
+        background-color: transparent;
+        padding: 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .list-controls {
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background-color: var(--white);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .filter-group label {
+        font-weight: 700;
+        color: var(--light-text);
+        white-space: nowrap;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 0.95rem;
+        background-color: #fff;
+        min-width: 200px;
+        cursor: pointer;
+    }
+
+    .totals-summary-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .total-box {
+        background-color: var(--white);
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border-color);
+    }
+
+    .total-label {
+        display: block;
+        color: var(--secondary-color);
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+
+    .total-value {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--dark-text);
+    }
+
+    .grand-total-box {
+        background-color: #e9f5ea;
+        border-color: #a0d8a4;
+    }
+
+    .grand-total-box .total-value {
+        color: #1e8449;
+    }
+
+    #floor-total-box {
+        background-color: #e3f2fd;
+        border-color: #90caf9;
+    }
+
+    #floor-total-box .total-value {
+        color: #1565c0;
+    }
+
+    .agreements-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .agreement-card {
+        background-color: var(--white);
+        border-radius: 12px;
+        box-shadow: var(--card-shadow);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .agreement-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--card-hover-shadow);
+    }
+
+    .card-header,
+    .card-body,
+    .card-footer {
+        padding: 1rem 1.5rem;
+    }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .card-header h3 {
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: var(--primary-color);
+        margin: 0;
+    }
+
+    .card-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .card-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.8rem;
+    }
+
+    .card-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem;
+        background-color: #f9fafb;
+        border-radius: 6px;
+    }
+
+    .card-item strong {
+        font-weight: 700;
+        color: var(--dark-text);
+        margin-left: 0.5rem;
+    }
+
+    .card-item span {
+        color: var(--light-text);
+    }
+
+    .total-item {
+        grid-column: 1 / -1;
+        background-color: #e9ecef;
+        margin-top: 0.5rem;
+        font-size: 1.1rem;
+    }
+
+    .total-item strong {
+        color: var(--primary-color);
+    }
+
+    .total-item span {
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+
+    .card-footer {
+        border-top: 1px solid var(--border-color);
+        background-color: #fdfdfd;
+        border-bottom-left-radius: 12px;
+        border-bottom-right-radius: 12px;
+    }
+
+    .card-details-full {
+        margin-bottom: 1rem;
+    }
+
+    .card-details-full:last-child {
+        margin-bottom: 0;
+    }
+
+    .card-details-full strong {
+        font-weight: 700;
+        color: var(--dark-text);
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .card-details-full p {
+        margin: 0;
+        line-height: 1.7;
+        color: var(--light-text);
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    .btn-icon {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background-color 0.2s ease;
+    }
+
+    .btn-icon .material-icons {
+        font-size: 22px;
+    }
+
+    .btn-edit-custom .material-icons {
+        color: var(--primary-color);
+    }
+
+    .btn-delete-custom .material-icons {
+        color: var(--danger-color);
+    }
+
+    .btn-print-custom .material-icons {
+        color: #555;
+    }
+
+    .btn-pdf-custom .material-icons {
+        color: #e74c3c;
+    }
+
+    .btn-excel-custom .material-icons {
+        color: #1e8449;
+    }
+
+    .btn-edit-custom:hover {
+        background-color: #3f51b51a;
+    }
+
+    .btn-delete-custom:hover {
+        background-color: #d9534f1a;
+    }
+
+    .btn-print-custom:hover {
+        background-color: #00000014;
+    }
+
+    .btn-pdf-custom:hover {
+        background-color: #e74c3c1a;
+    }
+
+    .btn-excel-custom:hover {
+        background-color: #1e84491a;
+    }
+
+    #no-agreements-message {
+        text-align: center;
+        padding: 3rem 0;
+        font-size: 1.1rem;
+        color: #777;
+        background-color: var(--white);
+        border-radius: 8px;
+    }
+
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: #0009;
+        z-index: 1000;
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 2rem 1rem;
+        overflow-y: auto;
+    }
+
+    .modal-overlay.visible {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    .modal-box {
+        background: var(--white);
+        padding: 2.5rem;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 550px;
+        text-align: right;
+        transform: scale(0.95);
+        transition: transform 0.3s ease;
+        margin: auto;
+    }
+
+    .modal-overlay.visible .modal-box {
+        transform: scale(1);
+    }
+
+    .modal-box h3 {
+        font-size: 1.8rem;
+        margin: 0 0 2rem;
+        color: var(--dark-text);
+        text-align: center;
+        font-weight: 800;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    #agreement-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .form-group label {
+        font-weight: 700;
+        color: var(--light-text);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 0.8rem;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 1rem;
+        background-color: #fff;
+    }
+
+    @media (max-width: 768px) {
+        .agreements-grid,
+        .card-body {
+            grid-template-columns: 1fr;
+        }
+        .list-controls {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .filter-group {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .totals-summary-container {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<script>
+    import { checkAuth, logout, getAuthHeaders } from '../../../../lib/auth.js';
+
+    const FLOOR_MAP = {
+        basement: 'بدروم', ground: 'ارضي',
+        ...Array.from({ length: 15 }, (_, i) => ({ [`${i + 1}`]: `الدور ${i + 1}` }))
+              .reduce((a, b) => ({ ...a, ...b }), {})
+    };
+
+    let currentEditId = null;
+    let allAgreements = [];
+    const pageContent = document.getElementById('page-content');
+    const projectId = pageContent?.dataset.projectId;
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function showModal(el) { el.classList.add('visible'); }
+    function hideModal(el) { el.classList.remove('visible'); }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const authMsg = document.getElementById('auth-loading-message');
+        const loginContainer = document.getElementById('admin-login-container');
+
+        const user = await checkAuth();
+        if (authMsg) authMsg.style.display = 'none';
+
+        if (user && user.role === 'admin') {
+            if (pageContent) pageContent.style.display = 'block';
+            if (loginContainer) loginContainer.style.display = 'none';
+            initializePage();
+        } else {
+            if (pageContent) pageContent.style.display = 'none';
+            if (loginContainer) loginContainer.style.display = 'block';
+        }
+    });
+
+    function initializePage() {
+        if (!projectId) return;
+        setupEventListeners();
+        fetchAgreements();
+    }
+
+    function setupEventListeners() {
+        const addBtn = document.getElementById('add-agreement-btn');
+        const agreementModal = document.getElementById('agreement-modal');
+        const deleteModal = document.getElementById('delete-modal');
+        const form = document.getElementById('agreement-form');
+        let pendingDeleteId = null;
+
+        document.getElementById('floor-filter').addEventListener('change', applyFilter);
+
+        addBtn?.addEventListener('click', () => {
+            currentEditId = null;
+            document.getElementById('modal-title').textContent = 'إضافة دفعة جديدة';
+            form.reset();
+            document.getElementById('date').value = formatDate(new Date().toISOString());
+            showModal(agreementModal);
+        });
+
+        document.getElementById('cancel-agreement-btn')?.addEventListener('click', () => hideModal(agreementModal));
+        agreementModal?.addEventListener('click', e => { if (e.target === agreementModal) hideModal(agreementModal); });
+
+        form?.addEventListener('submit', async e => {
+            e.preventDefault();
+            const floor = (document.getElementById('agreement-floor') as HTMLSelectElement).value;
+            const date = (document.getElementById('date') as HTMLInputElement).value;
+            const total = parseFloat((document.getElementById('agreement-total') as HTMLInputElement).value) || 0;
+            const details = (document.getElementById('agreement-details') as HTMLTextAreaElement).value;
+
+            const payload = {
+                projectId,
+                floor,
+                title: 'دفعة مقاول',
+                mainCategory: 'المقاول',
+                date,
+                total,
+                details
+            };
+
+            try {
+                const headers = getAuthHeaders({ 'Content-Type': 'application/json' });
+
+                if (currentEditId) {
+                    await fetch('/api/agreements/update', { 
+                        method: 'POST', 
+                        headers, 
+                        body: JSON.stringify({ ...payload, id: currentEditId }) 
+                    });
+                } else {
+                    await fetch('/api/agreements', { method: 'POST', headers, body: JSON.stringify(payload) });
+                }
+                hideModal(agreementModal);
+                fetchAgreements();
+            } catch (err) {
+                console.error('Error saving agreement:', err);
+                alert('حدث خطأ أثناء حفظ الدفعة.');
+            }
+        });
+
+        document.getElementById('agreements-grid')?.addEventListener('click', async e => {
+            const btn = (e.target as HTMLElement).closest('button[class^="btn-icon"]') as HTMLElement;
+            if (!btn) return;
+            const card = btn.closest('.agreement-card') as HTMLElement;
+            if (!card) return;
+            const agreementId = card.dataset.id;
+            const data = JSON.parse(card.dataset.agreement || '{}');
+            const projectName = pageContent?.dataset.projectName || '';
+
+            if (btn.classList.contains('btn-edit-custom')) {
+                openEditModal(agreementId, data);
+            } else if (btn.classList.contains('btn-delete-custom')) {
+                pendingDeleteId = agreementId;
+                showModal(deleteModal);
+            } else if (btn.classList.contains('btn-print-custom')) {
+                printCard(card);
+            } else if (btn.classList.contains('btn-pdf-custom')) {
+                await exportPDF(card, data, projectName);
+            } else if (btn.classList.contains('btn-excel-custom')) {
+                exportExcel(data, projectName);
+            }
+        });
+
+        document.getElementById('cancel-delete-btn')?.addEventListener('click', () => hideModal(deleteModal));
+        deleteModal?.addEventListener('click', e => { if (e.target === deleteModal) hideModal(deleteModal); });
+
+        document.getElementById('confirm-delete-btn')?.addEventListener('click', async () => {
+            if (!pendingDeleteId) return;
+            try {
+                const res = await fetch('/api/agreements/delete', { 
+                    method: 'POST', 
+                    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ id: pendingDeleteId })
+                });
+                hideModal(deleteModal);
+                pendingDeleteId = null;
+                fetchAgreements();
+            } catch (err) {
+                console.error('Error deleting agreement:', err);
+                alert('حدث خطأ أثناء حذف الدفعة.');
+            }
+        });
+    }
+
+    function openEditModal(id, data) {
+        currentEditId = id;
+        document.getElementById('modal-title').textContent = 'تعديل دفعة';
+        document.getElementById('agreement-form').reset();
+        (document.getElementById('agreement-floor') as HTMLSelectElement).value = data.floor || '';
+        (document.getElementById('date') as HTMLInputElement).value = formatDate(data.date);
+        (document.getElementById('agreement-total') as HTMLInputElement).value = data.total || '';
+        (document.getElementById('agreement-details') as HTMLTextAreaElement).value = data.details || '';
+        showModal(document.getElementById('agreement-modal'));
+    }
+
+    async function fetchAgreements() {
+        if (!projectId) return;
+        const noMsg = document.getElementById('no-agreements-message');
+        const grid = document.getElementById('agreements-grid');
+        try {
+            const res = await fetch(`/api/agreements?projectId=${projectId}`, { headers: getAuthHeaders() });
+            const data = await res.json();
+            allAgreements = Array.isArray(data) ? data : [];
+            if (allAgreements.length === 0) {
+                noMsg.textContent = 'لم يتم إضافة أي دفعات لهذا المشروع بعد.';
+                noMsg.style.display = 'block';
+                grid.innerHTML = '';
+            } else {
+                applyFilter();
+            }
+            updateTotals();
+        } catch (err) {
+            console.error('Error fetching agreements:', err);
+        }
+    }
+
+    function applyFilter() {
+        const floorVal = (document.getElementById('floor-filter') as HTMLSelectElement).value;
+        const grid = document.getElementById('agreements-grid');
+        const noMsg = document.getElementById('no-agreements-message');
+
+        let filtered = allAgreements;
+        if (floorVal !== 'all') filtered = filtered.filter(a => a.floor == floorVal);
+
+        if (filtered.length === 0) {
+            grid.innerHTML = '';
+            noMsg.textContent = 'لا توجد دفعات تطابق هذا الفلتر.';
+            noMsg.style.display = 'block';
+        } else {
+            grid.innerHTML = filtered.map(renderCard).join('');
+            noMsg.style.display = 'none';
+        }
+        updateTotals();
+    }
+
+    function updateTotals() {
+        const floorVal = (document.getElementById('floor-filter') as HTMLSelectElement).value;
+        const grandEl = document.getElementById('grand-agreements-total');
+        const floorBox = document.getElementById('floor-total-box');
+        const floorEl = document.getElementById('floor-total');
+
+        const grandTotal = allAgreements.reduce((s, a) => s + (a.total || 0), 0);
+        if (grandEl) grandEl.textContent = grandTotal.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+
+        if (floorVal !== 'all') {
+            const floorTotal = allAgreements.filter(a => a.floor == floorVal).reduce((s, a) => s + (a.total || 0), 0);
+            if (floorEl) floorEl.textContent = floorTotal.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+            if (floorBox) floorBox.style.display = 'block';
+        } else {
+            if (floorBox) floorBox.style.display = 'none';
+        }
+    }
+
+    function renderCard(agreement) {
+        const { id, title, date, total, details, mainCategory, floor } = agreement;
+        const dateObj = new Date(date);
+        const displayDate = dateObj.toLocaleDateString('ar-EG-u-nu-latn', { year: 'numeric', month: 'long', day: 'numeric' });
+        const safeData = { ...agreement };
+        delete safeData.createdAt;
+        return `
+            <div class="agreement-card" data-id="${id}" data-agreement='${JSON.stringify(safeData)}' data-main-category="${mainCategory}" data-title="${title}" data-total="${total || 0}">
+                <div class="card-header">
+                    <h3>${title || 'دفعة مقاول'}</h3>
+                    <div class="card-actions">
+                        <button class="btn-icon btn-print-custom" title="طباعة"><i class="material-icons">print</i></button>
+                        <button class="btn-icon btn-pdf-custom" title="تصدير PDF"><i class="material-icons">picture_as_pdf</i></button>
+                        <button class="btn-icon btn-excel-custom" title="تصدير Excel"><i class="material-icons">description</i></button>
+                        <button class="btn-icon btn-edit-custom" title="تعديل"><i class="material-icons">edit</i></button>
+                        <button class="btn-icon btn-delete-custom" title="حذف"><i class="material-icons">delete</i></button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="card-item"><strong>الدور:</strong><span>${FLOOR_MAP[floor] || floor || 'غير محدد'}</span></div>
+                    <div class="card-item"><strong>التاريخ:</strong><span>${displayDate}</span></div>
+                    <div class="card-item total-item"><strong>الإجمالي:</strong><span>${(total || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</span></div>
+                </div>
+                ${details ? `
+                <div class="card-footer">
+                    <div class="card-details-full"><strong>تفاصيل الدفعة:</strong><p>${details}</p></div>
+                </div>` : ''}
+            </div>`;
+    }
+
+    function printCard(card) {
+        const clone = card.cloneNode(true);
+        const area = document.createElement('div');
+        area.classList.add('printable-area');
+        area.appendChild(clone);
+        document.body.appendChild(area);
+        window.print();
+        document.body.removeChild(area);
+    }
+
+    async function exportPDF(card, data, projectName) {
+        const jsPDFLib = (window as any).jspdf;
+        if (!jsPDFLib) { alert('مكتبة jsPDF غير متاحة'); return; }
+        const html2canvasLib = (window as any).html2canvas;
+        if (!html2canvasLib) { alert('مكتبة html2canvas غير متاحة'); return; }
+        try {
+            const canvas = await html2canvasLib(card, { scale: 2, useCORS: true });
+            const imgData = canvas.toDataURL('image/png');
+            const doc = new jsPDFLib.jsPDF({ orientation: 'p', unit: 'px', format: [canvas.width, canvas.height] });
+            doc.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+            doc.save(`دفعة-${projectName}-${data.title}.pdf`);
+        } catch (err) {
+            console.error('PDF error:', err);
+            alert('خطأ في تصدير PDF');
+        }
+    }
+
+    function exportExcel(data, projectName) {
+        const XLSX = (window as any).XLSX;
+        if (!XLSX) { alert('مكتبة XLSX غير متاحة'); return; }
+        const rows = [
+            ['الدور', FLOOR_MAP[data.floor] || data.floor],
+            ['البند الرئيسي', data.mainCategory],
+            ['البند', data.title],
+            ['التاريخ', formatDate(data.date)],
+            ['الإجمالي', data.total],
+            ['التفاصيل', data.details || '-']
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Payment Details');
+        XLSX.writeFile(wb, `دفعة-${projectName}-${data.title}.xlsx`);
+    }
+</script>

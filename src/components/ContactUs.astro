@@ -1,0 +1,197 @@
+
+---
+import contactData from '../data/contact.json';
+const backgroundImage = "/14346016_ml-1024x680-1.jpg";
+const { isTitleLink = false } = Astro.props;
+---
+<section id="contact-us"
+  class="contact-section"
+  style={`background-image: url(${backgroundImage})`}>
+  <div class="section-overlay"></div>
+  <div class="container">
+    <div class="contact-header">
+        {isTitleLink ? (
+            <a href="/contact" class="title-link">
+                <h2 class="section-title">تواصل معنا</h2>
+            </a>
+        ) : (
+            <h2 class="section-title">تواصل معنا</h2>
+        )}
+      <p class="section-subtitle">
+        نحن هنا لمساعدتك. تواصل معنا عبر القنوات التالية أو تفضل بزيارتنا.
+      </p>
+    </div>
+    <div class="cards-grid">
+      {contactData.map((card, index) => (
+        <div class="contact-card" data-index={index}>
+          <div class="card-content">
+            {card.icon && <div class="card-icon" set:html={card.icon} />}
+            <h4 class="card-title">{card.title}</h4>
+            <p class="card-description" set:html={card.content}></p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<script is:inline>
+    document.addEventListener('DOMContentLoaded', () => {
+        const contactCards = document.querySelectorAll('.contact-card');
+        if (contactCards.length === 0) return;
+
+        const observer = new IntersectionObserver((entries, obs) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const card = entry.target;
+                    const index = card.getAttribute('data-index');
+                    card.style.transitionDelay = `${index * 150}ms`;
+                    card.classList.add('is-visible');
+                    obs.unobserve(card);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        contactCards.forEach(card => {
+            observer.observe(card);
+        });
+    });
+</script>
+
+<style>
+    .title-link {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .title-link:hover .section-title {
+        color: #1a5f7a; 
+    }
+    .contact-section {
+        position: relative;
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        padding: 80px 0;
+        direction: rtl;
+        overflow-x: hidden;
+    }
+    .section-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(10, 20, 30, 0.7);
+        z-index: 1;
+    }
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+        position: relative;
+        z-index: 2;
+    }
+    .contact-header {
+        max-width: 800px;
+        margin: 0 auto 60px;
+        text-align: center;
+    }
+    .section-title {
+        font-family: 'Cairo', sans-serif;
+        font-size: 2.8rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        color: #ffffff;
+    }
+    .section-subtitle {
+        font-family: 'Almarai', sans-serif;
+        font-size: 1.5rem;
+        font-weight: 400;
+        margin-bottom: 30px;
+        color: #ffffff;
+    }
+    .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 35px;
+    }
+    .contact-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: center; 
+        align-items: center;
+        text-align: center;
+        padding: 25px;
+        text-decoration: none;
+        border-radius: 15px;
+        overflow: hidden;
+        background-color: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1), 0 15px 35px rgba(0, 0, 0, 0.1);
+        opacity: 0;
+        transform: translateY(50px);
+        transition: opacity 0.8s ease-out, transform 0.8s ease-out, box-shadow 0.4s ease;
+    }
+    .dark .contact-card {
+      background-color: rgba(26, 32, 44, 0.75);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+    .contact-card.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .contact-card:hover {
+        transform: translateY(-12px) !important;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 25px 50px rgba(0, 0, 0, 0.15);
+    }
+    .card-content {
+        width: 100%;
+    }
+    .card-icon {
+        margin: 0 auto 20px;
+        width: 50px;
+        height: 50px;
+        color: #ffffff;
+    }
+    .card-icon :global(svg) {
+        width: 100%;
+        height: 100%;
+    }
+    .card-title {
+        font-family: 'Cairo', sans-serif;
+        font-size: 1.6rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        color: #ffffff;
+    }
+    .card-description {
+        font-family: 'Almarai', sans-serif;
+        font-size: 1rem;
+        line-height: 1.6;
+        color: #ffffff;
+    }
+    /* FINAL FIX: Use :global() to target injected a tags */
+    .card-description :global(a) {
+        color: #ffffff !important;
+        text-decoration: none;
+        transition: color 0.3s ease;
+        font-weight: 600;
+    }
+    .card-description :global(a:hover) {
+        text-decoration: underline;
+    }
+    @media (max-width: 768px) {
+        .section-title {
+            font-size: 2.3rem;
+        }
+        .section-subtitle {
+            font-size: 1.3rem;
+        }
+        .cards-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

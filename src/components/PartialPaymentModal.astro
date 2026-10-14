@@ -1,0 +1,148 @@
+---
+--- 
+<div id="partial-payment-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <h3 id="partial-payment-title">تسجيل دفعة جزئية</h3>
+        <p>القسط الأصلي: <span id="original-amount-display"></span></p>
+        <div class="form-group">
+            <label for="partial-amount-input">المبلغ المدفوع</label>
+            <input type="number" id="partial-amount-input" placeholder="أدخل المبلغ المدفوع هنا">
+        </div>
+        <div class="modal-buttons">
+            <button id="confirm-partial-payment-btn" class="btn btn-success">تأكيد الدفع</button>
+            <button id="cancel-partial-payment-btn" class="btn btn-secondary">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        direction: rtl;
+    }
+    .modal-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        width: 90%;
+        max-width: 450px;
+        text-align: center;
+    }
+    .modal-content h3 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        color: var(--primary-color, #2c3e50);
+    }
+    .modal-content p {
+        margin-bottom: 1.5rem;
+        color: var(--secondary-color, #7f8c8d);
+    }
+    .form-group {
+        margin-bottom: 1.5rem;
+        text-align: right;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+    .form-group input {
+        width: 100%;
+        padding: 0.8rem;
+        border: 1px solid var(--border-color, #e0e0e0);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 1.2rem;
+        text-align: center;
+    }
+    .modal-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+    }
+    .btn {
+        padding: 0.8rem 1.6rem;
+        border-radius: 8px;
+        border: none;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .btn-success { background-color: var(--success-color, #27ae60); color: white; }
+    .btn-secondary { background-color: var(--secondary-color, #7f8c8d); color: white; }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('partial-payment-modal');
+        const confirmBtn = document.getElementById('confirm-partial-payment-btn');
+        const cancelBtn = document.getElementById('cancel-partial-payment-btn');
+        const amountInput = document.getElementById('partial-amount-input');
+        const originalAmountDisplay = document.getElementById('original-amount-display');
+
+        let resolvePromise = null;
+
+        const showModal = (installmentId, originalAmount) => {
+            amountInput.value = '';
+            originalAmountDisplay.textContent = `${originalAmount.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}`;
+            amountInput.max = originalAmount - 1;
+            amountInput.min = 1;
+
+            modal.style.display = 'flex';
+            
+            return new Promise((resolve) => {
+                resolvePromise = resolve;
+            });
+        };
+
+        const hideModal = () => {
+            modal.style.display = 'none';
+        };
+
+        const confirm = () => {
+            const paidAmount = parseFloat(amountInput.value);
+            const originalAmount = parseFloat(originalAmountDisplay.textContent.replace(/[^\d.-]/g, ''));
+            
+            if (isNaN(paidAmount) || paidAmount <= 0) {
+                alert('الرجاء إدخال مبلغ صحيح أكبر من صفر.');
+                return;
+            }
+            if (paidAmount >= originalAmount) {
+                alert('المبلغ المدفوع يجب أن يكون أقل من القسط الكامل. استخدم خيار "مدفوع" لتسديد القسط بالكامل.');
+                return;
+            }
+
+            if (resolvePromise) {
+                resolvePromise(paidAmount);
+            }
+            hideModal();
+        };
+
+        const cancel = () => {
+            if (resolvePromise) {
+                resolvePromise(null);
+            }
+            hideModal();
+        };
+        
+        confirmBtn.addEventListener('click', confirm);
+        cancelBtn.addEventListener('click', cancel);
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.style.display === 'flex') {
+                cancel();
+            }
+        });
+        
+        window.showPartialPaymentModal = showModal;
+    });
+</script>

@@ -1,0 +1,1323 @@
+---
+export const prerender = false;
+import Layout from '../../../../layouts/Layout.astro';
+import AdminLogin from '../../../../components/AdminLogin.astro';
+import prisma from '../../../../lib/prisma.ts';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/404');
+
+let project = null;
+try {
+    const p = await prisma.project.findUnique({ where: { id } });
+    if (!p) return Astro.redirect('/404');
+    project = { id: p.id, name: p.projectName };
+} catch (err) {
+    console.error("Error:", err);
+}
+
+const floorOptions = [
+    { value: "-1", label: "البدروم" }, { value: "0", label: "ارضي" },
+    { value: "1", label: "الاول" }, { value: "2", label: "الثاني" },
+    { value: "3", label: "الثالث" }, { value: "4", label: "الرابع" },
+    { value: "5", label: "الخامس" }, { value: "6", label: "السادس" },
+    { value: "7", label: "السابع" }, { value: "8", label: "الثامن" },
+    { value: "9", label: "التاسع" }, { value: "10", label: "العاشر" },
+    { value: "11", label: "الحادي عشر" }, { value: "12", label: "الثاني عشر" },
+    { value: "13", label: "الثالث عشر" }, { value: "14", label: "الرابع عشر" },
+    { value: "15", label: "الخامس عشر" }
+];
+---
+
+<Layout title={`بنود المشروع: ${project?.name}`}>
+    <div id="auth-loading-message" class="auth-container"><p>جارٍ التحقق من صلاحيات الدخول...</p></div>
+    <div id="admin-login-container" class="auth-container" style="display: none;"><AdminLogin /></div>
+
+    <main id="page-content" style="display: none;" data-project-id={id}>
+        <div class="container">
+            <header class="page-header">
+                <div>
+                    <h1>بنود المشروع: {project?.name}</h1>
+                    <p class="page-subtitle">هنا يمكنك عرض وإدارة بنود المشروع.</p>
+                </div>
+                <div class="header-actions">
+                    <button id="toggle-form-btn" class="btn btn-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        <span>إضافة بند جديد</span>
+                    </button>
+                    <a href={`/crs/projects/${id}`} class="btn btn-secondary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                        <span>العودة للتفاصيل</span>
+                    </a>
+                    <button id="logout-button" class="btn btn-danger">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        <span>تسجيل الخروج</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Add Item Form -->
+            <div id="add-item-form-container" style="display: none;" class="form-container">
+                <h2>نموذج إضافة بند جديد</h2>
+                <form id="add-item-form">
+                    <input type="hidden" id="name" name="name" />
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="floor">الدور</label>
+                            <select id="floor" name="floor" required>
+                                <option value="" disabled selected>-- اختر الدور --</option>
+                                {floorOptions.map(f => <option value={f.value}>{f.label}</option>)}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="itemDate">التاريخ</label>
+                            <input type="date" id="itemDate" name="itemDate" required />
+                        </div>
+                        <div class="form-group" id="specific-name-group" style="display: none;">
+                            <label for="specificName">الاسم</label>
+                            <input type="text" id="specificName" name="specificName" placeholder="ادخل الاسم المحدد" />
+                        </div>
+                        <div class="form-group">
+                            <label for="main-category">الفئة الرئيسية (لتحديد اسم البند)</label>
+                            <select id="main-category" required>
+                                <option value="" disabled selected>-- اختر فئة --</option>
+                                <option value="بند العماله">بند العماله</option>
+                                <option value="بند المجلس">بند المجلس</option>
+                                <option value="بند الهدم">بند الهدم</option>
+                                <option value="بند الخرسانه">بند الخرسانه</option>
+                                <option value="بند المقاول">بند المقاول</option>
+                                <option value="بند المباني">بند المباني</option>
+                                <option value="بند الكهرباء">بند الكهرباء</option>
+                                <option value="بند السباكه">بند السباكه</option>
+                                <option value="بند التشطيب">بند التشطيب</option>
+                                <option value="بند عمولات المبيعات للسماسره">بند عمولات المبيعات للسماسره</option>
+                                <option value="بند الضرائب">بند الضرائب</option>
+                                <option value="بند التشوين">بند التشوين</option>
+                                <option value="اخرى">اخرى</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="sub-category-group" style="display: none;">
+                            <label for="sub-category">البند الفرعي</label>
+                            <select id="sub-category"></select>
+                        </div>
+                        <div class="form-group" id="other-name-group" style="display: none;">
+                            <label for="other-name">اسم البند (آخر)</label>
+                            <input type="text" id="other-name" name="other-name" placeholder="ادخل اسم البند الجديد" />
+                        </div>
+                        <div class="form-group contractor-field" id="price-per-meter-group" style="display: none;">
+                            <label for="pricePerMeter">سعر المتر</label>
+                            <input type="number" id="pricePerMeter" name="pricePerMeter" step="0.01" />
+                        </div>
+                        <div class="form-group contractor-field" id="area-group" style="display: none;">
+                            <label for="area">المساحة</label>
+                            <input type="number" id="area" name="area" step="0.01" />
+                        </div>
+                        <div class="form-group calculation-field" id="quantity-group" style="display: none;">
+                            <label for="quantity">الكمية</label>
+                            <input type="number" id="quantity" name="quantity" step="0.01" />
+                        </div>
+                        <div class="form-group calculation-field" id="price-per-unit-group" style="display: none;">
+                            <label for="pricePerUnit">سعر الوحدة</label>
+                            <input type="number" id="pricePerUnit" name="pricePerUnit" step="0.01" />
+                        </div>
+                        <div class="form-group">
+                            <label for="totalPrice">الإجمالي</label>
+                            <input type="number" id="totalPrice" name="totalPrice" step="0.01" required />
+                        </div>
+                        <div class="form-group form-group-full-width">
+                            <label for="notes">التفاصيل</label>
+                            <textarea id="notes" name="notes" rows="3" placeholder="أضف تفاصيل..."></textarea>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">حفظ البند</button>
+                        <button type="button" id="cancel-btn" class="btn btn-secondary">إلغاء</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Items List -->
+            <div class="content-area" id="items-content-area">
+                <div class="table-header">
+                    <div class="table-controls-left">
+                        <div class="table-title-row">
+                            <h2 class="table-title">قائمة البنود الحالية</h2>
+                            <div class="global-export-buttons">
+                                <button id="print-all-btn" class="btn-global-export btn-print-all" title="طباعة الكل"><span class="material-icons">print</span> طباعة</button>
+                                <button id="excel-all-btn" class="btn-global-export btn-excel-all" title="تصدير Excel"><span class="material-icons">table_chart</span> Excel</button>
+                            </div>
+                        </div>
+                        <div class="filter-container">
+                            <div class="form-group">
+                                <label for="floor-filter">الدور:</label>
+                                <select id="floor-filter">
+                                    <option value="" selected>-- اختر دور --</option>
+                                    <option value="all">الكل</option>
+                                    {floorOptions.map(f => <option value={f.value}>{f.label}</option>)}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="main-category-filter">الفئة الرئيسية:</label>
+                                <select id="main-category-filter">
+                                    <option value="" selected>-- اختر بند --</option>
+                                    <option value="all">عرض الكل</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="sub-category-filter-group" style="display: none;">
+                                <label for="sub-category-filter">البند الفرعي:</label>
+                                <select id="sub-category-filter"></select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-controls-right totals-container">
+                        <div class="total-box" id="floor-total-box" style="display: none;">
+                            <span id="floor-total-label" class="total-label">إجمالي الدور المحدد:</span>
+                            <span id="floor-total-value" class="total-value">0.00 ج.م</span>
+                        </div>
+                        <div class="total-box">
+                            <span class="total-label">إجمالي البنود المفلترة:</span>
+                            <span id="filtered-total" class="total-value">0.00 ج.م</span>
+                        </div>
+                        <div class="total-box grand-total-box">
+                            <span class="total-label">إجمالي كل البنود:</span>
+                            <span id="grand-total" class="total-value">0.00 ج.م</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="table-container">
+                    <div class="table-wrapper">
+                        <table class="items-table">
+                            <thead>
+                                <tr>
+                                    <th>التاريخ</th>
+                                    <th>الدور</th>
+                                    <th class="col-specificName">الاسم</th>
+                                    <th>اسم البند</th>
+                                    <th class="col-pricePerMeter">سعر المتر</th>
+                                    <th class="col-area">المساحة</th>
+                                    <th class="col-quantity">الكمية</th>
+                                    <th class="col-unit">الوحدة</th>
+                                    <th class="col-pricePerUnit">سعر الوحدة</th>
+                                    <th>الإجمالي</th>
+                                    <th>التفاصيل</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-table-body">
+                            </tbody>
+                        </table>
+                        <p id="no-items-message" class="no-items-message" style="display: none;">لا توجد بنود تطابق معايير البحث الحالية.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Modal -->
+        <div id="delete-confirm-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <h4>تأكيد الحذف</h4>
+                <p>هل أنت متأكد من رغبتك في حذف هذا البند؟ لا يمكن التراجع عن هذا الإجراء.</p>
+                <div class="modal-actions">
+                    <button id="delete-modal-cancel-btn" class="btn btn-secondary">إلغاء</button>
+                    <button id="delete-modal-confirm-btn" class="btn btn-danger">تأكيد الحذف</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save Modal -->
+        <div id="save-confirm-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <h4>تأكيد الحفظ</h4>
+                <p>هل أنت متأكد من رغبتك في حفظ التعديلات؟</p>
+                <div class="modal-actions">
+                    <button id="save-modal-cancel-btn" class="btn btn-secondary">إلغاء</button>
+                    <button id="save-modal-confirm-btn" class="btn btn-primary">تأكيد الحفظ</button>
+                </div>
+            </div>
+        </div>
+    </main>
+</Layout>
+
+<script>
+    import { checkAuth, logout, getAuthHeaders } from '../../../../lib/auth.js';
+
+    const FLOOR_MAP: Record<string, string> = {
+        "-1": "البدروم", "0": "ارضي", "1": "الاول", "2": "الثاني",
+        "3": "الثالث", "4": "الرابع", "5": "الخامس", "6": "السادس",
+        "7": "السابع", "8": "الثامن", "9": "التاسع", "10": "العاشر",
+        "11": "الحادي عشر", "12": "الثاني عشر", "13": "الثالث عشر",
+        "14": "الرابع عشر", "15": "الخامس عشر"
+    };
+
+    const SUB_CATEGORIES: Record<string, string[]> = {
+        "بند العماله": ["المصروف اليومي", "بند اجرة العمال"],
+        "بند المجلس": ["مصروف الرخصه", "التصالح", "المحاضر"],
+        "بند الهدم": ["أجرة عمال", "المعدات"],
+        "بند الخرسانه": ["الاسمنت", "الحديد", "الزلط", "الرمله"],
+        "بند المقاول": ["لبشه عاديه", "لبشه مسلحه"],
+        "بند المباني": ["رمله", "اسمنت", "طوب", "أجرة مباني"],
+        "بند الكهرباء": ["الأساسيات", "أجرة تركيب", "مقاياسات الكهرباء"],
+        "بند السباكه": ["الأساسيات", "أجرة تركيب", "مقاياسات المياه"],
+        "بند التشطيب": ["الرخام", "المحاره", "الدهانات"]
+    };
+
+    const CALC_DETAILS: Record<string, Record<string, { unit: string; quantityLabel: string; priceLabel: string }>> = {
+        "بند الخرسانه": {
+            "الاسمنت": { unit: "طن", quantityLabel: "الكمية (بالطن)", priceLabel: "سعر الطن" },
+            "الحديد": { unit: "طن", quantityLabel: "الكمية (بالطن)", priceLabel: "سعر الطن" },
+            "الزلط": { unit: "متر", quantityLabel: "الكمية (بالمتر)", priceLabel: "سعر المتر" },
+            "الرمله": { unit: "متر", quantityLabel: "الكمية (بالمتر)", priceLabel: "سعر المتر" }
+        },
+        "بند المباني": {
+            "طوب": { unit: "ألف طوبة", quantityLabel: "الكمية (بالألف)", priceLabel: "سعر الألف" },
+            "اسمنت": { unit: "طن", quantityLabel: "الكمية (بالطن)", priceLabel: "سعر الطن" },
+            "رمله": { unit: "متر", quantityLabel: "الكمية (بالمتر)", priceLabel: "سعر المتر" }
+        }
+    };
+
+    const ALL_SUB_ITEMS = new Set(Object.values(SUB_CATEGORIES).flat());
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const authMsg = document.getElementById('auth-loading-message');
+        const loginCtr = document.getElementById('admin-login-container');
+        const pageCtr = document.getElementById('page-content');
+
+        const user = await checkAuth();
+        if (authMsg) authMsg.style.display = 'none';
+
+        if (user && user.role === 'admin') {
+            if (pageCtr) pageCtr.style.display = 'block';
+            if (loginCtr) loginCtr.style.display = 'none';
+            initApp();
+        } else {
+            if (pageCtr) pageCtr.style.display = 'none';
+            if (loginCtr) loginCtr.style.display = 'block';
+        }
+    });
+
+    function initApp() {
+        const projectId = document.getElementById('page-content')?.dataset.projectId;
+        if (!projectId) return;
+
+        let allItems: any[] = [];
+        let editingRow: HTMLElement | null = null;
+        let deleteInfo: { itemId: string } | null = null;
+        let saveRow: HTMLElement | null = null;
+
+        // Logout
+        document.getElementById('logout-button')?.addEventListener('click', async () => {
+            await logout();
+            window.location.href = '/crs';
+        });
+
+        // Toggle form
+        const toggleBtn = document.getElementById('toggle-form-btn') as HTMLButtonElement;
+        const cancelBtn = document.getElementById('cancel-btn');
+        const formContainer = document.getElementById('add-item-form-container');
+
+        toggleBtn?.addEventListener('click', () => {
+            const isHidden = formContainer!.style.display === 'none';
+            formContainer!.style.display = isHidden ? 'block' : 'none';
+            toggleBtn.querySelector('span')!.textContent = isHidden ? 'إلغاء الإضافة' : 'إضافة بند جديد';
+        });
+        cancelBtn?.addEventListener('click', () => {
+            formContainer!.style.display = 'none';
+            toggleBtn.querySelector('span')!.textContent = 'إضافة بند جديد';
+        });
+
+        // Category logic
+        const mainCatSelect = document.getElementById('main-category') as HTMLSelectElement;
+        const subCatSelect = document.getElementById('sub-category') as HTMLSelectElement;
+        const nameInput = document.getElementById('name') as HTMLInputElement;
+        const otherNameGroup = document.getElementById('other-name-group')!;
+        const otherNameInput = document.getElementById('other-name') as HTMLInputElement;
+        const subCatGroup = document.getElementById('sub-category-group')!;
+        const ppmGroup = document.getElementById('price-per-meter-group')!;
+        const areaGroup = document.getElementById('area-group')!;
+        const ppmInput = document.getElementById('pricePerMeter') as HTMLInputElement;
+        const areaInput = document.getElementById('area') as HTMLInputElement;
+        const specNameGroup = document.getElementById('specific-name-group')!;
+        const specNameInput = document.getElementById('specificName') as HTMLInputElement;
+        const qtyGroup = document.getElementById('quantity-group')!;
+        const ppuGroup = document.getElementById('price-per-unit-group')!;
+        const qtyInput = document.getElementById('quantity') as HTMLInputElement;
+        const ppuInput = document.getElementById('pricePerUnit') as HTMLInputElement;
+        const totalInput = document.getElementById('totalPrice') as HTMLInputElement;
+
+        function recalcFormTotal() {
+            const mainCat = mainCatSelect.value;
+            const subCat = subCatSelect.value;
+            if (mainCat === 'بند المقاول' && (subCat === 'لبشه عاديه' || subCat === 'لبشه مسلحه')) {
+                totalInput.value = ((parseFloat(ppmInput.value) || 0) * (parseFloat(areaInput.value) || 0)).toFixed(2);
+                return;
+            }
+            if (CALC_DETAILS[mainCat]?.[subCat]) {
+                totalInput.value = ((parseFloat(qtyInput.value) || 0) * (parseFloat(ppuInput.value) || 0)).toFixed(2);
+                return;
+            }
+        }
+
+        function updateFormFields() {
+            const mainCat = mainCatSelect.value;
+            const subCat = subCatSelect.value;
+
+            if (mainCat === 'اخرى') nameInput.value = otherNameInput.value;
+            else if (SUB_CATEGORIES[mainCat] && subCatSelect.value) nameInput.value = subCatSelect.value;
+            else nameInput.value = mainCat;
+
+            ppmGroup.style.display = 'none'; areaGroup.style.display = 'none';
+            qtyGroup.style.display = 'none'; ppuGroup.style.display = 'none';
+            specNameGroup.style.display = 'none';
+            ppmInput.required = false; areaInput.required = false;
+            qtyInput.required = false; ppuInput.required = false;
+            specNameInput.required = false;
+            totalInput.readOnly = false;
+
+            const showSpecName = mainCat === 'بند المقاول' || mainCat === 'بند عمولات المبيعات للسماسره';
+            specNameGroup.style.display = showSpecName ? 'block' : 'none';
+            specNameInput.required = showSpecName;
+
+            const isContractor = mainCat === 'بند المقاول' && (subCat === 'لبشه عاديه' || subCat === 'لبشه مسلحه');
+            ppmGroup.style.display = isContractor ? 'block' : 'none';
+            areaGroup.style.display = isContractor ? 'block' : 'none';
+            ppmInput.required = isContractor; areaInput.required = isContractor;
+            if (isContractor) totalInput.readOnly = true;
+
+            const calcInfo = CALC_DETAILS[mainCat]?.[subCat];
+            const hasCalc = !!calcInfo;
+            qtyGroup.style.display = hasCalc ? 'block' : 'none';
+            ppuGroup.style.display = hasCalc ? 'block' : 'none';
+            qtyInput.required = hasCalc; ppuInput.required = hasCalc;
+            if (hasCalc) {
+                totalInput.readOnly = true;
+                qtyGroup.querySelector('label')!.textContent = calcInfo!.quantityLabel;
+                ppuGroup.querySelector('label')!.textContent = calcInfo!.priceLabel;
+            }
+
+            if (isContractor || hasCalc) recalcFormTotal();
+            else if (document.activeElement !== totalInput) totalInput.value = '';
+        }
+
+        mainCatSelect.addEventListener('change', () => {
+            const mainCat = mainCatSelect.value;
+            subCatSelect.innerHTML = '';
+            otherNameGroup.style.display = 'none'; otherNameInput.required = false;
+            subCatGroup.style.display = 'none';
+
+            if (SUB_CATEGORIES[mainCat]) {
+                subCatSelect.appendChild(new Option('-- اختر بند فرعي --', ''));
+                SUB_CATEGORIES[mainCat].forEach(s => subCatSelect.appendChild(new Option(s, s)));
+                subCatGroup.style.display = 'block';
+            } else if (mainCat === 'اخرى') {
+                otherNameGroup.style.display = 'block'; otherNameInput.required = true;
+            }
+            updateFormFields();
+        });
+        subCatSelect.addEventListener('change', updateFormFields);
+        otherNameInput.addEventListener('input', updateFormFields);
+        ppmInput.addEventListener('input', recalcFormTotal);
+        areaInput.addEventListener('input', recalcFormTotal);
+        qtyInput.addEventListener('input', recalcFormTotal);
+        ppuInput.addEventListener('input', recalcFormTotal);
+
+        // Date default
+        const dateInput = document.getElementById('itemDate') as HTMLInputElement;
+        if (dateInput) dateInput.value = new Date().toLocaleDateString('en-CA');
+
+        // Add form submit
+        const addForm = document.getElementById('add-item-form') as HTMLFormElement;
+        addForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = addForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+            submitBtn.disabled = true; submitBtn.textContent = 'جارٍ الحفظ...';
+
+            try {
+                const name = nameInput.value;
+                const tp = parseFloat(totalInput.value);
+                const date = dateInput.value;
+                const floor = (document.getElementById('floor') as HTMLSelectElement).value;
+                const notes = (document.getElementById('notes') as HTMLTextAreaElement).value;
+                const specificName = specNameInput.value;
+
+                if (!name || isNaN(tp) || !date || !floor) throw new Error('يرجى ملء جميع الحقول المطلوبة.');
+
+                const body: any = { projectId, name, totalPrice: tp, floor, notes, createdAt: date };
+                if (specNameGroup.style.display === 'block') body.specificName = specificName;
+
+                const mainCat = mainCatSelect.value;
+                const subCat = subCatSelect.value;
+                if (['لبشه عاديه', 'لبشه مسلحه'].includes(name)) {
+                    const pm = parseFloat(ppmInput.value); const ar = parseFloat(areaInput.value);
+                    if (isNaN(pm) || isNaN(ar)) throw new Error('سعر المتر والمساحة مطلوبان.');
+                    body.pricePerMeter = pm; body.area = ar;
+                }
+                const calcInfo = CALC_DETAILS[mainCat]?.[subCat];
+                if (calcInfo) {
+                    const q = parseFloat(qtyInput.value); const pu = parseFloat(ppuInput.value);
+                    if (isNaN(q) || isNaN(pu)) throw new Error('الكمية وسعر الوحدة مطلوبان.');
+                    body.quantity = q; body.pricePerUnit = pu; body.unit = calcInfo.unit;
+                }
+
+                const res = await fetch('/api/items', {
+                    method: 'POST',
+                    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify(body)
+                });
+                if (!res.ok) throw new Error('فشل في حفظ البند');
+                window.location.reload();
+            } catch (err: any) {
+                alert(err.message || 'حدث خطأ');
+                submitBtn.disabled = false; submitBtn.textContent = 'حفظ البند';
+            }
+        });
+
+        // Load items
+        async function loadItems() {
+            try {
+                const res = await fetch(`/api/items?projectId=${projectId}`, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('Failed to load');
+                allItems = await res.json();
+                renderItems();
+                calcGrandTotal();
+            } catch (err) {
+                console.error('Error loading items:', err);
+            }
+        }
+
+        function renderItems() {
+            const tbody = document.getElementById('items-table-body')!;
+            tbody.innerHTML = '';
+            if (allItems.length === 0) {
+                document.getElementById('no-items-message')!.style.display = 'block';
+                return;
+            }
+            document.getElementById('no-items-message')!.style.display = 'none';
+
+            allItems.forEach(item => {
+                const hasSpec = !!item.specificName;
+                const hasContractor = !!(item.pricePerMeter && item.area);
+                const hasCalc = !!(item.quantity && item.pricePerUnit);
+
+                const tr = document.createElement('tr');
+                tr.className = 'item-row';
+                tr.id = `item-row-${item.id}`;
+                tr.dataset.itemId = item.id;
+                tr.dataset.projectId = projectId!;
+                tr.dataset.itemName = item.name;
+                tr.dataset.totalPrice = String(item.totalPrice || 0);
+                tr.dataset.floor = item.floor || '';
+                tr.dataset.hasSpecificName = String(hasSpec);
+                tr.dataset.hasContractorDetails = String(hasContractor);
+                tr.dataset.hasCalculationDetails = String(hasCalc);
+                // Store raw data for editing
+                tr.dataset.specificname = item.specificName || '';
+                tr.dataset.pricepermeter = String(item.pricePerMeter || '');
+                tr.dataset.area = String(item.area || '');
+                tr.dataset.quantity = String(item.quantity || '');
+                tr.dataset.priceperunit = String(item.pricePerUnit || '');
+                tr.dataset.unit = item.unit || '';
+                tr.dataset.notes = item.notes || '';
+                tr.dataset.createdat = item.createdAt || '';
+
+                tr.innerHTML = `
+                    <td data-label="التاريخ" data-field="createdAt">${item.createdAt || '-'}</td>
+                    <td data-label="الدور" data-field="floor">${FLOOR_MAP[item.floor] || item.floor || '-'}</td>
+                    <td class="col-specificName" data-label="الاسم" data-field="specificName">${item.specificName || '-'}</td>
+                    <td data-label="اسم البند" data-field="name">${item.name || '-'}</td>
+                    <td class="col-pricePerMeter" data-label="سعر المتر" data-field="pricePerMeter">${item.pricePerMeter ? parseFloat(item.pricePerMeter).toFixed(2) : '-'}</td>
+                    <td class="col-area" data-label="المساحة" data-field="area">${item.area ? parseFloat(item.area).toFixed(2) : '-'}</td>
+                    <td class="col-quantity" data-label="الكمية" data-field="quantity">${item.quantity ? parseFloat(item.quantity).toFixed(2) : '-'}</td>
+                    <td class="col-unit" data-label="الوحدة" data-field="unit">${item.unit || '-'}</td>
+                    <td class="col-pricePerUnit" data-label="سعر الوحدة" data-field="pricePerUnit">${item.pricePerUnit ? parseFloat(item.pricePerUnit).toFixed(2) : '-'}</td>
+                    <td data-label="الإجمالي" data-field="totalPrice">${item.totalPrice ? parseFloat(item.totalPrice).toFixed(2) : '0.00'}</td>
+                    <td data-label="التفاصيل" data-field="notes">${item.notes || '-'}</td>
+                    <td data-label="إجراءات" class="actions-cell">
+                        <div class="action-buttons-view">
+                            <button class="btn-action btn-edit" title="تعديل"><span class="material-icons">edit</span></button>
+                            <button class="btn-action btn-delete" data-project-id="${projectId}" data-item-id="${item.id}" title="حذف"><span class="material-icons">delete</span></button>
+                            <button class="btn-action btn-print" title="طباعة"><span class="material-icons">print</span></button>
+                            <button class="btn-action btn-export-pdf" title="تصدير PDF"><span class="material-icons">picture_as_pdf</span></button>
+                            <button class="btn-action btn-export-excel" title="تصدير Excel"><span class="material-icons">table_chart</span></button>
+                        </div>
+                        <div class="action-buttons-edit" style="display:none;">
+                            <button class="btn-action btn-save" title="حفظ"><span class="material-icons">save</span></button>
+                            <button class="btn-action btn-cancel" title="إلغاء"><span class="material-icons">close</span></button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Add category options to filter
+            populateCategoryFilter();
+            applyFilters();
+        }
+
+        function calcGrandTotal() {
+            const total = allItems.reduce((s, i) => s + (parseFloat(i.totalPrice) || 0), 0);
+            document.getElementById('grand-total')!.textContent = `${total.toFixed(2)} ج.م`;
+        }
+
+        // Table event delegation
+        document.getElementById('items-table-body')?.addEventListener('click', (e) => {
+            const btn = (e.target as HTMLElement).closest('.btn-action') as HTMLElement;
+            if (!btn) return;
+            const row = btn.closest('.item-row') as HTMLElement;
+            if (!row) return;
+
+            if (btn.classList.contains('btn-delete')) {
+                deleteInfo = { itemId: btn.dataset.itemId! };
+                document.getElementById('delete-confirm-modal')!.style.display = 'flex';
+            } else if (btn.classList.contains('btn-edit')) {
+                if (editingRow && editingRow !== row) cancelEdit(editingRow);
+                editingRow = row;
+                startEdit(row);
+            } else if (btn.classList.contains('btn-cancel')) {
+                cancelEdit(row);
+                editingRow = null;
+            } else if (btn.classList.contains('btn-save')) {
+                saveRow = row;
+                document.getElementById('save-confirm-modal')!.style.display = 'flex';
+            } else if (btn.classList.contains('btn-print')) {
+                printItem(row);
+            } else if (btn.classList.contains('btn-export-pdf')) {
+                exportItemPDF(row);
+            } else if (btn.classList.contains('btn-export-excel')) {
+                exportItemExcel(row);
+            }
+        });
+
+        function startEdit(row: HTMLElement) {
+            const viewBtns = row.querySelector('.action-buttons-view') as HTMLElement;
+            const editBtns = row.querySelector('.action-buttons-edit') as HTMLElement;
+            viewBtns.style.display = 'none';
+            editBtns.style.display = 'flex';
+            row.classList.add('editing');
+
+            const itemName = row.dataset.itemName || '';
+
+            row.querySelectorAll('td[data-field]').forEach(td => {
+                const field = (td as HTMLElement).dataset.field!;
+                let val = td.textContent?.trim() === '-' ? '' : (row.dataset[field.toLowerCase()] || '');
+                (td as HTMLElement).dataset.originalValue = td.textContent || '';
+
+                let html = `<span>${td.textContent || '-'}</span>`;
+                const attrs = `name="${field}" value="${val}" class="form-control-inline"`;
+
+                if (field === 'name') return;
+
+                const isContractor = ['لبشه عاديه', 'لبشه مسلحه'].includes(itemName);
+                const hasCalcItem = Object.values(CALC_DETAILS).some(cats => cats[itemName]);
+
+                switch (field) {
+                    case 'createdAt':
+                        html = `<input type="date" ${attrs}>`;
+                        break;
+                    case 'floor':
+                        let opts = '';
+                        Object.keys(FLOOR_MAP).sort((a, b) => Number(a) - Number(b)).forEach(k => {
+                            opts += `<option value="${k}" ${val == k ? 'selected' : ''}>${FLOOR_MAP[k]}</option>`;
+                        });
+                        html = `<select name="floor" class="form-control-inline">${opts}</select>`;
+                        break;
+                    case 'specificName':
+                        const showSpec = ['بند المقاول', 'بند عمولات المبيعات للسماسره'].some(c =>
+                            SUB_CATEGORIES[c]?.includes(itemName) || itemName === c
+                        ) || (row.dataset.hasSpecificName === 'true');
+                        if (showSpec) html = `<input type="text" ${attrs} placeholder="ادخل الاسم">`;
+                        break;
+                    case 'pricePerMeter':
+                    case 'area':
+                        if (isContractor) html = `<input type="number" ${attrs} step="0.01">`;
+                        break;
+                    case 'quantity':
+                    case 'pricePerUnit':
+                        if (hasCalcItem) html = `<input type="number" ${attrs} step="0.01">`;
+                        break;
+                    case 'unit':
+                        break;
+                    case 'totalPrice':
+                        html = `<input type="number" ${attrs} step="0.01" ${isContractor || hasCalcItem ? 'readonly' : ''}>`;
+                        break;
+                    case 'notes':
+                        html = `<input type="text" ${attrs} placeholder="ادخل التفاصيل...">`;
+                        break;
+                }
+                (td as HTMLElement).innerHTML = html;
+            });
+
+            // Auto-calc in edit mode
+            const totalEl = row.querySelector('input[name="totalPrice"]') as HTMLInputElement;
+            if (['لبشه عاديه', 'لبشه مسلحه'].includes(itemName)) {
+                setupCalcPair(row, 'area', 'pricePerMeter', totalEl);
+            }
+            if (Object.values(CALC_DETAILS).some(cats => cats[itemName])) {
+                setupCalcPair(row, 'quantity', 'pricePerUnit', totalEl);
+            }
+        }
+
+        function setupCalcPair(row: HTMLElement, field1: string, field2: string, totalEl: HTMLInputElement) {
+            const inp1 = row.querySelector(`input[name="${field1}"]`) as HTMLInputElement;
+            const inp2 = row.querySelector(`input[name="${field2}"]`) as HTMLInputElement;
+            const calc = () => {
+                totalEl.value = ((parseFloat(inp1?.value) || 0) * (parseFloat(inp2?.value) || 0)).toFixed(2);
+            };
+            inp1?.addEventListener('input', calc);
+            inp2?.addEventListener('input', calc);
+        }
+
+        function cancelEdit(row: HTMLElement) {
+            const viewBtns = row.querySelector('.action-buttons-view') as HTMLElement;
+            const editBtns = row.querySelector('.action-buttons-edit') as HTMLElement;
+            viewBtns.style.display = 'flex';
+            editBtns.style.display = 'none';
+            row.classList.remove('editing');
+            row.querySelectorAll('td[data-field]').forEach(td => {
+                if ((td as HTMLElement).querySelector('input, select')) {
+                    td.textContent = (td as HTMLElement).dataset.originalValue || '';
+                }
+            });
+        }
+
+        async function performSave(row: HTMLElement) {
+            const itemId = row.dataset.itemId!;
+            const updates: any = {};
+            row.querySelectorAll('input, select').forEach(el => {
+                const inp = el as HTMLInputElement;
+                updates[inp.name] = inp.value;
+            });
+
+            const itemName = row.dataset.itemName!;
+            if (['لبشه عاديه', 'لبشه مسلحه'].includes(itemName)) {
+                const pm = parseFloat(updates.pricePerMeter); const ar = parseFloat(updates.area);
+                updates.totalPrice = (!isNaN(pm) && !isNaN(ar)) ? pm * ar : 0;
+            }
+            if (Object.values(CALC_DETAILS).some(cats => cats[itemName])) {
+                const q = parseFloat(updates.quantity); const pu = parseFloat(updates.pricePerUnit);
+                updates.totalPrice = (!isNaN(q) && !isNaN(pu)) ? q * pu : 0;
+            }
+
+            try {
+                const res = await fetch('/api/items/update', { 
+                    method: 'POST',
+                    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ ...updates, id: itemId })
+                });
+                if (!res.ok) throw new Error('Save failed');
+
+                // Update UI in place
+                Object.keys(updates).forEach(key => {
+                    const td = row.querySelector(`td[data-field="${key}"]`) as HTMLElement;
+                    if (td) {
+                        let display = updates[key];
+                        if (key === 'floor') display = FLOOR_MAP[display] || display;
+                        if (['pricePerMeter', 'area', 'totalPrice', 'quantity', 'pricePerUnit'].includes(key)) {
+                            display = display ? parseFloat(display).toFixed(2) : '-';
+                        }
+                        td.textContent = display || '-';
+                        td.dataset.originalValue = display || '-';
+                    }
+                });
+                if (updates.totalPrice) row.dataset.totalPrice = String(updates.totalPrice);
+                if (updates.floor) row.dataset.floor = String(updates.floor);
+
+                cancelEdit(row);
+                editingRow = null;
+                calcFilteredTotal();
+                calcGrandTotal();
+                // Reload to keep data fresh
+                await loadItems();
+            } catch (err: any) {
+                alert(`خطأ: ${err.message}`);
+                cancelEdit(row);
+            }
+        }
+
+        // Delete Modal
+        document.getElementById('delete-modal-cancel-btn')?.addEventListener('click', () => {
+            document.getElementById('delete-confirm-modal')!.style.display = 'none';
+            deleteInfo = null;
+        });
+
+        document.getElementById('delete-modal-confirm-btn')?.addEventListener('click', async () => {
+            if (!deleteInfo) return;
+            const btn = document.getElementById('delete-modal-confirm-btn') as HTMLButtonElement;
+            btn.disabled = true; btn.textContent = 'جاري الحذف...';
+            try {
+                const res = await fetch('/api/items/delete', { 
+                    method: 'POST',
+                    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ itemId: deleteInfo.itemId })
+                });
+                if (!res.ok) throw new Error('Delete failed');
+                document.getElementById(`item-row-${deleteInfo.itemId}`)?.remove();
+                allItems = allItems.filter(i => i.id !== deleteInfo!.itemId);
+                calcGrandTotal();
+                calcFilteredTotal();
+                applyFilters();
+            } catch (err) {
+                alert('حدث خطأ أثناء الحذف.');
+            } finally {
+                document.getElementById('delete-confirm-modal')!.style.display = 'none';
+                deleteInfo = null;
+                btn.disabled = false; btn.textContent = 'تأكيد الحذف';
+            }
+        });
+
+        // Save Modal
+        document.getElementById('save-modal-cancel-btn')?.addEventListener('click', () => {
+            document.getElementById('save-confirm-modal')!.style.display = 'none';
+            saveRow = null;
+        });
+
+        document.getElementById('save-modal-confirm-btn')?.addEventListener('click', async () => {
+            if (!saveRow) return;
+            const btn = document.getElementById('save-modal-confirm-btn') as HTMLButtonElement;
+            btn.disabled = true; btn.textContent = 'جاري الحفظ...';
+            await performSave(saveRow);
+            document.getElementById('save-confirm-modal')!.style.display = 'none';
+            saveRow = null;
+            btn.disabled = false; btn.textContent = 'تأكيد الحفظ';
+        });
+
+        // Filters
+        const floorFilter = document.getElementById('floor-filter') as HTMLSelectElement;
+        const mainCatFilter = document.getElementById('main-category-filter') as HTMLSelectElement;
+        const subCatFilterGroup = document.getElementById('sub-category-filter-group')!;
+        const subCatFilter = document.getElementById('sub-category-filter') as HTMLSelectElement;
+        const table = document.querySelector('.items-table') as HTMLElement;
+        const noItemsMsg = document.getElementById('no-items-message')!;
+
+        function populateCategoryFilter() {
+            // Add all categories to filter
+            const cats = ["بند العماله", "بند المجلس", "بند الهدم", "بند الخرسانه", "بند المقاول", "بند المباني", "بند الكهرباء", "بند السباكه", "بند التشطيب", "بند عمولات المبيعات للسماسره", "بند الضرائب", "بند التشوين", "اخرى"];
+            // Keep existing first two options
+            while (mainCatFilter.options.length > 2) mainCatFilter.options.remove(2);
+            cats.forEach(c => mainCatFilter.appendChild(new Option(c, c)));
+        }
+
+        mainCatFilter?.addEventListener('change', () => {
+            const val = mainCatFilter.value;
+            subCatFilter.innerHTML = ''; subCatFilter.value = '';
+            subCatFilterGroup.style.display = 'none';
+            if (val && val !== 'all' && val !== 'اخرى' && SUB_CATEGORIES[val]) {
+                subCatFilter.appendChild(new Option(`جميع بنود ${val}`, 'all-subs'));
+                SUB_CATEGORIES[val].forEach(s => subCatFilter.appendChild(new Option(s, s)));
+                subCatFilterGroup.style.display = 'block';
+            }
+            applyFilters();
+        });
+        floorFilter?.addEventListener('change', applyFilters);
+        subCatFilter?.addEventListener('change', applyFilters);
+
+        function applyFilters() {
+            const floorVal = floorFilter.value;
+            const catVal = mainCatFilter.value;
+            const subVal = subCatFilter.value;
+
+            if (floorVal === '' && catVal === '') {
+                // Hide all until filter selected
+                document.querySelectorAll('.item-row').forEach(r => (r as HTMLElement).style.display = 'none');
+                if (table) table.classList.remove('show-specific-name-cols', 'show-contractor-cols', 'show-calculation-cols');
+                calcFilteredTotal();
+                calcFloorTotal();
+                return;
+            }
+
+            let visibleRows: HTMLElement[] = [];
+            document.querySelectorAll('.item-row').forEach(r => {
+                const row = r as HTMLElement;
+                const rowFloor = row.dataset.floor;
+                const rowName = row.dataset.itemName!;
+
+                const floorMatch = !floorVal || floorVal === 'all' || rowFloor === floorVal;
+                let catMatch = !catVal || catVal === 'all';
+                if (!catMatch) {
+                    if (catVal === 'اخرى') {
+                        const specialCats = ['بند عمولات المبيعات للسماسره', 'بند الضرائب', 'بند التشوين'];
+                        catMatch = !(SUB_CATEGORIES.hasOwnProperty(rowName) || ALL_SUB_ITEMS.has(rowName) || specialCats.includes(rowName));
+                    } else if (subCatFilterGroup.style.display === 'block' && subVal && subVal !== 'all-subs') {
+                        catMatch = rowName === subVal;
+                    } else {
+                        catMatch = (SUB_CATEGORIES[catVal] || []).includes(rowName) || rowName === catVal;
+                    }
+                }
+
+                const show = floorMatch && catMatch;
+                row.style.display = show ? '' : 'none';
+                if (show) visibleRows.push(row);
+            });
+
+            // Toggle dynamic columns
+            if (table) {
+                const hasSpec = visibleRows.some(r => r.dataset.hasSpecificName === 'true');
+                const hasCont = visibleRows.some(r => r.dataset.hasContractorDetails === 'true');
+                const hasCalc = visibleRows.some(r => r.dataset.hasCalculationDetails === 'true');
+                table.classList.toggle('show-specific-name-cols', hasSpec);
+                table.classList.toggle('show-contractor-cols', hasCont);
+                table.classList.toggle('show-calculation-cols', hasCalc);
+            }
+
+            calcFilteredTotal();
+            calcFloorTotal();
+        }
+
+        function calcFilteredTotal() {
+            let total = 0; let count = 0;
+            document.querySelectorAll('.item-row').forEach(r => {
+                if ((r as HTMLElement).style.display !== 'none') {
+                    total += parseFloat((r as HTMLElement).dataset.totalPrice || '0');
+                    count++;
+                }
+            });
+            document.getElementById('filtered-total')!.textContent = `${total.toFixed(2)} ج.م`;
+            noItemsMsg.style.display = count === 0 && (floorFilter.value || mainCatFilter.value) ? 'block' : 'none';
+        }
+
+        function calcFloorTotal() {
+            const floorVal = floorFilter.value;
+            const floorBox = document.getElementById('floor-total-box')!;
+            if (floorVal === 'all' || !floorVal) {
+                floorBox.style.display = 'none'; return;
+            }
+            let total = 0;
+            document.querySelectorAll('.item-row').forEach(r => {
+                const row = r as HTMLElement;
+                if (row.dataset.floor === floorVal && row.style.display !== 'none') {
+                    total += parseFloat(row.dataset.totalPrice || '0');
+                }
+            });
+            document.getElementById('floor-total-label')!.textContent = `إجمالي ${FLOOR_MAP[floorVal]}:`;
+            document.getElementById('floor-total-value')!.textContent = `${total.toFixed(2)} ج.م`;
+            floorBox.style.display = 'block';
+        }
+
+        // Print Item
+        function printItem(row: HTMLElement) {
+            const projectName = document.querySelector('h1')?.textContent?.split(':')[1]?.trim() || '';
+            const fields: {label: string; value: string}[] = [];
+            row.querySelectorAll('td[data-label]').forEach(td => {
+                const label = (td as HTMLElement).dataset.label;
+                if (label === 'إجراءات') return;
+                const val = td.textContent?.trim() || '-';
+                if (val !== '-') fields.push({ label: label!, value: val });
+            });
+            const printWin = window.open('', '_blank', 'width=800,height=600');
+            if (!printWin) { alert('يرجى السماح بالنوافذ المنبثقة'); return; }
+            printWin.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">
+                <title>طباعة بند</title>
+                <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
+                <style>
+                    body { font-family: 'Cairo', sans-serif; padding: 2rem; direction: rtl; }
+                    h2 { text-align: center; color: #0056b3; margin-bottom: 2rem; }
+                    table { width: 100%; border-collapse: collapse; margin: 0 auto; }
+                    th, td { border: 1px solid #dee2e6; padding: 12px 16px; text-align: right; }
+                    th { background-color: #0056b3; color: white; font-weight: 700; width: 35%; }
+                    tr:nth-child(even) { background-color: #f8f9fa; }
+                    @media print { body { padding: 0; } }
+                </style>
+            </head><body>
+                <h2>تفاصيل البند - ${projectName}</h2>
+                <table>${fields.map(f => `<tr><th>${f.label}</th><td>${f.value}</td></tr>`).join('')}</table>
+            </body></html>`);
+            printWin.document.close();
+            setTimeout(() => { printWin.print(); }, 500);
+        }
+
+        // PDF Export
+        async function exportItemPDF(row: HTMLElement) {
+            try {
+                const jsPDFLib = (window as any).jspdf;
+                if (!jsPDFLib || !jsPDFLib.jsPDF) {
+                    alert('مكتبة jsPDF غير متاحة. يرجى تحديث الصفحة والمحاولة مرة أخرى.');
+                    return;
+                }
+                const doc = new jsPDFLib.jsPDF();
+                let fontName = 'helvetica';
+                try {
+                    const fontRes = await fetch('/Amiri-Regular.ttf');
+                    if (fontRes.ok) {
+                        const buf = await fontRes.arrayBuffer();
+                        const bytes = new Uint8Array(buf);
+                        let binary = '';
+                        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                        doc.addFileToVFS('Amiri-Regular.ttf', btoa(binary));
+                        doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+                        doc.setFont('Amiri');
+                        fontName = 'Amiri';
+                    }
+                } catch (e) { /* fallback to helvetica */ }
+
+                const projectName = document.querySelector('h1')?.textContent?.split(':')[1]?.trim() || '';
+                const itemId = row.dataset.itemId;
+                const head = [['الحقل', 'القيمة']];
+                const body: string[][] = [];
+                row.querySelectorAll('td[data-label]').forEach(td => {
+                    const label = (td as HTMLElement).dataset.label;
+                    if (label === 'إجراءات') return;
+                    body.push([label!, td.textContent?.trim() || '-']);
+                });
+
+                doc.text(`تفاصيل البند - ${projectName}`, doc.internal.pageSize.getWidth() - 10, 20, { align: 'right' });
+
+                if (typeof (doc as any).autoTable === 'function') {
+                    (doc as any).autoTable({
+                        head, body, startY: 30, theme: 'grid',
+                        styles: { halign: 'right', font: fontName, fontStyle: 'normal' },
+                        headStyles: { fillColor: [0, 86, 179], halign: 'right', font: fontName, fontStyle: 'normal' }
+                    });
+                } else {
+                    let y = 40;
+                    body.forEach(r => {
+                        doc.text(`${r[0]}: ${r[1]}`, doc.internal.pageSize.getWidth() - 10, y, { align: 'right' });
+                        y += 10;
+                    });
+                }
+                doc.save(`بند-${itemId}.pdf`);
+            } catch (err: any) {
+                console.error('PDF Export Error:', err);
+                alert('حدث خطأ أثناء تصدير الـ PDF: ' + (err.message || ''));
+            }
+        }
+
+        // Excel Export
+        function exportItemExcel(row: HTMLElement) {
+            const XLSX = (window as any).XLSX;
+            if (!XLSX) { alert('مكتبة XLSX غير متاحة'); return; }
+            const table = document.querySelector('.items-table') as HTMLElement;
+            const itemId = row.dataset.itemId;
+            const projectName = document.querySelector('h1')?.textContent?.split(':')[1]?.trim() || '';
+            const headers = Array.from(document.querySelectorAll('.items-table th')).map(th => th.textContent?.trim() || '');
+            const showContractor = table.classList.contains('show-contractor-cols');
+            const showCalc = table.classList.contains('show-calculation-cols');
+            let filteredHeaders = headers.filter(h => !(
+                h === 'إجراءات' ||
+                (['سعر المتر', 'المساحة'].includes(h) && !showContractor) ||
+                (['الكمية', 'الوحدة', 'سعر الوحدة'].includes(h) && !showCalc)
+            ));
+            let data: Record<string, string> = {};
+            filteredHeaders.forEach(h => {
+                const td = row.querySelector(`td[data-label="${h}"]`);
+                if (td) data[h] = td.textContent?.trim() || '-';
+            });
+            const ws = XLSX.utils.json_to_sheet([data], { header: filteredHeaders });
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'تفاصيل البند');
+            XLSX.writeFile(wb, `بند-${itemId}-${projectName}.xlsx`);
+        }
+
+        // ====== Global Export Functions (All Visible Items) ======
+
+        function getFilteredItems() {
+            const floorVal = floorFilter.value;
+            const catVal = mainCatFilter.value;
+            const subVal = (document.getElementById('sub-category-filter') as HTMLSelectElement)?.value;
+            const subCatFilterGroup = document.getElementById('sub-category-filter-group') as HTMLElement;
+
+            return allItems.filter(item => {
+                const floorMatch = !floorVal || floorVal === 'all' || (item.floor || '') === floorVal;
+                let catMatch = !catVal || catVal === 'all';
+                if (!catMatch) {
+                    if (catVal === 'اخرى') {
+                        const specialCats = ['بند عمولات المبيعات للسماسره', 'بند الضرائب', 'بند التشوين'];
+                        catMatch = !(SUB_CATEGORIES.hasOwnProperty(item.name) || ALL_SUB_ITEMS.has(item.name) || specialCats.includes(item.name));
+                    } else if (subCatFilterGroup?.style.display === 'block' && subVal && subVal !== 'all-subs') {
+                        catMatch = item.name === subVal;
+                    } else {
+                        catMatch = (SUB_CATEGORIES[catVal] || []).includes(item.name) || item.name === catVal;
+                    }
+                }
+                return floorMatch && catMatch;
+            });
+        }
+
+        function buildExportHeaders() {
+            return ['التاريخ', 'الدور', 'اسم البند', 'الإجمالي', 'التفاصيل'];
+        }
+
+        function buildFullHeaders(items: any[]) {
+            const headers = ['التاريخ', 'الدور'];
+            const hasSpec = items.some(i => !!i.specificName);
+            if (hasSpec) headers.push('الاسم');
+            headers.push('اسم البند');
+            const hasCont = items.some(i => !!(i.pricePerMeter && i.area));
+            if (hasCont) { headers.push('سعر المتر'); headers.push('المساحة'); }
+            const hasCalc = items.some(i => !!(i.quantity && i.pricePerUnit));
+            if (hasCalc) { headers.push('الكمية'); headers.push('الوحدة'); headers.push('سعر الوحدة'); }
+            headers.push('الإجمالي');
+            headers.push('التفاصيل');
+            return { headers, hasSpec, hasCont, hasCalc };
+        }
+
+        function itemToRow(item: any, config: { headers: string[], hasSpec: boolean, hasCont: boolean, hasCalc: boolean }) {
+            const row: string[] = [];
+            row.push(item.createdAt || '-');
+            row.push(FLOOR_MAP[item.floor] || item.floor || '-');
+            if (config.hasSpec) row.push(item.specificName || '-');
+            row.push(item.name || '-');
+            if (config.hasCont) {
+                row.push(item.pricePerMeter ? parseFloat(item.pricePerMeter).toFixed(2) : '-');
+                row.push(item.area ? parseFloat(item.area).toFixed(2) : '-');
+            }
+            if (config.hasCalc) {
+                row.push(item.quantity ? parseFloat(item.quantity).toFixed(2) : '-');
+                row.push(item.unit || '-');
+                row.push(item.pricePerUnit ? parseFloat(item.pricePerUnit).toFixed(2) : '-');
+            }
+            row.push(item.totalPrice ? parseFloat(item.totalPrice).toFixed(2) : '0.00');
+            row.push(item.notes || '-');
+            return row;
+        }
+
+        // Print All Visible
+        document.getElementById('print-all-btn')?.addEventListener('click', () => {
+            const projectName = document.querySelector('h1')?.textContent?.split(':')[1]?.trim() || '';
+            const items = getFilteredItems();
+            if (items.length === 0) { alert('لا توجد بنود لطباعتها'); return; }
+
+            const config = buildFullHeaders(items);
+            const total = items.reduce((s, i) => s + (parseFloat(i.totalPrice) || 0), 0);
+            const grandTotal = allItems.reduce((s, i) => s + (parseFloat(i.totalPrice) || 0), 0);
+
+            const tableRows = items.map(item => {
+                const cells = itemToRow(item, config);
+                return `<tr>${cells.map(c => `<td>${c}</td>`).join('')}</tr>`;
+            }).join('');
+
+            const printWin = window.open('', '_blank', 'width=1000,height=700');
+            if (!printWin) { alert('يرجى السماح بالنوافذ المنبثقة'); return; }
+            printWin.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">
+                <title>طباعة بنود المشروع</title>
+                <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
+                <style>
+                    body { font-family: 'Cairo', sans-serif; padding: 1.5rem; direction: rtl; }
+                    h2 { text-align: center; color: #0056b3; margin-bottom: 1rem; }
+                    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+                    th, td { border: 1px solid #dee2e6; padding: 8px 10px; text-align: right; }
+                    th { background-color: #0056b3; color: white; font-weight: 700; }
+                    tr:nth-child(even) { background-color: #f8f9fa; }
+                    .totals { margin-top: 1rem; text-align: right; font-weight: 700; font-size: 1rem; }
+                    @media print { body { padding: 0; } }
+                </style>
+            </head><body>
+                <h2>بنود المشروع - ${projectName} (${items.length} بند)</h2>
+                <table>
+                    <thead><tr>${config.headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+                <div class="totals">
+                    <p>إجمالي البنود المعروضة: ${total.toFixed(2)} ج.م</p>
+                    <p>الإجمالي الكلي: ${grandTotal.toFixed(2)} ج.م</p>
+                </div>
+            </body></html>`);
+            printWin.document.close();
+            setTimeout(() => { printWin.print(); }, 500);
+        });
+
+        // PDF All Visible
+        document.getElementById('pdf-all-btn')?.addEventListener('click', async () => {
+            const projectName = document.querySelector('h1')?.textContent?.split(':')[1]?.trim() || '';
+            const items = getFilteredItems();
+            if (items.length === 0) { alert('لا توجد بنود لتصديرها'); return; }
+
+            const jsPDFLib = (window as any).jspdf;
+            if (!jsPDFLib || !jsPDFLib.jsPDF) { alert('مكتبة jsPDF غير متاحة'); return; }
+
+            const doc = new jsPDFLib.jsPDF({ orientation: 'landscape' });
+            let fontName = 'helvetica';
+            try {
+                const fontRes = await fetch('/Amiri-Regular.ttf');
+                if (fontRes.ok) {
+                    const buf = await fontRes.arrayBuffer();
+                    const bytes = new Uint8Array(buf);
+                    let binary = '';
+                    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                    doc.addFileToVFS('Amiri-Regular.ttf', btoa(binary));
+                    doc.addFont('Amiri-Regular.ttf', 'Amiri', 'normal');
+                    doc.setFont('Amiri');
+                    fontName = 'Amiri';
+                }
+            } catch (e) { /* fallback */ }
+
+            doc.text(`بنود المشروع - ${projectName} (${items.length} بند)`, doc.internal.pageSize.getWidth() - 10, 15, { align: 'right' });
+
+            const config = buildFullHeaders(items);
+            const head = [config.headers];
+            const body = items.map(item => itemToRow(item, config));
+            const total = items.reduce((s, i) => s + (parseFloat(i.totalPrice) || 0), 0);
+
+            if (typeof (doc as any).autoTable === 'function') {
+                (doc as any).autoTable({
+                    head, body, startY: 25, theme: 'grid', margin: { right: 10, left: 10 },
+                    styles: { halign: 'right', font: fontName, fontStyle: 'normal', fontSize: 7, cellPadding: 3 },
+                    headStyles: { fillColor: [0, 86, 179], halign: 'right', font: fontName, fontStyle: 'normal', fontSize: 8 },
+                    didDrawPage: function(data: any) {
+                        doc.setFontSize(8);
+                        doc.text(`صفحة ${doc.internal.getNumberOfPages()}`, doc.internal.pageSize.getWidth() / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+                    }
+                });
+                const finalY = (doc as any).lastAutoTable?.finalY || (doc as any).autoTable.previous?.finalY || 50;
+                doc.setFontSize(11);
+                doc.text(`الإجمالي: ${total.toFixed(2)} ج.م`, doc.internal.pageSize.getWidth() - 10, finalY + 12, { align: 'right' });
+            }
+
+            doc.save(`بنود-${projectName}.pdf`);
+        });
+
+        // Excel All Visible
+        document.getElementById('excel-all-btn')?.addEventListener('click', () => {
+            const XLSX = (window as any).XLSX;
+            if (!XLSX) { alert('مكتبة XLSX غير متاحة'); return; }
+            const projectName = document.querySelector('h1')?.textContent?.split(':')[1]?.trim() || '';
+            const items = getFilteredItems();
+            if (items.length === 0) { alert('لا توجد بنود لتصديرها'); return; }
+
+            const config = buildFullHeaders(items);
+            const data = items.map(item => {
+                const obj: Record<string, string> = {};
+                const cells = itemToRow(item, config);
+                config.headers.forEach((h, i) => obj[h] = cells[i]);
+                return obj;
+            });
+
+            const ws = XLSX.utils.json_to_sheet(data, { header: config.headers });
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'بنود المشروع');
+            XLSX.writeFile(wb, `بنود-${projectName}.xlsx`);
+        });
+
+        // Initial load
+        loadItems();
+    }
+</script>
+
+<style is:global>
+    :root {
+        --primary-color: #0056b3;
+        --secondary-color: #6c757d;
+        --success-color: #28a745;
+        --danger-color: #dc3545;
+        --warning-color: #ffc107;
+        --info-color: #17a2b8;
+        --pdf-color: #e63946;
+        --excel-color: #1d7f45;
+        --border-color: #dee2e6;
+        --background-color: #f4f6f9;
+        --white-color: #fff;
+        --shadow: 0 4px 15px rgba(0,0,0,.07);
+        --table-header-bg: #e9ecef;
+        --table-hover-bg: #f8f9fa;
+        --table-stripe-bg: #fdfdfd;
+    }
+    main { direction: rtl; font-family: 'Cairo', sans-serif; background-color: var(--background-color); min-height: 100vh; padding: 2rem 1rem; }
+    .container { max-width: 1400px; margin: 0 auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    h1 { font-size: 2.2rem; font-weight: 800; color: #333; }
+    .page-subtitle { color: var(--secondary-color); margin-top: 0.25rem; }
+    .header-actions { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+
+    .btn { padding: 0.7rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem; text-decoration: none; text-align: center; border: 2px solid transparent; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem; justify-content: center; font-family: inherit; }
+    .btn svg { width: 20px; height: 20px; }
+    .btn-primary { background-color: var(--primary-color); color: var(--white-color); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 86, 179, 0.25); }
+    .btn-secondary { background-color: var(--white-color); color: var(--primary-color); border-color: var(--primary-color); }
+    .btn-secondary:hover { background-color: #e8f0fe; transform: translateY(-2px); }
+    .btn-danger { background-color: var(--danger-color); color: var(--white-color); }
+    .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(220, 53, 69, 0.25); }
+
+    .form-container { background: var(--white-color); padding: 2rem; border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 2rem; }
+    .form-container h2 { font-size: 1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; align-items: start; }
+    .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; transition: box-shadow 0.2s, border-color 0.2s; background-color: #fff; font-family: inherit; }
+    .form-group-full-width { grid-column: 1 / -1; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.2); }
+    .form-group input:disabled, input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
+    .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; }
+
+    .content-area { background: var(--white-color); border-radius: 12px; padding: 1rem; box-shadow: var(--shadow); }
+    .table-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 1.5rem; }
+    .table-controls-left { display: flex; flex-direction: column; gap: 1rem; flex-grow: 1; }
+    .table-title { font-size: 1.5rem; font-weight: 700; color: #333; margin: 0; }
+    .table-title-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
+    .global-export-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .btn-global-export { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; color: #fff; transition: all 0.2s; font-family: inherit; }
+    .btn-global-export:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .btn-global-export .material-icons { font-size: 18px; }
+    .btn-print-all { background-color: var(--info-color); }
+    .btn-pdf-all { background-color: var(--pdf-color); }
+    .btn-excel-all { background-color: var(--excel-color); }
+    .filter-container { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
+
+    .totals-container { display: flex; gap: 1rem; flex-wrap: wrap; align-self: flex-start; }
+    .total-box { background-color: var(--table-header-bg); padding: 0.75rem 1.25rem; border-radius: 8px; text-align: right; border: 1px solid var(--border-color); flex-grow: 1; }
+    .total-box.grand-total-box { background-color: #e8f0fe; border-color: #a8c5ff; }
+    #floor-total-box { background-color: #e8fef2; border-color: #a8ffc5; }
+    .total-label { display: block; color: var(--secondary-color); font-size: 0.9rem; margin-bottom: 0.25rem; font-weight: 500; }
+    .total-value { display: block; font-size: 1.4rem; font-weight: 700; }
+    .grand-total-box .total-value { color: #0b57d0; }
+    #floor-total-value { color: #23854a; }
+    #filtered-total { color: #333; }
+
+    .table-wrapper { overflow-x: auto; }
+    .items-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .items-table th, .items-table td { padding: 1.25rem 1rem; text-align: right; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+    .items-table thead th { background-color: var(--table-header-bg); font-weight: 800; color: #333; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; position: sticky; top: 0; z-index: 10; }
+    .items-table tbody tr:nth-child(even) { background-color: var(--table-stripe-bg); }
+    .items-table tbody tr:hover { background-color: var(--table-hover-bg); }
+    .no-items-message { text-align: center; padding: 2rem; font-size: 1.1rem; color: var(--secondary-color); }
+
+    .items-table tr.editing td { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+    .form-control-inline { width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; font-family: inherit; }
+
+    .actions-cell .action-buttons-view, .actions-cell .action-buttons-edit { display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
+    .btn-action { padding: 0.4rem 0.6rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; transition: transform 0.2s; border: none; color: var(--white-color); cursor: pointer; margin: 2px 0; display: flex; align-items: center; justify-content: center; }
+    .btn-action:hover { transform: translateY(-2px); }
+    .btn-edit { background-color: var(--warning-color); color: #333; }
+    .btn-delete { background-color: var(--danger-color); }
+    .btn-save { background-color: var(--success-color); }
+    .btn-cancel { background-color: var(--secondary-color); }
+    .btn-print { background-color: var(--info-color); }
+    .btn-export-pdf { background-color: var(--pdf-color); }
+    .btn-export-excel { background-color: var(--excel-color); }
+    .btn-action .material-icons { font-size: 18px; }
+
+    /* Dynamic columns - hidden by default */
+    .items-table .col-specificName, .items-table .col-pricePerMeter, .items-table .col-area,
+    .items-table .col-quantity, .items-table .col-unit, .items-table .col-pricePerUnit { display: none; }
+    .items-table.show-specific-name-cols .col-specificName { display: table-cell; }
+    .items-table.show-contractor-cols .col-pricePerMeter, .items-table.show-contractor-cols .col-area { display: table-cell; }
+    .items-table.show-calculation-cols .col-quantity, .items-table.show-calculation-cols .col-unit,
+    .items-table.show-calculation-cols .col-pricePerUnit { display: table-cell; }
+
+    /* Modals */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-content { background: #fff; padding: 2.5rem; border-radius: 12px; width: 90%; max-width: 450px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); direction: rtl; font-family: 'Cairo', sans-serif; }
+    .modal-content h4 { margin-top: 0; font-size: 1.5rem; color: #333; font-weight: 800; }
+    .modal-content p { margin-bottom: 1rem; color: #555; font-size: 1.1rem; }
+    .modal-actions { display: flex; justify-content: center; gap: 1rem; margin-top: 2rem; }
+
+    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
+    .auth-container p { font-size: 1.2rem; }
+
+    @media (max-width: 992px) {
+        main { padding: 1rem; }
+        .content-area { padding: 1rem; }
+        .page-header { flex-direction: column; align-items: stretch; text-align: center; }
+        .header-actions { width: 100%; justify-content: center; }
+        .items-table thead { display: none; }
+        .items-table tr { display: block; margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 1rem; }
+        .items-table td { display: flex; justify-content: space-between; text-align: right; padding: 0.75rem 0.25rem; border-bottom: 1px solid #f0f0f0; }
+        .items-table td:last-child { border-bottom: none; padding-top: 1rem; justify-content: center; }
+        .items-table td:before { content: attr(data-label); font-weight: 700; color: var(--primary-color); padding-right: 10px; text-align: right; flex-basis: 40%; }
+        .actions-cell .action-buttons-view { justify-content: center; flex-wrap: wrap; }
+        .items-table.show-specific-name-cols .col-specificName { display: flex; }
+        .items-table.show-contractor-cols .col-pricePerMeter, .items-table.show-contractor-cols .col-area { display: flex; }
+        .items-table.show-calculation-cols .col-quantity, .items-table.show-calculation-cols .col-unit,
+        .items-table.show-calculation-cols .col-pricePerUnit { display: flex; }
+        .items-table:not(.show-specific-name-cols) td.col-specificName { display: none; }
+        .items-table:not(.show-contractor-cols) td.col-pricePerMeter, .items-table:not(.show-contractor-cols) td.col-area { display: none; }
+        .items-table:not(.show-calculation-cols) td.col-quantity, .items-table:not(.show-calculation-cols) td.col-unit,
+        .items-table:not(.show-calculation-cols) td.col-pricePerUnit { display: none; }
+    }
+</style>

@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String              @id @default(uuid())
+  name     String
+  role     String
+  email    String?             @unique
+  password String?
+  projects ProjectSupervisor[]
+
+  @@map("user")
+}
+
+model Project {
+  id             String              @id @default(uuid())
+  projectName    String
+  projectAddress String?
+  archived       Boolean             @default(false)
+  createdAt      DateTime            @default(now())
+  agreements     Agreement[]
+  dailyExpenses  DailyExpense[]
+  dailyReports   DailyReport[]
+  expenseReports ExpenseReport[]
+  installments   Installment[]
+  items          Item[]
+  leftovers      LeftoversReport[]
+  projectImports ProjectImport[]
+  supervisors    ProjectSupervisor[]
+  remainsLogs    RemainsLog[]
+}
+
+model ProjectSupervisor {
+  projectId String
+  userId    String
+  project   Project @relation(fields: [projectId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
+
+  @@id([projectId, userId])
+  @@index([userId], map: "ProjectSupervisor_userId_fkey")
+}
+
+model Item {
+  id            String   @id @default(uuid())
+  projectId     String
+  name          String
+  personName    String?
+  specificName  String?
+  floor         String?
+  quantity      Float?
+  unitPrice     Float?
+  pricePerMeter Float?
+  pricePerUnit  Float?
+  area          Float?
+  unit          String?
+  totalPrice    Float
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now())
+  project       Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId], map: "Item_projectId_fkey")
+}
+
+model Installment {
+  id                String    @id @default(uuid())
+  projectId         String
+  customerName      String
+  customerPhone     String?
+  unitType          String?
+  unitLocation      String?
+  installmentAmount Float
+  totalAmount       Float
+  dueDate           DateTime
+  status            String
+  paidDate          DateTime?
+  project           Project   @relation(fields: [projectId], references: [id])
+
+  @@index([projectId], map: "Installment_projectId_fkey")
+}
+
+model ExpenseReport {
+  id          String   @id @default(uuid())
+  projectId   String
+  date        DateTime @default(now())
+  totalAmount Float
+  items       Json
+  project     Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId], map: "ExpenseReport_projectId_fkey")
+}
+
+model DailyExpense {
+  id             String   @id @default(uuid())
+  projectId      String
+  supervisorName String?
+  notes          String?  @db.Text
+  totalAmount    Float    @default(0)
+  items          Json
+  imageUrls      Json?
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  project        Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId], map: "DailyExpense_projectId_fkey")
+}
+
+model DailyReport {
+  id             String   @id @default(uuid())
+  projectId      String
+  supervisorName String?
+  content        String?  @db.Text
+  notes          String?  @db.Text
+  imageUrls      Json?
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  project        Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId], map: "DailyReport_projectId_fkey")
+}
+
+model LeftoversReport {
+  id             String   @id @default(uuid())
+  projectId      String
+  supervisorName String?
+  items          Json?
+  imageUrls      Json?
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  project        Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId], map: "LeftoversReport_projectId_fkey")
+}
+
+model RemainsLog {
+  id             String   @id @default(uuid())
+  projectId      String
+  material       String
+  subType        String?
+  quantity       Float
+  notes          String?  @db.Text
+  supervisorId   String?
+  supervisorName String?
+  createdAt      DateTime @default(now())
+  project        Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId], map: "RemainsLog_projectId_fkey")
+}
+
+model ProjectImport {
+  id        String   @id @default(uuid())
+  projectId String
+  name      String
+  quantity  Float
+  unitPrice Float
+  price     Float
+  supplier  String?
+  date      DateTime
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId], map: "ProjectImport_projectId_fkey")
+}
+
+model Agreement {
+  id            String   @id @default(uuid())
+  projectId     String
+  title         String
+  mainCategory  String
+  agreedWith    String?
+  floor         String?
+  date          DateTime
+  total         Float
+  details       String?  @db.Text
+  notes         String?  @db.Text
+  area          Float?
+  pricePerMeter Float?
+  quantity      Float?
+  price         Float?
+  createdAt     DateTime @default(now())
+  project       Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId], map: "Agreement_projectId_fkey")
+}

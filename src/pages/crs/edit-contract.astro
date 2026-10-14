@@ -1,0 +1,201 @@
+---
+export const prerender = false;
+import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
+---
+
+<Layout title="تعديل العقد">
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
+    </div>
+
+    <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+    </div>
+
+    <main id="page-content" style="display: none;">
+        <div class="form-container">
+            <h1 id="form-header">تعديل بيانات العقد</h1>
+            <p id="form-subheader"></p>
+
+            <div id="loader">جاري تحميل بيانات العقد...</div>
+            <div id="error-display" class="message-card" style="display: none;"></div>
+
+            <form id="edit-contract-form" style="display: none;">
+                 <div class="form-grid">
+                    <div class="form-group">
+                        <label for="customer-name">اسم العميل</label>
+                        <input type="text" id="customer-name" name="customerName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="customer-phone">رقم هاتف العميل</label>
+                        <input type="tel" id="customer-phone" name="customerPhone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="total-amount">المبلغ الإجمالي للعقد (ج.م)</label>
+                        <input type="number" id="total-amount" name="totalAmount" required step="0.01">
+                    </div>
+                     <div class="form-group">
+                        <label for="unit-type">نوع الوحدة</label>
+                        <select id="unit-type" name="unitType" required>
+                            <option value="apartment">شقة</option>
+                            <option value="shop">محل</option>
+                            <option value="basement">بدروم</option>
+                            <option value="other">أخرى</option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="unit-location">موقع/رقم الوحدة</label>
+                        <input type="text" id="unit-location" name="unitLocation" required>
+                    </div>
+                </div>
+
+                <div class="form-buttons">
+                    <button type="submit" id="submit-btn" class="btn btn-primary">حفظ التعديلات</button>
+                    <a id="cancel-btn" href="#" class="btn btn-secondary">إلغاء</a>
+                </div>
+            </form>
+        </div>
+    </main>
+</Layout>
+
+<style is:global>
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #7f8c8d;
+        --border-color: #e0e0e0;
+        --shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; text-align: center; }
+    main#page-content { padding: 2rem 1rem; background-color: #f7f9fc; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
+    
+    .form-container { max-width: 800px; margin: 2rem auto; padding: 2.5rem; background: white; border-radius: 12px; box-shadow: var(--shadow); }
+    h1 { color: var(--primary-color); margin-bottom: 0.5rem; }
+    #form-subheader { color: var(--secondary-color); margin-bottom: 2rem; font-size: 1.1rem; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .form-group { display: flex; flex-direction: column; }
+    .full-width { grid-column: 1 / -1; }
+
+    label { font-weight: 600; margin-bottom: 0.5rem; color: #34495e; }
+    input, select { width: 100%; padding: 0.8rem 1rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; font-family: inherit; }
+
+    .form-buttons { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
+    .btn { padding: 0.8rem 1.6rem; border-radius: 8px; text-decoration: none; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.3s; font-family: inherit; }
+    .btn-primary { background-color: var(--primary-color); color: white; }
+    .btn-secondary { background-color: var(--secondary-color); color: white; }
+
+    #loader, .message-card { text-align: center; padding: 3rem; margin-top: 2rem; background: white; border-radius: 10px; box-shadow: var(--shadow); color: var(--secondary-color); font-size: 1.2rem; }
+</style>
+
+<script>
+  import { checkAuth, logout, getAuthHeaders } from '../../lib/auth.js';
+  
+  let currentProjectId = null;
+  let originalCustomerName = null;
+
+  document.addEventListener('DOMContentLoaded', async () => {
+      const authLoadingMessage = document.getElementById('auth-loading-message');
+      const loginContainer = document.getElementById('admin-login-container');
+      const pageContent = document.getElementById('page-content');
+
+      const user = await checkAuth();
+      if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+      if (user && user.role === 'admin') {
+          if(pageContent) pageContent.style.display = 'block';
+          if(loginContainer) loginContainer.style.display = 'none';
+          initializeForm();
+      } else {
+          if(loginContainer) loginContainer.style.display = 'block';
+          if(pageContent) pageContent.style.display = 'none';
+      }
+  });
+
+  async function initializeForm() {
+      const loader = document.getElementById('loader');
+      const form = document.getElementById('edit-contract-form');
+      const errorDisplay = document.getElementById('error-display');
+
+      const urlParams = new URLSearchParams(window.location.search);
+      currentProjectId = urlParams.get('projectId');
+      originalCustomerName = urlParams.get('customerName');
+
+      if (!currentProjectId || !originalCustomerName) {
+          if(loader) loader.style.display = 'none';
+          if(errorDisplay) {
+            errorDisplay.textContent = 'بيانات العقد غير مكتملة.';
+            errorDisplay.style.display = 'block';
+          }
+          return;
+      }
+
+      const subheader = document.getElementById('form-subheader');
+      if(subheader) subheader.textContent = `يتم تعديل العقد الخاص بـ: ${originalCustomerName}`;
+      (document.getElementById('cancel-btn') as HTMLAnchorElement).href = `/crs/contract-details?projectId=${currentProjectId}&customerName=${encodeURIComponent(originalCustomerName)}`;
+
+      try {
+          const res = await fetch(`/api/installments?projectId=${currentProjectId}&customerName=${encodeURIComponent(originalCustomerName)}`, { headers: getAuthHeaders() });
+          const data = await res.json();
+
+          if (!res.ok || data.length === 0) throw new Error('لم يتم العثور على العقد.');
+
+          const contract = data[0];
+          (document.getElementById('customer-name') as HTMLInputElement).value = contract.customerName || '';
+          (document.getElementById('customer-phone') as HTMLInputElement).value = contract.customerPhone || '';
+          (document.getElementById('total-amount') as HTMLInputElement).value = contract.totalAmount || 0;
+          (document.getElementById('unit-type') as HTMLSelectElement).value = contract.unitType || 'apartment';
+          (document.getElementById('unit-location') as HTMLInputElement).value = contract.unitLocation || '';
+
+          if(loader) loader.style.display = 'none';
+          if(form) form.style.display = 'block';
+
+      } catch (error) {
+          console.error("Error loading contract: ", error);
+          if(loader) loader.style.display = 'none';
+          if(errorDisplay) {
+            errorDisplay.textContent = `حدث خطأ في التحميل.`;
+            errorDisplay.style.display = 'block';
+          }
+      }
+
+      form?.addEventListener('submit', handleFormSubmit);
+  }
+
+  async function handleFormSubmit(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'جاري الحفظ...';
+
+      const formData = new FormData(e.target as HTMLFormElement);
+      const updatedData = {
+          projectId: currentProjectId,
+          customerName: originalCustomerName, // Current name to filter
+          newCustomerName: formData.get('customerName'), // Potentially new name
+          customerPhone: formData.get('customerPhone'),
+          totalAmount: parseFloat(formData.get('totalAmount') as string),
+          unitType: formData.get('unitType'),
+          unitLocation: formData.get('unitLocation'),
+      };
+
+      try {
+          const res = await fetch('/api/installments/bulk-update', {
+              method: 'POST',
+              headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+              body: JSON.stringify(updatedData)
+          });
+
+          if (res.ok) {
+              alert('تم تحديث العقد بنجاح!');
+              window.location.href = `/crs/contract-details?projectId=${currentProjectId}&customerName=${encodeURIComponent(updatedData.newCustomerName as string)}`;
+          } else {
+              throw new Error("Failed to update");
+          }
+      } catch (error) {
+          alert(`فشل التنسيق: ${error.message}`);
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'حفظ التعديلات';
+      }
+  }
+</script>

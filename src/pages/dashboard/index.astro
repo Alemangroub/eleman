@@ -1,0 +1,288 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="لوحة تحكم المشرف">
+  <main class="supervisor-dashboard-page">
+
+    <!-- Auth Loading State -->
+    <div id="auth-loading-message"><p>جارٍ التحقق من صلاحيات الدخول...</p></div>
+
+    <!-- Main Dashboard Content (hidden by default) -->
+    <div id="dashboard-content" style="display: none;">
+      <header class="dashboard-header">
+        <div>
+          <h1>لوحة تحكم المشرف</h1>
+          <p>مرحباً بك، <span id="user-name-placeholder"></span>! هذه هي المشاريع المسؤول عنها.</p>
+        </div>
+        <button id="logout-button" class="btn btn-logout">تسجيل الخروج</button>
+      </header>
+      <div id="projects-list" class="projects-container"></div>
+      <div id="no-projects-message" class="info-message" style="display: none;"><p>لم يتم تعيين أي مشاريع لك حتى الآن.</p></div>
+    </div>
+
+  </main>
+</Layout>
+
+<script>
+  import { checkAuth, logout, getAuthHeaders } from '../../lib/auth.js';
+  
+  let currentSupervisor = { id: null, name: '' };
+
+  async function initializeDashboard() {
+      const loadingMessage = document.getElementById('auth-loading-message');
+      const dashboardContent = document.getElementById('dashboard-content');
+      const userNamePlaceholder = document.getElementById('user-name-placeholder');
+      const projectsList = document.getElementById('projects-list');
+      const noProjectsMessage = document.getElementById('no-projects-message');
+      const logoutButton = document.getElementById('logout-button');
+
+      const user = await checkAuth();
+      if (loadingMessage) loadingMessage.style.display = 'none';
+
+      if (user && user.role === 'supervisor') {
+          currentSupervisor.id = user.userId;
+          currentSupervisor.name = user.name || 'المشرف';
+          if(userNamePlaceholder) userNamePlaceholder.textContent = currentSupervisor.name;
+          if(dashboardContent) dashboardContent.style.display = 'block';
+          
+          await fetchAndDisplayProjects(currentSupervisor.id);
+          
+          if(logoutButton) {
+              logoutButton.addEventListener('click', async () => {
+                  await logout();
+                  window.location.href = '/crs';
+              });
+          }
+      } else {
+          window.location.href = '/crs';
+      }
+  }
+
+  async function fetchAndDisplayProjects(supervisorId) {
+      const projectsList = document.getElementById('projects-list');
+      const noProjectsMessage = document.getElementById('no-projects-message');
+      
+      try {
+          const response = await fetch(`/api/projects?supervisorId=${supervisorId}`, { headers: getAuthHeaders() });
+          const projects = await response.json();
+
+          if (projects.length === 0) {
+              if(noProjectsMessage) noProjectsMessage.style.display = 'block';
+              if(projectsList) projectsList.innerHTML = '';
+              return;
+          }
+
+          if(noProjectsMessage) noProjectsMessage.style.display = 'none';
+          if(projectsList) projectsList.innerHTML = projects.map(createProjectCard).join('');
+          
+          setupCardInteractions();
+      } catch (error) {
+          console.error("Error fetching projects:", error);
+      }
+  }
+
+  function createProjectCard(project) {
+      const supervisorNames = project.supervisors ? project.supervisors.map(s => s.name).join(', ') : '-';
+      return `
+        <div class="project-group" data-id="${project.id}">
+            <div class="project-card">
+                <div class="card-details">
+                    <div class="card-item"><span class="item-label">اسم المشروع</span><p class="item-value">${project.projectName}</p></div>
+                    <div class="card-item"><span class="item-label">عنوان المشروع</span><p class="item-value">${project.projectAddress || 'غير محدد'}</p></div>
+                    <div class="card-item"><span class="item-label">المشرفون</span><p class="item-value">${supervisorNames}</p></div>
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-action btn-toggle-expense">مصروفات يومية</button>
+                    <button class="btn btn-action btn-toggle-report">تقرير يومي</button>
+                    <a href="/crs/projects/${project.id}/remains" class="btn btn-action btn-leftovers-link">عرض البواقي</a>
+                </div>
+            </div>
+            
+            <div class="form-card expense-card" style="display: none;">
+                 <form class="expense-form" data-project-id="${project.id}">
+                    <header class="form-card-header"><h2>إضافة مصروفات يومية لمشروع: ${project.projectName}</h2></header>
+                    <div class="expense-item-adder">
+                          <div class="form-group">
+                              <label>البنود</label>
+                              <select class="item-name-select" required>
+                                  <option value="" disabled selected>-- اختر بند --</option>
+                                  <option value="عمال">عمال</option>
+                                  <option value="مصروفات نثريه">مصروفات نثريه</option>
+                                  <option value="حديد">حديد</option>
+                                  <option value="اسمنت">اسمنت</option>
+                                  <option value="طوب">طوب</option>
+                                  <option value="رمله">رمله</option>
+                                  <option value="زلط">زلط</option>
+                                  <option value="اخري">اخري</option>
+                              </select>
+                          </div>
+                          <div class="form-group other-item-name-group" style="display: none;">
+                              <label>اسم البند (آخر)</label>
+                              <input type="text" class="other-item-name" placeholder="ادخل اسم البند">
+                          </div>
+                          <div class="form-group">
+                              <label>المبلغ (ج.م)</label>
+                              <input type="number" class="item-amount" placeholder="0.00" required step="0.01">
+                          </div>
+                          <div class="form-group notes-group">
+                              <label>ملاحظات (اختياري)</label>
+                              <textarea class="expense-notes" rows="2"></textarea>
+                          </div>
+                    </div>
+                    <div class="form-actions">
+                      <button type="submit" class="btn btn-submit">حفظ البند</button>
+                      <button type="button" class="btn btn-cancel-expense">إغلاق</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="form-card report-card" style="display: none;">
+                <form class="report-form" data-project-id="${project.id}">
+                    <header class="form-card-header"><h2>إضافة تقرير يومي لمشروع: ${project.projectName}</h2></header>
+                    <div class="form-group"><label>نص التقرير</label><textarea class="report-text" rows="6" required placeholder="اكتب هنا تفاصيل سير العمل..."></textarea></div>
+                    <div class="form-actions"><button type="submit" class="btn btn-submit">حفظ التقرير</button><button type="button" class="btn-cancel-report">إلغاء</button></div>
+                </form>
+            </div>
+        </div>
+      `;
+  }
+
+  function setupCardInteractions() {
+      const projectGroups = document.querySelectorAll('.project-group');
+      
+      projectGroups.forEach(group => {
+          const expenseCard = group.querySelector('.expense-card') as HTMLElement;
+          const reportCard = group.querySelector('.report-card') as HTMLElement;
+          
+          group.querySelector('.btn-toggle-expense')?.addEventListener('click', () => {
+              expenseCard.style.display = expenseCard.style.display === 'none' ? 'block' : 'none';
+              reportCard.style.display = 'none';
+          });
+
+          group.querySelector('.btn-toggle-report')?.addEventListener('click', () => {
+              reportCard.style.display = reportCard.style.display === 'none' ? 'block' : 'none';
+              expenseCard.style.display = 'none';
+          });
+
+          group.querySelector('.btn-cancel-expense')?.addEventListener('click', () => expenseCard.style.display = 'none');
+          group.querySelector('.btn-cancel-report')?.addEventListener('click', () => reportCard.style.display = 'none');
+
+          const select = group.querySelector('.item-name-select') as HTMLSelectElement;
+          const otherGroup = group.querySelector('.other-item-name-group') as HTMLElement;
+          select?.addEventListener('change', () => {
+              otherGroup.style.display = select.value === 'اخري' ? 'block' : 'none';
+          });
+
+          // Form submissions
+          group.querySelector('.expense-form')?.addEventListener('submit', async (e) => {
+              e.preventDefault();
+              const form = e.target as HTMLFormElement;
+              const submitBtn = form.querySelector('.btn-submit') as HTMLButtonElement;
+              const projectId = form.dataset.projectId;
+
+              let itemName = (form.querySelector('.item-name-select') as HTMLSelectElement).value;
+              if(itemName === 'اخري') itemName = (form.querySelector('.other-item-name') as HTMLInputElement).value;
+              
+              const amount = parseFloat((form.querySelector('.item-amount') as HTMLInputElement).value);
+              const notes = (form.querySelector('.expense-notes') as HTMLTextAreaElement).value;
+
+              submitBtn.disabled = true;
+              submitBtn.textContent = 'جارٍ الحفظ...';
+
+              try {
+                  const res = await fetch('/api/dashboard/expenses', {
+                      method: 'POST',
+                      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                      body: JSON.stringify({
+                          projectId,
+                          supervisorName: currentSupervisor.name,
+                          items: [{ name: itemName, amount }],
+                          totalAmount: amount,
+                          notes
+                      })
+                  });
+                  if (res.ok) {
+                      alert('تم الحفظ بنجاح');
+                      form.reset();
+                      expenseCard.style.display = 'none';
+                  }
+              } catch (err) { alert('خطأ في الاتصال'); }
+              finally {
+                  submitBtn.disabled = false;
+                  submitBtn.textContent = 'حفظ البند';
+              }
+          });
+
+          group.querySelector('.report-form')?.addEventListener('submit', async (e) => {
+              e.preventDefault();
+              const form = e.target as HTMLFormElement;
+              const submitBtn = form.querySelector('.btn-submit') as HTMLButtonElement;
+              const projectId = form.dataset.projectId;
+              const content = (form.querySelector('.report-text') as HTMLTextAreaElement).value;
+
+              submitBtn.disabled = true;
+              submitBtn.textContent = 'جارٍ الحفظ...';
+
+              try {
+                  const res = await fetch('/api/dashboard/reports', {
+                      method: 'POST',
+                      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                      body: JSON.stringify({
+                          projectId,
+                          supervisorName: currentSupervisor.name,
+                          content
+                      })
+                  });
+                  if (res.ok) {
+                      alert('تم الحفظ بنجاح');
+                      form.reset();
+                      reportCard.style.display = 'none';
+                  }
+              } catch (err) { alert('خطأ في الاتصال'); }
+              finally {
+                  submitBtn.disabled = false;
+                  submitBtn.textContent = 'حفظ التقرير';
+              }
+          });
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', initializeDashboard);
+</script>
+
+<style is:global>
+  :root { --primary-color: #3b82f6; --secondary-color: #10b981; --danger-color: #ef4444; --gray-color: #6b7280; --warning-color: #f59e0b; }
+  .supervisor-dashboard-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f4f7f6; min-height: 100vh; padding: 2rem; }
+  #auth-loading-message, .info-message { text-align: center; padding: 5rem 1rem; font-size: 1.2rem; color: #555; }
+  .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem; padding-bottom: 1.5rem; border-bottom: 2px solid #e2e8f0; }
+  .btn-logout { background-color: var(--danger-color); color: white; padding: 0.6rem 1.2rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; }
+  .projects-container { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; max-width: 900px; margin: 0 auto; }
+  
+  .project-card, .form-card { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.07); padding: 1.5rem 2rem; }
+  .project-card { display: flex; flex-direction: column; align-items: stretch; gap: 1.5rem; }
+  .card-details { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+  .card-item { min-width: 200px; flex-grow: 1; }
+  .item-label { font-size: 0.9rem; font-weight: 700; color: #718096; }
+  .item-value { font-size: 1.2rem; font-weight: 600; color: #2d3748; }
+  
+  .card-actions { display: flex; gap: 1rem; justify-content: center; }
+  .btn-action { font-weight: 700; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; transition: all 0.2s; flex-grow: 1; text-align: center; font-family: inherit; }
+  .btn-toggle-expense { background-color: var(--primary-color); color: white; }
+  .btn-toggle-report { background-color: var(--secondary-color); color: white; }
+  .btn-leftovers-link { background-color: var(--warning-color); color: white !important; text-decoration: none; display: flex; align-items: center; justify-content: center; }
+
+  .form-card { margin-top: -1rem; border-top-left-radius: 0; border-top-right-radius: 0; border-top: 1px solid #e2e8f0; }
+  .form-card-header h2 { font-size: 1.4rem; font-weight: 700; color: #1a202c; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+
+  .form-group { margin-bottom: 1rem; display: flex; flex-direction: column; }
+  label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+  input, select, textarea { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; font-family: inherit; }
+
+  .expense-item-adder { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .notes-group { grid-column: 1 / -1; }
+  
+  .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem; border-top: 1px solid #e2e8f0; padding-top: 1.5rem; }
+  .btn-submit { background-color: var(--primary-color); color: white; padding: 0.8rem 1.5rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; }
+  .btn-cancel-expense, .btn-cancel-report { background-color: var(--gray-color); color: white; padding: 0.8rem 1.5rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; }
+</style>

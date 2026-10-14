@@ -1,0 +1,825 @@
+
+---
+import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
+--- 
+
+<Layout title="إدارة المشروعات">
+  <div id="auth-loading-message" class="auth-container">
+      <p>جارٍ التحقق من صلاحيات الدخول...</p>
+  </div>
+
+  <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+  </div>
+
+  <main id="page-content" class="projects-admin-page" style="display: none;">
+    <div class="container">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div class="header-side left">
+            <div class="dropdown">
+                <button class="btn-icon dropdown-toggle" aria-label="خيارات إضافية">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"></path></svg>
+                </button>
+                <div class="dropdown-menu">
+                    <a href="/crs/add-project" class="dropdown-item">+ إضافة مشروع جديد</a>
+                    <button id="installments-notification-btn" class="dropdown-item">
+                        تنبيهات الأقساط
+                        <span id="notification-badge" class="notification-badge" style="display: none;"></span>
+                    </button>
+                    <a href="/crs/archived-projects" class="dropdown-item">المشاريع المؤرشفة</a>
+                </div>
+            </div>
+        </div>
+        <h1 class="page-title">إدارة المشروعات</h1>
+        <div class="header-side right">
+           <a href="/dashboard" class="btn btn-secondary">لوحة التحكم</a>
+           <button id="logout-button" class="btn btn-danger">تسجيل الخروج</button>
+        </div>
+    </div>
+
+      <!-- Search Input -->
+      <div class="search-container">
+          <input type="text" id="search-input" placeholder="ابحث باسم المشروع..." />
+      </div>
+
+      <!-- Projects Table -->
+      <div class="projects-list-container">
+        <h2>قائمة المشاريع</h2>
+        <div class="table-wrapper">
+          <table id="projects-table">
+            <thead>
+              <tr>
+                <th>اسم المشروع</th>
+                <th>العنوان</th>
+                <th>المشرفون</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="projects-list">
+              <!-- Rows are dynamically inserted here -->
+            </tbody>
+          </table>
+        </div>
+        <p id="no-projects-message">جاري تحميل المشاريع...</p>
+      </div>
+
+    </div>
+
+    <!-- Installments Notifications Modal -->
+    <div id="installments-modal" class="modal-overlay">
+      <div class="modal-box large">
+        <h3>تنبيهات الأقساط</h3>
+        <div id="installments-notification-content">
+          <!-- Notifications will be loaded here -->
+        </div>
+        <div class="modal-actions">
+          <button id="close-installments-modal-btn" class="btn btn-secondary">إغلاق</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Archive Confirmation Modal -->
+    <div id="archive-modal" class="modal-overlay">
+      <div class="modal-box">
+        <h3>تأكيد الأرشفة</h3>
+        <p>هل أنت متأكد من أنك تريد أرشفة هذا المشروع؟</p>
+        <div class="modal-actions">
+          <button id="cancel-archive-btn" class="btn btn-secondary">إلغاء</button>
+          <button id="confirm-archive-btn" class="btn btn-warning">تأكيد الأرشفة</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Project Modal -->
+    <div id="edit-modal" class="modal-overlay">
+      <div class="modal-box">
+        <h3>تعديل المشروع</h3>
+        <form id="edit-form">
+          <div class="form-group">
+            <label for="edit-project-name">اسم المشروع</label>
+            <input type="text" id="edit-project-name" required>
+          </div>
+          <div class="form-group">
+            <label for="edit-project-address">عنوان المشروع</label>
+            <input type="text" id="edit-project-address">
+          </div>
+          
+          <!-- Supervisors Management -->
+          <div class="form-group">
+            <label>المشرفون الحاليون</label>
+            <div id="current-supervisors-list" class="supervisors-list">
+              <!-- Current supervisors will be listed here -->
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="add-supervisor-select">إضافة مشرف جديد</label>
+            <div class="add-supervisor-wrapper">
+                <select id="add-supervisor-select">
+                  <!-- Available supervisors will be loaded here -->
+                </select>
+                <button type="button" id="add-supervisor-btn" class="btn btn-primary btn-small">إضافة</button>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" id="cancel-edit-btn" class="btn btn-secondary">إلغاء</button>
+            <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</Layout>
+
+<style is:global>
+  /* Auth Container Styles */
+  .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
+  .auth-container p { font-size: 1.2rem; }
+
+  /* General Page Styles */
+  .projects-admin-page { padding: 3rem 1.5rem; background-color: #f4f7f6; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  
+  /* Header */
+  .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid #e0e0e0;
+  }
+
+  .header-side {
+      flex: 1;
+      display: flex;
+  }
+
+  .header-side.left { justify-content: flex-start; }
+  .header-side.right { justify-content: flex-end; }
+
+  @keyframes gradient-animation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .page-title {
+      flex-shrink: 0;
+      margin: 0 1rem;
+      font-size: 2.5rem;
+      font-weight: 900;
+      text-align: center;
+      background: linear-gradient(270deg, #3f51b5, #1e88e5, #90caf9, #1e88e5, #3f51b5);
+      background-size: 400% 400%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 1px 1px 4px rgba(0,0,0,0.2);
+      animation: gradient-animation 6s linear infinite;
+  }
+
+  .btn-icon {
+      background-color: transparent;
+      border: 2px solid #6c757d;
+      padding: 0.5rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #6c757d;
+      transition: all 0.2s ease;
+  }
+
+  .btn-icon:hover, .dropdown.active .btn-icon {
+      background-color: #6c757d;
+      color: white;
+      transform: scale(1.1);
+  }
+
+  /* Dropdown Styles */
+  .dropdown {
+      position: relative;
+      display: inline-block;
+  }
+
+  .dropdown-menu {
+      position: absolute;
+      top: 120%;
+      right: 0;
+      left: auto;
+      z-index: 1000;
+      display: none;
+      min-width: 220px;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+      padding: 0.5rem 0;
+      list-style: none;
+      border: 1px solid #e0e0e0;
+  }
+
+  .dropdown.active .dropdown-menu {
+      display: block;
+  }
+
+  .dropdown-item {
+      display: block;
+      width: 100%;
+      padding: 0.8rem 1.5rem;
+      font-weight: 600;
+      color: #333;
+      text-align: right;
+      white-space: nowrap;
+      background-color: transparent;
+      border: 0;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .dropdown-item:hover {
+      background-color: #f4f7f6;
+      color: #3f51b5;
+  }
+
+  .dropdown-item .notification-badge {
+      position: static;
+      margin-right: auto;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+  }
+
+
+  /* Search Input */
+  .search-container {
+    margin-bottom: 2rem;
+  }
+  #search-input {
+      width: 100%;
+      padding: 0.8rem 1.2rem;
+      font-size: 1.1rem;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-family: 'Cairo', sans-serif;
+  }
+
+  /* Projects List Container */
+  .projects-list-container { background-color: transparent; padding: 0; }
+  .projects-list-container h2 { font-size: 1.8rem; margin-bottom: 1.5rem; font-weight: 800; color: #3f51b5; }
+
+  /* Projects Table Styles */
+  .table-wrapper { overflow-x: auto; } 
+  #projects-table { width: 100%; border-collapse: separate; border-spacing: 0 1rem; margin-top: 1rem; }
+  #projects-table thead { /* Headers are hidden on mobile via media query */ }
+  #projects-table tbody tr {
+    background-color: #fff;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    border-radius: 10px;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    cursor: pointer; /* Make row clickable */
+    overflow: hidden; 
+  }
+  #projects-table tbody tr:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+  }
+  #projects-table th, #projects-table td { 
+    padding: 1rem 1.25rem; 
+    font-size: 0.95rem; 
+    color: #555; 
+    vertical-align: middle;
+    text-align: right;
+  }
+  #projects-table th { color: #666; font-size: 0.9rem; font-weight: 700; }
+  #projects-table td {
+    border: none;
+    border-top: 1px solid #eee; 
+    border-bottom: 1px solid #eee;
+  }
+  #projects-table td:first-of-type { border-right: 1px solid #eee; border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
+  #projects-table td:last-of-type { border-left: 1px solid #eee; border-top-left-radius: 10px; border-bottom-left-radius: 10px; text-align: center; }
+  
+  .project-name-cell { 
+    font-weight: 700; 
+    font-size: 1.05rem; 
+    color: #3f51b5; 
+  }
+
+  #no-projects-message { text-align: center; padding: 2rem 0; font-size: 1.1rem; color: #777; }
+
+  /* General Button Styles */
+  .btn { position:relative; display: inline-block; padding: 0.7rem 1.3rem; color: #fff; text-decoration: none; border-radius: 8px; font-size: 0.95rem; font-weight: 700; transition: all 0.2s ease-in-out; text-align: center; border: 1px solid transparent; cursor: pointer; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn.btn-small { padding: 0.5rem 1rem; font-size: 0.85rem; }
+  .btn-primary { background-color: #3f51b5; border-color: #3f51b5; }
+  .btn-primary:hover { background-color: #303f9f; }
+  .btn-secondary { background-color: #6c757d; border-color: #6c757d; }
+  .btn-secondary:hover { background-color: #5a6268; }
+  .btn-danger { background-color: #d9534f; border-color: #d9534f; }
+  .btn-danger:hover { background-color: #c9302c; }
+   .btn-warning { background-color: #f0ad4e; border-color: #eea236; color: #fff;}
+  .btn-warning:hover { background-color: #ec971f; border-color: #d58512; }
+  .btn-info { background-color: #17a2b8; border-color: #17a2b8; color: #fff; }
+  .btn-info:hover { background-color: #138496; border-color: #117a8b; }
+  .btn-action-cell { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
+
+  .notification-badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background-color: #dc3545;
+      color: white;
+      border-radius: 50%;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.8rem;
+      font-weight: bold;
+  }
+
+  .btn-delete-custom, .btn-edit-custom, .btn-installments-custom, .btn-archive-custom {
+      background-color: transparent;
+      padding: 0.4rem 0.8rem;
+      font-size: 0.85rem;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+  }
+  .btn-delete-custom { color: #d9534f; border: 1px solid #d9534f; }
+  .btn-delete-custom:hover { background-color: #d9534f; color: #fff; }
+  .btn-edit-custom { color: #3f51b5; border: 1px solid #3f51b5; }
+  .btn-edit-custom:hover { background-color: #3f51b5; color: #fff; }
+  .btn-archive-custom { color: #f0ad4e; border: 1px solid #f0ad4e; }
+  .btn-archive-custom:hover { background-color: #f0ad4e; color: #fff; }
+  .btn-installments-custom { color: #28a745; border: 1px solid #28a745; }
+  .btn-installments-custom:hover { background-color: #28a745; color: #fff; }
+
+  /* Modal Styles */
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 1000; visibility: hidden; opacity: 0; transition: opacity 0.3s ease; overflow-y: auto; padding: 2rem 1rem; display: flex; align-items: center; justify-content: center; }
+  .modal-overlay.visible { visibility: visible; opacity: 1; }
+  .modal-box { background: #fff; padding: 2.5rem; border-radius: 12px; width: 100%; max-width: 550px; text-align: right; margin: auto; transform: scale(0.95); transition: transform 0.3s ease; }
+  .modal-box.large { max-width: 800px; }
+  .modal-overlay.visible .modal-box { transform: scale(1); }
+  .modal-box h3 { font-size: 1.8rem; margin-top: 0; margin-bottom: 2rem; color: #333; text-align: center; font-weight: 800; }
+  .modal-box p { margin-bottom: 2rem; color: #666; text-align: center; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; }
+  .modal-actions .btn { min-width: 120px; }
+
+  #installments-notification-content h4 { 
+    font-size: 1.5rem; 
+    color: #c9302c; 
+    border-bottom: 2px solid #c9302c;
+    padding-bottom: 0.5rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  #installments-notification-content h4.upcoming-title {
+      color: #f0ad4e;
+      border-bottom-color: #f0ad4e;
+  }
+  #installments-notification-content h4:first-child { margin-top: 0; }
+  
+  .installment-notification-item-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+  .installment-notification-item {
+    background-color: #fdfdfe; 
+    padding: 1rem; 
+    border-radius: 8px; 
+    margin-bottom: 1rem; 
+    border-right: 5px solid #c9302c;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .installment-notification-item-link:hover .installment-notification-item {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+  }
+
+  .installment-notification-item.upcoming {
+      border-right-color: #f0ad4e;
+  }
+  .notification-item-details { font-size: 1rem; color: #333; line-height: 1.6; }
+  .notification-item-details strong { color: #555; }
+  .status-overdue { color: #c9302c; font-weight: bold; }
+  .status-upcoming { color: #f0ad4e; font-weight: bold; }
+
+  /* Edit Form Styles */
+  #edit-form { display: flex; flex-direction: column; gap: 1.5rem; }
+  .form-group { display: flex; flex-direction: column; }
+  .form-group label { font-weight: 700; color: #555; margin-bottom: 0.5rem; font-size: 1rem; }
+  .form-group input, .form-group select { padding: 0.8rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; width: 100%; }
+
+  /* Supervisors Management Styles */
+  .supervisors-list { border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem; min-height: 50px; max-height: 150px; overflow-y: auto; }
+  .supervisor-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background-color: #f9f9f9; border-radius: 6px; margin-bottom: 0.5rem; }
+  .supervisor-item:last-child { margin-bottom: 0; }
+  .btn-delete-supervisor { background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 0.2rem 0.6rem; font-size: 0.8rem; border-radius: 4px; cursor: pointer; }
+  .btn-delete-supervisor:hover { background: #ef4444; color: white; }
+  .add-supervisor-wrapper { display: flex; gap: 0.5rem; }
+
+  /* Responsive Styles for Mobile */
+  @media (max-width: 768px) {
+    .page-header { flex-wrap: wrap; justify-content: center; }
+    .page-title { flex-basis: 100%; text-align: center; margin-bottom: 1rem; order: 1; font-size: 2rem;}
+    .header-side.left { order: 2; }
+    .header-side.right { order: 3; }
+    #projects-table thead { display: none; }
+    #projects-table, #projects-table tbody, #projects-table tr, #projects-table td { display: block; width: 100%; }
+    #projects-table tr { margin-bottom: 1rem; border: 1px solid #e0e0e0; border-radius: 10px; padding: 0; }
+    #projects-table td { text-align: right; padding-left: 50%; position: relative; border: none; border-bottom: 1px solid #f0f0f0; padding-top: 1rem; padding-bottom: 1rem; }
+    #projects-table td:first-of-type, #projects-table td:last-of-type { border-radius: 0; }
+    #projects-table td:last-of-type { border-bottom: none; padding-top: 1.5rem; padding-bottom: 1.5rem; text-align: center; background-color: #f9f9f9; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
+    #projects-table td::before { content: attr(data-label); position: absolute; left: 1rem; width: 40%; padding-right: 10px; font-weight: 700; color: #3f51b5; text-align: left; }
+    #logout-button {
+      padding: 0.5rem 0.8rem;
+      font-size: 0.85rem;
+    }
+  }
+
+</style>
+
+<script>
+  import { checkAuth, logout, getAuthHeaders } from '../../lib/auth.js';
+
+  let allProjects = [];
+  let allSupervisors = [];
+  const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+
+  document.addEventListener('DOMContentLoaded', async () => {
+      const authLoadingMessage = document.getElementById('auth-loading-message');
+      const loginContainer = document.getElementById('admin-login-container');
+      const pageContent = document.getElementById('page-content');
+
+      const user = await checkAuth();
+      if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+      if (user) {
+          if(pageContent) pageContent.style.display = 'block';
+          if(loginContainer) loginContainer.style.display = 'none';
+
+          const logoutButton = document.getElementById('logout-button');
+          if (logoutButton) {
+              logoutButton.addEventListener('click', async () => {
+                  await logout();
+              });
+          }
+          
+          initializePage();
+      } else {
+          if(pageContent) pageContent.style.display = 'none';
+          if(loginContainer) loginContainer.style.display = 'block';
+      }
+  });
+
+  function renderProjects(projects) {
+      const projectsList = document.getElementById('projects-list');
+      const noProjectsMessage = document.getElementById('no-projects-message');
+      const tableWrapper = document.querySelector('.table-wrapper');
+
+      tableWrapper.style.display = projects.length === 0 ? 'none' : '';
+      noProjectsMessage.textContent = projects.length === 0 ? 'لا توجد مشاريع مطابقة لنتيجة البحث.' : 'لم تتم إضافة أي مشاريع بعد. انقر على زر "إضافة مشروع جديد" للبدء.';
+      
+      if(projects.length === 0 && document.getElementById('search-input').value === '') {
+        noProjectsMessage.textContent = 'لم تتم إضافة أي مشاريع بعد. انقر على زر "إضافة مشروع جديد" للبدء.';
+      }
+
+      if (projectsList) {
+          projectsList.innerHTML = projects.map(project => {
+              const supervisors = project.supervisors ? project.supervisors.map(s => s.name).join(', ') : '-';
+              return `
+                <tr data-id="${project.id}" data-project='${JSON.stringify(project).replace(/'/g, "&apos;")}'>
+                  <td data-label="اسم المشروع" class="project-name-cell">${project.projectName || '-'}</td>
+                  <td data-label="العنوان">${project.projectAddress || '-'}</td>
+                  <td data-label="المشرفون">${supervisors.length > 0 ? supervisors : '-'}</td>
+                  <td data-label="الإجراءات" class="btn-action-cell">
+                    <a href="/crs/project-installments?projectId=${project.id}" class="btn btn-installments-custom">الأقساط</a>
+                    <button class="btn btn-edit-custom">تعديل</button>
+                    <button class="btn btn-archive-custom">أرشفة</button>
+                  </td>
+                </tr>
+              `;
+          }).join('');
+      }
+  }
+
+  // --- MODAL VISIBILITY ---
+  function showModal(modal) { modal.classList.add('visible'); document.body.style.overflow = 'hidden'; }
+  function hideModal(modal) { modal.classList.remove('visible'); document.body.style.overflow = ''; }
+
+  async function fetchInstallmentNotifications() {
+    const badge = document.getElementById('notification-badge');
+    const notificationContent = document.getElementById('installments-notification-content');
+    notificationContent.innerHTML = '<p>جاري تحميل التنبيهات...</p>';
+
+    try {
+        const response = await fetch('/api/installments/notifications');
+        const data = await response.json();
+
+        if (data.count > 0) {
+            badge.textContent = data.count;
+            badge.style.display = 'inline-flex';
+        } else {
+            badge.style.display = 'none';
+        }
+
+        let contentHTML = '';
+        if (data.overdue.length > 0) {
+            contentHTML += '<h4>أقساط مستحقة</h4>';
+            data.overdue.forEach(inst => {
+                let dayWord;
+                if (inst.days === 1) dayWord = 'يوم';
+                else if (inst.days === 2) dayWord = 'يومين';
+                else if (inst.days >= 3 && inst.days <= 10) dayWord = 'أيام';
+                else dayWord = 'يومًا';
+
+                contentHTML += `
+                  <a href="/crs/contract-details?projectId=${inst.projectId}&customerName=${encodeURIComponent(inst.customerName)}" class="installment-notification-item-link">
+                    <div class="installment-notification-item overdue">
+                      <div class="notification-item-details">
+                        <strong>المشروع:</strong> ${inst.projectName}<br>
+                        <strong>العميل:</strong> ${inst.customerName}<br>
+                        <strong>موبايل:</strong> ${inst.customerPhone || 'غير مسجل'}<br>
+                        <strong>رقم الدور:</strong> ${inst.unitLocation || 'غير محدد'}<br>
+                        <strong>المبلغ:</strong> ${formatCurrency(inst.installmentAmount)}<br>
+                        <strong>تاريخ الاستحقاق:</strong> ${new Date(inst.dueDate).toLocaleDateString('ar-EG')}<br>
+                        <strong>الحالة:</strong> <span class="status-overdue">متأخر ${inst.days} ${dayWord}</span>
+                      </div>
+                    </div>
+                  </a>
+                `;
+            });
+        }
+
+        if (data.upcoming.length > 0) {
+            contentHTML += '<h4 class="upcoming-title">أقساط تستحق خلال 7 أيام</h4>';
+            data.upcoming.forEach(inst => {
+                let statusText;
+                if (inst.days === 0) statusText = 'مستحق اليوم';
+                else if (inst.days === 1) statusText = 'مستحق غداً';
+                else {
+                    const dayWord = (inst.days >= 3 && inst.days <= 10) ? 'أيام' : 'يوم';
+                    statusText = `مستحق خلال ${inst.days} ${dayWord}`;
+                }
+
+                contentHTML += `
+                  <a href="/crs/contract-details?projectId=${inst.projectId}&customerName=${encodeURIComponent(inst.customerName)}" class="installment-notification-item-link">
+                    <div class="installment-notification-item upcoming">
+                      <div class="notification-item-details">
+                        <strong>المشروع:</strong> ${inst.projectName}<br>
+                        <strong>العميل:</strong> ${inst.customerName}<br>
+                        <strong>موبايل:</strong> ${inst.customerPhone || 'غير مسجل'}<br>
+                        <strong>رقم الدور:</strong> ${inst.unitLocation || 'غير محدد'}<br>
+                        <strong>المبلغ:</strong> ${formatCurrency(inst.installmentAmount)}<br>
+                        <strong>تاريخ الاستحقاق:</strong> ${new Date(inst.dueDate).toLocaleDateString('ar-EG')}<br>
+                        <strong>الحالة:</strong> <span class="status-upcoming">${statusText}</span>
+                      </div>
+                    </div>
+                  </a>
+                `;
+            });
+        }
+
+        if (data.count === 0) {
+            contentHTML = '<p>لا توجد تنبيهات حالية.</p>';
+        }
+
+        notificationContent.innerHTML = contentHTML;
+
+    } catch (error) {
+        console.error("Error fetching installment notifications: ", error);
+        notificationContent.innerHTML = '<p>حدث خطأ أثناء تحميل التنبيهات.</p>';
+        badge.style.display = 'none';
+    }
+  }
+
+  function initializePage() {
+    const searchInput = document.getElementById('search-input');
+    const projectsList = document.getElementById('projects-list');
+    
+    // Modals
+    const editModal = document.getElementById('edit-modal');
+    const editForm = document.getElementById('edit-form');
+    const cancelEditBtn = document.getElementById('cancel-edit-btn');
+    const archiveModal = document.getElementById('archive-modal');
+    const confirmArchiveBtn = document.getElementById('confirm-archive-btn');
+    const cancelArchiveBtn = document.getElementById('cancel-archive-btn');
+    const installmentsModal = document.getElementById('installments-modal');
+    const installmentsBtn = document.getElementById('installments-notification-btn');
+    const closeInstallmentsModalBtn = document.getElementById('close-installments-modal-btn');
+
+    const projectNameInput = document.getElementById('edit-project-name');
+    const projectAddressInput = document.getElementById('edit-project-address');
+    const currentSupervisorsList = document.getElementById('current-supervisors-list');
+    const addSupervisorSelect = document.getElementById('add-supervisor-select');
+    const addSupervisorBtn = document.getElementById('add-supervisor-btn');
+    
+    let projectIdToEdit = null;
+    let projectIdToArchive = null;
+
+    // --- DROPDOWN LOGIC ---
+    const dropdown = document.querySelector('.dropdown');
+    if (dropdown) {
+        const toggle = dropdown.querySelector('.dropdown-toggle');
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target)) {
+                dropdown.classList.remove('active');
+            }
+        });
+    }
+
+    // --- DATA FETCHING ---
+    async function fetchProjects() {
+        try {
+            const response = await fetch('/api/projects', { headers: getAuthHeaders() });
+            if (response.ok) {
+                allProjects = await response.json();
+                renderProjects(allProjects);
+            }
+        } catch (e) { console.error("Error fetching projects:", e); }
+    }
+
+    async function fetchSupervisors() {
+        try {
+            const response = await fetch('/api/users/supervisors', { headers: getAuthHeaders() });
+            if (response.ok) {
+                allSupervisors = await response.json();
+                updateAddSupervisorDropdown();
+            }
+        } catch (e) { console.error("Error fetching supervisors:", e); }
+    }
+
+    // Initial load
+    fetchProjects();
+    fetchSupervisors();
+    fetchInstallmentNotifications();
+
+    // --- SEARCH LOGIC ---
+    searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        const filteredProjects = allProjects.filter(project => {
+            return project.projectName && project.projectName.toLowerCase().includes(searchTerm);
+        });
+        renderProjects(filteredProjects);
+    });
+
+    // --- INSTALLMENTS NOTIFICATION MODAL ---
+    installmentsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showModal(installmentsModal);
+        if (dropdown) dropdown.classList.remove('active');
+    });
+    closeInstallmentsModalBtn.addEventListener('click', () => hideModal(installmentsModal));
+    installmentsModal.addEventListener('click', (e) => { if (e.target === installmentsModal) hideModal(installmentsModal); });
+
+    // --- GENERAL EVENT LISTENER ---
+    projectsList.addEventListener('click', (e) => {
+      const row = e.target.closest('tr');
+      if (!row) return;
+
+      if (e.target.classList.contains('btn-edit-custom')) {
+        e.stopPropagation();
+        projectIdToEdit = row.dataset.id;
+        const projectData = JSON.parse(row.dataset.project.replace(/&apos;/g, "'"));
+        openEditModal(projectData);
+      } else if (e.target.classList.contains('btn-archive-custom')) {
+        e.stopPropagation();
+        projectIdToArchive = row.dataset.id;
+        showModal(archiveModal);
+      } else if (e.target.closest('.btn-installments-custom')) {
+        e.stopPropagation();
+      } else {
+        const projectId = row.dataset.id;
+        if (projectId) {
+            window.location.href = `/crs/projects/${projectId}`;
+        }
+      }
+    });
+    
+    // --- ARCHIVE PROJECT LOGIC ---
+    function hideArchiveModal() { hideModal(archiveModal); projectIdToArchive = null; }
+    cancelArchiveBtn.addEventListener('click', hideArchiveModal);
+    archiveModal.addEventListener('click', (e) => { if (e.target === archiveModal) hideArchiveModal(); });
+    confirmArchiveBtn.addEventListener('click', async () => {
+      if (projectIdToArchive) {
+        try {
+          const response = await fetch('/api/projects/update', {
+              method: 'PATCH',
+              headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+              body: JSON.stringify({ id: projectIdToArchive, archived: true })
+          });
+          if (response.ok) {
+              window.location.href = '/crs/archived-projects';
+          } else { throw new Error("Failed to archive"); }
+        } catch (error) { 
+            console.error("Error archiving project: ", error); 
+            alert('حدث خطأ أثناء أرشفة المشروع.');
+        }
+        hideArchiveModal();
+      }
+    });
+
+    // --- EDIT PROJECT LOGIC ---
+    function openEditModal(project) {
+      projectNameInput.value = project.projectName || '';
+      projectAddressInput.value = project.projectAddress || '';
+      
+      currentSupervisorsList.innerHTML = '';
+      (project.supervisors || []).forEach(supervisor => {
+          currentSupervisorsList.insertAdjacentHTML('beforeend', createSupervisorItemHTML(supervisor.id, supervisor.name));
+      });
+
+      updateAddSupervisorDropdown();
+      showModal(editModal);
+    }
+
+    function createSupervisorItemHTML(id, name) {
+      return `
+        <div class="supervisor-item" data-id="${id}" data-name="${name}">
+          <span>${name}</span>
+          <button type="button" class="btn-delete-supervisor" data-id="${id}">حذف</button>
+        </div>
+      `;
+    }
+
+    currentSupervisorsList.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-delete-supervisor')) {
+            e.target.closest('.supervisor-item').remove();
+            updateAddSupervisorDropdown();
+        }
+    });
+
+    function updateAddSupervisorDropdown() {
+      const currentIds = Array.from(currentSupervisorsList.children).map(item => item.dataset.id);
+      const availableSupervisors = allSupervisors.filter(s => !currentIds.includes(s.id));
+      addSupervisorSelect.innerHTML = '<option value="">اختر مشرفًا...</option>' + 
+                                     availableSupervisors.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+      addSupervisorBtn.disabled = availableSupervisors.length === 0;
+    }
+
+    addSupervisorBtn.addEventListener('click', () => {
+        const selectedId = addSupervisorSelect.value;
+        if (!selectedId) return;
+        const supervisor = allSupervisors.find(s => s.id === selectedId);
+        if (supervisor) {
+            currentSupervisorsList.insertAdjacentHTML('beforeend', createSupervisorItemHTML(supervisor.id, supervisor.name));
+            updateAddSupervisorDropdown();
+        }
+    });
+
+    function hideEditModal() { hideModal(editModal); projectIdToEdit = null; editForm.reset(); currentSupervisorsList.innerHTML = ''; }
+    cancelEditBtn.addEventListener('click', hideEditModal);
+    editModal.addEventListener('click', (e) => { if (e.target === editModal) hideEditModal(); });
+
+    editForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!projectIdToEdit) return;
+
+      const finalSupervisorIds = Array.from(currentSupervisorsList.children).map(item => item.dataset.id);
+
+      try {
+        const response = await fetch('/api/projects/update', {
+            method: 'PATCH',
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({
+                id: projectIdToEdit,
+                projectName: projectNameInput.value,
+                projectAddress: projectAddressInput.value,
+                supervisorIds: finalSupervisorIds
+            })
+        });
+        if (response.ok) {
+            hideEditModal();
+            fetchProjects();
+        } else {
+            throw new Error("Failed to update project");
+        }
+      } catch (error) { 
+          console.error("Error updating project: ", error); 
+          alert('Failed to save changes.'); 
+      }
+    });
+
+    // --- INITIALIZATION ---
+    fetchProjects();
+    fetchSupervisors();
+    fetchInstallmentNotifications();
+  }
+</script>
